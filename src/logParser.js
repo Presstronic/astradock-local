@@ -67,6 +67,12 @@ function pickValue(line, patterns) {
   return null;
 }
 
+function pickBracketValue(line, key) {
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = line.match(new RegExp(`\\b${escapedKey}\\[([^\\]]+)\\]`, 'i'));
+  return match ? cleanValue(match[1]) : null;
+}
+
 function cleanValue(value) {
   return String(value)
     .trim()
@@ -81,7 +87,8 @@ function extractShardInfoFromLine(line) {
     /\bShardId\b\s*[:=]\s*(?<value>[A-Za-z0-9_.:-]+)/i,
     /\bshard_id\b["'\s:=]+(?<value>[A-Za-z0-9_.:-]+)/i,
     /\bshardId\b["'\s:=]+(?<value>[A-Za-z0-9_.:-]+)/i,
-    /\bshard\b\s*[:=]\s*(?<value>[A-Za-z0-9_.:-]+)/i
+    /\bshard\b\s*[:=]\s*(?<value>[A-Za-z0-9_.:-]+)/i,
+    /\bshard\[(?<value>[A-Za-z0-9_.:-]+)\]/i
   ]);
 
   const shardName = pickValue(line, [
@@ -104,6 +111,155 @@ function extractShardInfoFromLine(line) {
 
   if (!shardId && !shardName) return null;
   return { shardId, shardName, region, build };
+}
+
+function extractServerJoinFromLine(line) {
+  if (!/<Join PU>/i.test(line)) return null;
+
+  return {
+    eventType: 'server_join',
+    eventLabel: 'Server Join',
+    address: pickBracketValue(line, 'address'),
+    port: pickBracketValue(line, 'port'),
+    shardId: pickBracketValue(line, 'shard'),
+    locationId: pickBracketValue(line, 'locationId')
+  };
+}
+
+function isServerLeaveLine(line) {
+  return /\b(disconnect|disconnected|connection lost|leaving server|leave pu|session ended|logout|quit)\b/i.test(line);
+}
+
+function extractUserInfoFromLine(line, targetUsername = '') {
+  const username = pickValue(line, [
+    /\b(?:username|user_name|accountName|account_name|displayName|display_name|nickname|handle|playerName|player_name)\b\s*[:=]\s*(?<value>[A-Za-z0-9_.-]+)/i,
+    /"(?:(?:user|player|account)(?:name|Name)|handle)"\s*:\s*"(?<value>[^"]+)"/i
+  ]);
+
+  const userId = pickValue(line, [
+    /\b(?<!shard)(?:userId|user_id|accountId|account_id|playerId|player_id|citizenId|citizen_id)\b\s*[:=]\s*(?<value>[A-Za-z0-9_.:-]+)/i,
+    /"(?:(?:user|account|player|citizen)(?:Id|ID)|(?:user|account|player|citizen)_id)"\s*:\s*"?(?<value>[A-Za-z0-9_.:-]+)/i
+  ]);
+
+  const normalizedTarget = targetUsername.trim().toLowerCase();
+  const mentionsTarget = normalizedTarget
+    ? line.toLowerCase().includes(normalizedTarget)
+    : false;
+
+  return {
+    username: username || (mentionsTarget ? targetUsername.trim() : null),
+    userId,
+    mentionsTarget
+  };
+}
+
+function summarizeAction(line) {
+  const cleaned = line
+    .replace(/^<[^>]+>\s*/, '')
+    .replace(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?\s*/, '')
+    .trim();
+
+  return cleaned.length > 140 ? `${cleaned.slice(0, 137)}...` : cleaned || 'Log entry';
+}
+
+function parseUserActions(logText, options = {}) {
+  const username = String(options.username || '').trim();
+  const knownUserIds = new Set(
+    []
+      .concat(options.userId || [])
+      .filter(Boolean)
+      .map((value) => String(value).trim())
+  );
+  const lines = logText.split(/\r?\n/);
+  const actions = [];
+  const sessions = [];
+  let currentSession = null;
+  let lastTimestamp = null;
+
+  lines.forEach((line, index) => {
+    const timestamp = parseLogTimestamp(line);
+    if (timestamp) lastTimestamp = timestamp;
+
+    const serverJoin = extractServerJoinFromLine(line);
+    if (serverJoin) {
+      if (currentSession) {
+        currentSession.endedAt = timestamp || lastTimestamp;
+        currentSession.endLineNumber = index;
+      }
+
+      currentSession = {
+        id: `session-${index + 1}-${serverJoin.shardId || 'unknown'}`,
+        eventType: 'server_join',
+        shardId: serverJoin.shardId,
+        address: serverJoin.address,
+        port: serverJoin.port,
+        locationId: serverJoin.locationId,
+        startedAt: timestamp || lastTimestamp,
+        startLineNumber: index + 1,
+        endedAt: null,
+        endLineNumber: null,
+        actionCount: 0
+      };
+      sessions.push(currentSession);
+
+      actions.push({
+        id: `${index}-server-join`,
+        eventType: 'server_join',
+        eventLabel: 'Server Join',
+        sessionId: currentSession.id,
+        lineNumber: index + 1,
+        timestamp: timestamp || lastTimestamp,
+        username: username || null,
+        userId: knownUserIds.values().next().value || null,
+        shardId: serverJoin.shardId,
+        address: serverJoin.address,
+        port: serverJoin.port,
+        locationId: serverJoin.locationId,
+        action: `Joined ${serverJoin.shardId || 'unknown shard'} at ${serverJoin.address || 'unknown address'}:${serverJoin.port || '?'}`,
+        rawLine: line.trim()
+      });
+      return;
+    }
+
+    if (currentSession && isServerLeaveLine(line)) {
+      currentSession.endedAt = timestamp || lastTimestamp;
+      currentSession.endLineNumber = index + 1;
+      currentSession = null;
+    }
+
+    const userInfo = extractUserInfoFromLine(line, username);
+    if (userInfo.mentionsTarget && userInfo.userId) knownUserIds.add(userInfo.userId);
+
+    const matchesUsername = username ? line.toLowerCase().includes(username.toLowerCase()) : false;
+    const matchedUserId = Array.from(knownUserIds).find((userId) => line.includes(userId));
+    const shouldInclude = matchesUsername || Boolean(matchedUserId);
+
+    if (!shouldInclude) return;
+    if (userInfo.userId) knownUserIds.add(userInfo.userId);
+
+    actions.push({
+      id: `${index}-${lastTimestamp || 'no-time'}`,
+      eventType: 'user_action',
+      eventLabel: 'User Action',
+      sessionId: currentSession?.id || null,
+      lineNumber: index + 1,
+      timestamp: timestamp || lastTimestamp,
+      username: userInfo.username || username || null,
+      userId: userInfo.userId || matchedUserId || null,
+      shardId: currentSession?.shardId || null,
+      action: summarizeAction(line),
+      rawLine: line.trim()
+    });
+
+    if (currentSession) currentSession.actionCount += 1;
+  });
+
+  return {
+    username,
+    userIds: Array.from(knownUserIds),
+    actions: actions.slice(-500).reverse(),
+    sessions: sessions.reverse()
+  };
 }
 
 function mergeContext(lines, centerIndex) {
@@ -189,14 +345,16 @@ function dedupeEntries(entries) {
   });
 }
 
-async function parseLogFile(logPath) {
+async function parseLogFile(logPath, options = {}) {
   const text = await fs.readFile(logPath, 'utf8');
   const stat = await fs.stat(logPath);
+  const userActivity = parseUserActions(text, options);
   return {
     logPath,
     scannedAt: new Date().toISOString(),
     modifiedAt: stat.mtime.toISOString(),
-    entries: parseShardEntries(text)
+    entries: parseShardEntries(text),
+    userActivity
   };
 }
 
@@ -204,5 +362,6 @@ module.exports = {
   findExistingLogPath,
   getDefaultLogCandidates,
   parseLogFile,
-  parseShardEntries
+  parseShardEntries,
+  parseUserActions
 };

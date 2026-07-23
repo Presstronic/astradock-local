@@ -1,8 +1,14 @@
 const state = {
   entries: [],
+  userActivity: { userIds: [], actions: [], sessions: [] },
   selectedLogPath: '',
   apiTemplate: localStorage.getItem('astradock.apiTemplate') || '',
+  username: localStorage.getItem('astradock.username') || '',
+  userId: localStorage.getItem('astradock.userId') || '',
   theme: localStorage.getItem('astradock.theme') || 'dark',
+  monitorActive: false,
+  eventFilter: 'all',
+  sessionFilter: 'all',
   search: ''
 };
 
@@ -10,8 +16,12 @@ const elements = {
   themeToggle: document.querySelector('#themeToggle'),
   searchInput: document.querySelector('#searchInput'),
   logPath: document.querySelector('#logPath'),
+  username: document.querySelector('#username'),
+  userId: document.querySelector('#userId'),
   chooseLog: document.querySelector('#chooseLog'),
   scanLog: document.querySelector('#scanLog'),
+  startMonitor: document.querySelector('#startMonitor'),
+  stopMonitor: document.querySelector('#stopMonitor'),
   refreshInline: document.querySelector('#refreshInline'),
   openFolder: document.querySelector('#openFolder'),
   apiTemplate: document.querySelector('#apiTemplate'),
@@ -22,6 +32,8 @@ const elements = {
   logStatusMetric: document.querySelector('#logStatusMetric'),
   pathCount: document.querySelector('#pathCount'),
   apiStatus: document.querySelector('#apiStatus'),
+  monitorStatus: document.querySelector('#monitorStatus'),
+  userIdentity: document.querySelector('#userIdentity'),
   tableSubtitle: document.querySelector('#tableSubtitle'),
   sideStatusTitle: document.querySelector('#sideStatusTitle'),
   sideStatusText: document.querySelector('#sideStatusText'),
@@ -32,8 +44,19 @@ const elements = {
   closeDetails: document.querySelector('#closeDetails'),
   apiResult: document.querySelector('#apiResult'),
   rawContext: document.querySelector('#rawContext'),
+  eventFilter: document.querySelector('#eventFilter'),
+  sessionFilter: document.querySelector('#sessionFilter'),
+  actionRows: document.querySelector('#actionRows'),
+  actionEmpty: document.querySelector('#actionEmpty'),
+  actionSubtitle: document.querySelector('#actionSubtitle'),
+  actionCount: document.querySelector('#actionCount'),
+  sessionRows: document.querySelector('#sessionRows'),
+  sessionEmpty: document.querySelector('#sessionEmpty'),
+  sessionCount: document.querySelector('#sessionCount'),
   quickScan: document.querySelector('#quickScan'),
   quickChoose: document.querySelector('#quickChoose'),
+  quickMonitor: document.querySelector('#quickMonitor'),
+  quickStop: document.querySelector('#quickStop'),
   quickFolder: document.querySelector('#quickFolder'),
   quickTheme: document.querySelector('#quickTheme')
 };
@@ -41,7 +64,10 @@ const elements = {
 async function boot() {
   document.body.dataset.theme = state.theme;
   elements.apiTemplate.value = state.apiTemplate;
+  elements.username.value = state.username;
+  elements.userId.value = state.userId;
   elements.apiStatus.textContent = state.apiTemplate ? 'On' : 'Off';
+  updateMonitorUi();
   setStatus('Detecting logs...');
 
   const defaults = await window.astradock.getDefaultLogs();
@@ -58,7 +84,7 @@ async function boot() {
 
   window.astradock.onLogChanged((result) => {
     applyScanResult(result);
-    setStatus('Updated from log change');
+    setStatus('Monitoring live');
   });
 
   window.astradock.onLogError((message) => setStatus(message, true));
@@ -82,25 +108,86 @@ async function scanSelectedLog() {
   }
 
   state.selectedLogPath = logPath;
+  saveUserFilter();
   setStatus('Scanning...');
 
   try {
-    const result = await window.astradock.scanLog(logPath);
+    const result = await window.astradock.scanLog(logPath, getMonitorOptions());
     applyScanResult(result);
-    await window.astradock.watchLog(logPath);
     setStatus(`Scanned ${formatDateTime(result.scannedAt)}`);
   } catch (error) {
     setStatus(error.message, true);
   }
 }
 
+async function startMonitor() {
+  const logPath = elements.logPath.value.trim();
+  saveUserFilter();
+
+  if (!logPath) {
+    setStatus('Choose a log file first', true);
+    return;
+  }
+
+  if (!state.username && !state.userId) {
+    setStatus('Enter username or user ID first', true);
+    return;
+  }
+
+  state.selectedLogPath = logPath;
+  setStatus('Starting monitor...');
+
+  try {
+    const result = await window.astradock.scanLog(logPath, getMonitorOptions());
+    applyScanResult(result);
+    await window.astradock.watchLog(logPath, getMonitorOptions());
+    state.monitorActive = true;
+    updateMonitorUi();
+    setStatus('Monitoring live');
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+async function stopMonitor() {
+  await window.astradock.unwatchLog();
+  state.monitorActive = false;
+  updateMonitorUi();
+  setStatus('Monitor stopped');
+}
+
+function getMonitorOptions() {
+  return {
+    username: state.username,
+    userId: state.userId
+  };
+}
+
+function saveUserFilter() {
+  state.username = elements.username.value.trim();
+  state.userId = elements.userId.value.trim();
+  localStorage.setItem('astradock.username', state.username);
+  localStorage.setItem('astradock.userId', state.userId);
+  updateMonitorUi();
+}
+
 function applyScanResult(result) {
   state.entries = result.entries || [];
+  state.userActivity = result.userActivity || { userIds: [], actions: [], sessions: [] };
+  if (!state.userId && state.userActivity.userIds?.length) {
+    state.userId = state.userActivity.userIds[0];
+    elements.userId.value = state.userId;
+    localStorage.setItem('astradock.userId', state.userId);
+  }
   elements.summary.textContent = String(state.entries.length);
   elements.tableSubtitle.textContent = `${state.entries.length} unique shard${state.entries.length === 1 ? '' : 's'} found`;
   elements.sideStatusTitle.textContent = 'Log monitor';
   elements.sideStatusText.textContent = state.entries.length ? 'Shard data available' : 'No shard entries found';
   renderRows();
+  renderSessionOptions();
+  renderActions();
+  renderSessions();
+  updateMonitorUi();
 }
 
 function renderRows() {
@@ -129,6 +216,85 @@ function renderRows() {
     `;
     elements.shardRows.append(row);
   });
+}
+
+function renderActions() {
+  const actions = filterActions();
+  elements.actionRows.innerHTML = '';
+  elements.actionEmpty.hidden = actions.length > 0;
+  elements.actionCount.textContent = String(actions.length);
+  elements.actionSubtitle.textContent = state.username || state.userId
+    ? `Showing log entries matching ${state.username || state.userId}`
+    : 'Set a username or user ID to filter log actions';
+
+  actions.forEach((action) => {
+    const row = document.createElement('tr');
+    if (action.eventType === 'server_join') row.classList.add('server-join-row');
+    row.innerHTML = `
+      <td>${escapeHtml(formatDateTime(action.timestamp) || '-')}</td>
+      <td><span class="event-pill ${action.eventType === 'server_join' ? 'join' : ''}">${escapeHtml(action.eventLabel || 'User Action')}</span></td>
+      <td>${escapeHtml(action.shardId || '-')}</td>
+      <td>${escapeHtml(action.username || '-')}</td>
+      <td>${escapeHtml(action.userId || '-')}</td>
+      <td>${escapeHtml(action.action || action.rawLine || '-')}</td>
+      <td>${action.lineNumber}</td>
+    `;
+    elements.actionRows.append(row);
+  });
+}
+
+function filterActions() {
+  return (state.userActivity.actions || []).filter((action) => {
+    const matchesEvent = state.eventFilter === 'all' || action.eventType === state.eventFilter;
+    const matchesSession = state.sessionFilter === 'all' || action.sessionId === state.sessionFilter;
+    return matchesEvent && matchesSession;
+  });
+}
+
+function renderSessionOptions() {
+  const selected = state.sessionFilter;
+  elements.sessionFilter.innerHTML = '<option value="all">All sessions</option>';
+  for (const session of state.userActivity.sessions || []) {
+    const option = document.createElement('option');
+    option.value = session.id;
+    option.textContent = `${session.shardId || 'Unknown shard'} / ${formatDateTime(session.startedAt) || 'unknown time'}`;
+    elements.sessionFilter.append(option);
+  }
+  elements.sessionFilter.value = Array.from(elements.sessionFilter.options).some((option) => option.value === selected)
+    ? selected
+    : 'all';
+  state.sessionFilter = elements.sessionFilter.value;
+}
+
+function renderSessions() {
+  const sessions = state.userActivity.sessions || [];
+  elements.sessionRows.innerHTML = '';
+  elements.sessionEmpty.hidden = sessions.length > 0;
+  elements.sessionCount.textContent = String(sessions.length);
+
+  sessions.forEach((session) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${escapeHtml(formatDateTime(session.startedAt) || '-')}</td>
+      <td><strong>${escapeHtml(session.shardId || 'Unknown')}</strong></td>
+      <td>${escapeHtml([session.address, session.port].filter(Boolean).join(':') || '-')}</td>
+      <td>${escapeHtml(session.locationId || '-')}</td>
+      <td>${session.actionCount}</td>
+      <td><button data-session-id="${escapeHtml(session.id)}" class="small">View</button></td>
+    `;
+    elements.sessionRows.append(row);
+  });
+}
+
+function updateMonitorUi() {
+  elements.monitorStatus.textContent = state.monitorActive ? 'Live' : 'Off';
+  elements.userIdentity.textContent = state.userId
+    ? `${state.username || 'User'} / ${state.userId}`
+    : state.username || 'No username set';
+  elements.startMonitor.disabled = state.monitorActive;
+  elements.stopMonitor.disabled = !state.monitorActive;
+  elements.quickMonitor.disabled = state.monitorActive;
+  elements.quickStop.disabled = !state.monitorActive;
 }
 
 function filterEntries() {
@@ -193,6 +359,8 @@ elements.chooseLog.addEventListener('click', async () => {
 });
 
 elements.scanLog.addEventListener('click', scanSelectedLog);
+elements.startMonitor.addEventListener('click', startMonitor);
+elements.stopMonitor.addEventListener('click', stopMonitor);
 elements.refreshInline.addEventListener('click', scanSelectedLog);
 elements.openFolder.addEventListener('click', () => window.astradock.openLogFolder(elements.logPath.value.trim()));
 elements.saveApi.addEventListener('click', () => {
@@ -205,14 +373,33 @@ elements.searchInput.addEventListener('input', () => {
   state.search = elements.searchInput.value;
   renderRows();
 });
+elements.eventFilter.addEventListener('change', () => {
+  state.eventFilter = elements.eventFilter.value;
+  renderActions();
+});
+elements.sessionFilter.addEventListener('change', () => {
+  state.sessionFilter = elements.sessionFilter.value;
+  renderActions();
+});
+elements.username.addEventListener('change', saveUserFilter);
+elements.userId.addEventListener('change', saveUserFilter);
 elements.themeToggle.addEventListener('click', toggleTheme);
 elements.quickTheme.addEventListener('click', toggleTheme);
 elements.quickScan.addEventListener('click', scanSelectedLog);
 elements.quickChoose.addEventListener('click', () => elements.chooseLog.click());
+elements.quickMonitor.addEventListener('click', startMonitor);
+elements.quickStop.addEventListener('click', stopMonitor);
 elements.quickFolder.addEventListener('click', () => window.astradock.openLogFolder(elements.logPath.value.trim()));
 elements.shardRows.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-index]');
   if (button) inspectEntry(Number(button.dataset.index));
+});
+elements.sessionRows.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-session-id]');
+  if (!button) return;
+  state.sessionFilter = button.dataset.sessionId;
+  elements.sessionFilter.value = state.sessionFilter;
+  renderActions();
 });
 elements.closeDetails.addEventListener('click', () => {
   elements.apiResult.textContent = 'Inspect a shard to fetch configured API data.';

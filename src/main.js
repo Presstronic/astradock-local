@@ -10,6 +10,7 @@ const {
 let mainWindow;
 let watchedLogPath = null;
 let watcher = null;
+let watchOptions = {};
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -59,22 +60,31 @@ ipcMain.handle('logs:choose', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('logs:scan', async (_event, logPath) => parseLogFile(logPath));
+ipcMain.handle('logs:scan', async (_event, logPath, options = {}) => parseLogFile(logPath, options));
 
-ipcMain.handle('logs:watch', async (_event, logPath) => {
+ipcMain.handle('logs:watch', async (_event, logPath, options = {}) => {
   if (watcher) watcher.close();
   watchedLogPath = logPath;
+  watchOptions = options;
 
   watcher = fs.watch(logPath, { persistent: false }, async () => {
     if (!mainWindow || watchedLogPath !== logPath) return;
     try {
-      const result = await parseLogFile(logPath);
+      const result = await parseLogFile(logPath, watchOptions);
       mainWindow.webContents.send('logs:changed', result);
     } catch (error) {
       mainWindow.webContents.send('logs:error', error.message);
     }
   });
 
+  return true;
+});
+
+ipcMain.handle('logs:unwatch', async () => {
+  if (watcher) watcher.close();
+  watcher = null;
+  watchedLogPath = null;
+  watchOptions = {};
   return true;
 });
 

@@ -66,6 +66,8 @@
             </div>
             <div class="head-actions">
               <button id="scanLog" class="ghost">Scan log</button>
+              <button id="stopMonitor" class="ghost danger">Stop monitor</button>
+              <button id="startMonitor" class="primary">Start monitor</button>
               <button id="chooseLog" class="primary">Choose log</button>
             </div>
           </div>
@@ -83,6 +85,13 @@
               <div class="field-row">
                 <input id="apiTemplate" type="text" spellcheck="false" placeholder="https://api.example.com/shards/{shardId}" />
                 <button id="saveApi" title="Save API">✓</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="username">Username filter</label>
+              <div class="field-row">
+                <input id="username" type="text" spellcheck="false" placeholder="Your Star Citizen handle" />
+                <input id="userId" type="text" spellcheck="false" placeholder="User ID, if known" />
               </div>
             </div>
           </section>
@@ -111,6 +120,12 @@
               <span>API enrichment</span>
               <strong id="apiStatus">Off</strong>
               <p>Optional third-party lookup</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon green">◎</div>
+              <span>Monitor mode</span>
+              <strong id="monitorStatus">Off</strong>
+              <p id="userIdentity">No username set</p>
             </article>
           </section>
 
@@ -152,7 +167,7 @@
               </div>
               <ul id="candidateList"></ul>
             </article>
-          </div>
+          </section>
 
           <section class="bottom-grid">
             <article class="card details" id="details">
@@ -179,10 +194,79 @@
               <div class="quick-grid">
                 <button id="quickScan">▤ Scan log</button>
                 <button id="quickChoose">⌕ Choose file</button>
+                <button id="quickMonitor">◎ Start monitor</button>
+                <button id="quickStop">□ Stop monitor</button>
                 <button id="quickFolder">↗ Open folder</button>
                 <button id="quickTheme">◐ Theme</button>
               </div>
             </article>
+          </section>
+
+          <section class="card action-card">
+            <div class="card-head">
+              <div>
+                <h3>Filtered Log Actions</h3>
+                <p id="actionSubtitle">Start monitor to show entries for your username or user ID</p>
+              </div>
+              <div class="action-tools">
+                <select id="eventFilter">
+                  <option value="all">All events</option>
+                  <option value="server_join">Server Join</option>
+                  <option value="user_action">User Actions</option>
+                </select>
+                <select id="sessionFilter">
+                  <option value="all">All sessions</option>
+                </select>
+                <strong id="actionCount">0</strong>
+              </div>
+            </div>
+            <div class="table-wrap action-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>Shard</th>
+                    <th>Actor</th>
+                    <th>User ID</th>
+                    <th>Action</th>
+                    <th>Line</th>
+                  </tr>
+                </thead>
+                <tbody id="actionRows"></tbody>
+              </table>
+              <div class="empty" id="actionEmpty">
+                No matching log actions yet.
+              </div>
+            </div>
+          </section>
+
+          <section class="card session-card">
+            <div class="card-head">
+              <div>
+                <h3>Server Sessions</h3>
+                <p>Each Join PU window, from join until leave or next join</p>
+              </div>
+              <strong id="sessionCount">0</strong>
+            </div>
+            <div class="table-wrap session-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Started</th>
+                    <th>Shard</th>
+                    <th>Address</th>
+                    <th>Location</th>
+                    <th>User Actions</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="sessionRows"></tbody>
+              </table>
+              <div class="empty" id="sessionEmpty">
+                No server join events found yet.
+              </div>
+            </div>
           </section>
         </section>
       </main>
