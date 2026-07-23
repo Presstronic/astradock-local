@@ -1,0 +1,45 @@
+{
+  "name": "astradock-local",
+  "version": "0.1.0",
+  "description": "Local Star Citizen log companion for recent shard history.",
+  "main": "src/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "build": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "star-citizen",
+    "electron",
+    "logs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "local.astradock.shards",
+    "productName": "AstraDock Local",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  }
+}

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AstraDock Local</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-theme="dark">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="mark">A</div>
+          <div>
+            <h1>ASTRADOCK</h1>
+            <p>LOCAL APPLICATION</p>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <a class="active" href="#"><span>▦</span> Dashboard</a>
+          <div class="nav-label">Operations</div>
+          <a href="#"><span>⌁</span> Shards</a>
+          <a href="#"><span>◈</span> Sessions</a>
+          <a href="#"><span>△</span> Alerts <b>0</b></a>
+          <a href="#"><span>▤</span> Logs</a>
+          <div class="nav-label">Configuration</div>
+          <a href="#"><span>◎</span> API feeds</a>
+          <a href="#"><span>⚙</span> Settings</a>
+        </nav>
+
+        <div class="system-card">
+          <span class="pulse"></span>
+          <div>
+            <strong id="sideStatusTitle">System status</strong>
+            <small id="sideStatusText">Waiting for log scan</small>
+          </div>
+          <span class="chevron">›</span>
+        </div>
+      </aside>
+
+      <main>
+        <header class="commandbar">
+          <button class="icon-button" title="Menu">☰</button>
+          <div class="searchbox">
+            <span>⌕</span>
+            <input id="searchInput" type="search" placeholder="Search shards, regions, logs..." />
+            <kbd>⌘K</kbd>
+          </div>
+          <div class="command-spacer"></div>
+          <button id="themeToggle" class="icon-button" title="Toggle theme">◐</button>
+          <div class="profile">
+            <div class="avatar">SC</div>
+            <div>
+              <strong>Local Pilot</strong>
+              <small>Shard Monitor</small>
+            </div>
+          </div>
+        </header>
+
+        <section class="workspace">
+          <div class="page-head">
+            <div>
+              <h2>DASHBOARD</h2>
+              <p>Recent Star Citizen shard activity from your local game log</p>
+            </div>
+            <div class="head-actions">
+              <button id="scanLog" class="ghost">Scan log</button>
+              <button id="chooseLog" class="primary">Choose log</button>
+            </div>
+          </div>
+
+          <section class="control-strip">
+            <div class="field wide">
+              <label for="logPath">Log file</label>
+              <div class="field-row">
+                <input id="logPath" type="text" spellcheck="false" />
+                <button id="openFolder" title="Open folder">↗</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="apiTemplate">Enrichment URL</label>
+              <div class="field-row">
+                <input id="apiTemplate" type="text" spellcheck="false" placeholder="https://api.example.com/shards/{shardId}" />
+                <button id="saveApi" title="Save API">✓</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="metrics">
+            <article class="metric-card">
+              <div class="metric-icon green">⌁</div>
+              <span>Shard history</span>
+              <strong id="summary">0</strong>
+              <p>Unique shards found</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon red">△</div>
+              <span>Log status</span>
+              <strong id="logStatusMetric">Idle</strong>
+              <p id="status">Choose a log file</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon gray">▤</div>
+              <span>Detected paths</span>
+              <strong id="pathCount">0</strong>
+              <p>Common locations checked</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon amber">◈</div>
+              <span>API enrichment</span>
+              <strong id="apiStatus">Off</strong>
+              <p>Optional third-party lookup</p>
+            </article>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="card shard-card">
+              <div class="card-head">
+                <div>
+                  <h3>Shard Status</h3>
+                  <p id="tableSubtitle">No log scanned yet</p>
+                </div>
+                <button class="link-button" id="refreshInline">Refresh</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Shard</th>
+                      <th>Region</th>
+                      <th>Build</th>
+                      <th>Last seen</th>
+                      <th>Line</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="shardRows"></tbody>
+                </table>
+                <div class="empty" id="emptyState">
+                  Choose your Star Citizen <strong>game.log</strong> and scan again.
+                </div>
+              </div>
+            </article>
+
+            <article class="card path-card">
+              <div class="card-head">
+                <div>
+                  <h3>Checked Paths</h3>
+                  <p>Auto-detection candidates</p>
+                </div>
+              </div>
+              <ul id="candidateList"></ul>
+            </article>
+          </div>
+
+          <section class="bottom-grid">
+            <article class="card details" id="details">
+              <div class="details-head">
+                <div>
+                  <h3 id="detailsTitle">Shard details</h3>
+                  <p>Raw log context and API result</p>
+                </div>
+                <button id="closeDetails" title="Close">x</button>
+              </div>
+              <div class="details-grid">
+                <pre id="apiResult">Inspect a shard to fetch configured API data.</pre>
+                <pre id="rawContext">Raw log context will appear here.</pre>
+              </div>
+            </article>
+
+            <article class="card quick-actions">
+              <div class="card-head">
+                <div>
+                  <h3>Quick Actions</h3>
+                  <p>Local workflow shortcuts</p>
+                </div>
+              </div>
+              <div class="quick-grid">
+                <button id="quickScan">▤ Scan log</button>
+                <button id="quickChoose">⌕ Choose file</button>
+                <button id="quickFolder">↗ Open folder</button>
+                <button id="quickTheme">◐ Theme</button>
+              </div>
+            </article>
+          </section>
+        </section>
+      </main>
+    </div>
+    <script src="./renderer.js"></script>
+  </body>
+</html>
