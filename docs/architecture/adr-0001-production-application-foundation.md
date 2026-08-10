@@ -512,14 +512,14 @@ These costs are accepted because they directly support the product's reliability
 
 - The build must package main, preload, runtime utility-process, renderer, schemas, migrations, and approved assets without development or private evidence.
 - Utility-process entrypoints and any future native persistence module must be included and verified in installed artifacts.
-- Exact Electron, Node, Chromium, operating-system, architecture, signing, update, and artifact support remain issues #4 and #45 decisions.
+- Operating-system, architecture, artifact, signing-gate, update, and release-validation policy is settled by [`ADR-0002`](adr-0002-mvp-platform-packaging-and-update-policy.md). Exact implementation versions and release automation remain delivery decisions under issues #45 and #50.
 - Production dependencies must be pinned through the lockfile and reviewed for maintenance, license, security, and offline packaging behavior.
 
 ## Deferred decisions
 
 This ADR intentionally does not settle:
 
-- Supported operating systems, architectures, installers, signing, or update policy: issue #4.
+- Exact packaging and updater dependency versions and CI integration, within the policy established by [`ADR-0002`](adr-0002-mvp-platform-packaging-and-update-policy.md): issues #45 and #50.
 - Persistence technology, logical schema, retention defaults, migrations, and corruption recovery: issue #5.
 - Numeric latency, resource, backlog, recovery, and soak objectives: issue #6.
 - Component foundation, packaged typography/icons, and unfinished interaction acceptance details: design-system follow-up; semantic colors are settled by the supplied design system.
