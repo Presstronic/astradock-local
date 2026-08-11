@@ -522,13 +522,11 @@ The application shall:
 - Support diagnosis without requiring renderer state.
 - Avoid storing unnecessary raw sensitive data.
 
-### 9.2 Open decisions
+### 9.2 Persistence decision — Settled
 
-- Database/storage engine.
-- Default and maximum retention.
-- Raw-evidence retention and encryption.
-- Export, deletion, and migration behavior.
-- Compaction/snapshot strategy for long histories.
+The MVP local store uses encrypted SQLite, main-process repository boundaries, 30-day telemetry retention, and a 250 MB soft cap. Storage architecture must support sensitive-evidence deletion, current-environment telemetry deletion, all-telemetry deletion, and reset-all-app-data semantics, although the MVP UI may initially expose only all-telemetry deletion and reset-all-app-data controls.
+
+See [`ADR-0003`](architecture/adr-0003-mvp-local-persistence-engine-and-retention-model.md).
 
 ## 10. Rules and assertions
 
@@ -1068,15 +1066,14 @@ Runtime parsing, rules, persistence, and synchronization must not depend on rend
 2. MVP, Phase 1, and Phase 2 scope and explicit non-goals.
 3. Initial canonical event set beyond the proven telemetry spine.
 4. Party-history retention and whether social data may ever synchronize.
-5. Local persistence engine and retention controls.
-6. Rule/assertion authoring model and sandbox.
-7. Station API, authentication, device identity, schemas, and retention.
-8. First official datasets to mine and publish.
-9. Extraction-tool distribution and update model.
-10. Packaging implementation details not settled by [`ADR-0002`](architecture/adr-0002-mvp-platform-packaging-and-update-policy.md), including exact tool versions and CI integration.
-11. Performance/reliability service objectives.
-12. Product analytics and diagnostics policy.
-13. Design-system delivery and future UI information architecture.
+5. Rule/assertion authoring model and sandbox.
+6. Station API, authentication, device identity, schemas, and retention.
+7. First official datasets to mine and publish.
+8. Extraction-tool distribution and update model.
+9. Packaging implementation details not settled by [`ADR-0002`](architecture/adr-0002-mvp-platform-packaging-and-update-policy.md), including exact tool versions and CI integration.
+10. Performance/reliability service objectives.
+11. Product analytics and diagnostics policy.
+12. Design-system delivery and future UI information architecture.
 
 ## 22. Risks and mitigations
 

@@ -33,7 +33,7 @@ The foundation must support:
 - Strict compile-time types and runtime validation at every untrusted or cross-process boundary.
 - Deterministic domain tests without launching Electron or React.
 - Accessible, dense, responsive UI implementation from the approved design direction.
-- Durable storage and replay without coupling the application to a database choice before issue #5.
+- Durable storage and replay through the persistence boundary later selected by [`ADR-0003`](adr-0003-mvp-local-persistence-engine-and-retention-model.md).
 - Versioned canonical events without preempting the event-contract work in issue #12.
 - Replaceable infrastructure and UI dependencies with focused integration points.
 - A migration that can be delivered and reviewed in coherent vertical increments.
@@ -243,7 +243,7 @@ Circular dependencies and imports that bypass these boundaries are prohibited. F
 
 ## Persistence boundary
 
-Issue #3 determines ownership and dependency direction; issue #5 selects the persistence engine and retention model.
+Issue #3 determines ownership and dependency direction; [`ADR-0003`](adr-0003-mvp-local-persistence-engine-and-retention-model.md) selects the persistence engine and retention model.
 
 The application layer will define focused ports for at least:
 
@@ -253,7 +253,7 @@ The application layer will define focused ports for at least:
 - Preferences load and update.
 - Migration and health reporting at the composition boundary.
 
-Parsers, projections, and React components must not execute storage-specific queries or depend on database schemas. Transactions, indexes, migrations, durability, corruption recovery, compaction, native-module risk, file locking, and retention defaults remain issue #5 decisions.
+Parsers, projections, and React components must not execute storage-specific queries or depend on database schemas. Transactions, indexes, migrations, durability, corruption recovery, compaction, native-module risk, file locking, and retention defaults follow [`ADR-0003`](adr-0003-mvp-local-persistence-engine-and-retention-model.md).
 
 ## Renderer and design-system boundary
 
@@ -290,7 +290,7 @@ The supplied design-system archive settles the semantic palette and the design r
 
 ### Persistence failure
 
-- The runtime follows the durability policy selected in issue #5.
+- The runtime follows the durability policy selected in [`ADR-0003`](adr-0003-mvp-local-persistence-engine-and-retention-model.md).
 - It must never report an event as durably accepted when the required commit failed.
 - Disk-full, permission, locking, migration, and corruption states produce actionable, sanitized health information.
 
@@ -419,7 +419,7 @@ Each implementation increment must preserve a buildable, reviewable repository a
 3. A compatible profile deterministically recognizes a supported record.
 4. The extractor produces an untrusted candidate value set.
 5. Runtime validation creates a versioned canonical event with source and ingestion timestamps, environment/build identity, provenance, confidence, parser version, and privacy classification.
-6. The event store port durably appends the event according to issue #5 semantics.
+6. The event store port durably appends the event according to [`ADR-0003`](adr-0003-mvp-local-persistence-engine-and-retention-model.md) semantics.
 7. Relevant projection functions consume the committed event.
 8. The runtime emits a bounded renderer-safe change or invalidation through its process contract.
 9. Main routes the approved message to active subscribers.
@@ -520,7 +520,7 @@ These costs are accepted because they directly support the product's reliability
 This ADR intentionally does not settle:
 
 - Exact packaging and updater dependency versions and CI integration, within the policy established by [`ADR-0002`](adr-0002-mvp-platform-packaging-and-update-policy.md): issues #45 and #50.
-- Persistence technology, logical schema, retention defaults, migrations, and corruption recovery: issue #5.
+- Persistence driver selection and implementation details under the policy established by [`ADR-0003`](adr-0003-mvp-local-persistence-engine-and-retention-model.md).
 - Numeric latency, resource, backlog, recovery, and soak objectives: issue #6.
 - Component foundation, packaged typography/icons, and unfinished interaction acceptance details: design-system follow-up; semantic colors are settled by the supplied design system.
 - Fixture corpus and evidence acceptance: issues #8–#11.
