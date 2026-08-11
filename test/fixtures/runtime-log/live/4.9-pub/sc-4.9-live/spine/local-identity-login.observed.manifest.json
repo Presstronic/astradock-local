@@ -21,7 +21,7 @@
   "expectedCanonicalEvents": [
     {
       "eventType": "LoginStarted",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["loginSessionId", "releaseChannel"],
@@ -33,7 +33,7 @@
     },
     {
       "eventType": "AccountAuthenticated",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["handle", "accountId"],
@@ -45,7 +45,7 @@
     },
     {
       "eventType": "IdentityObserved",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["characterName", "accountId", "characterGeid", "playerGeid", "nodeId", "clientSession"],

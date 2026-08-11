@@ -35,6 +35,7 @@ const PROVENANCE = new Set([
   'synthetic_edge_case',
   'unavailable_evidence_annotation'
 ]);
+const PROMOTED_CONTRACT_STATUS = 'runtime-event/v1';
 const EXPECTED_OBSERVED_EVENTS = new Set([
   'ClientBuildObserved',
   'ReleaseEnvironmentObserved',
@@ -201,6 +202,11 @@ function assertManifestShape(manifest, manifestPath) {
   for (const event of manifest.expectedCanonicalEvents) {
     assert.ok(event.eventType, `${manifestPath} eventType`);
     assert.ok(event.contractStatus, `${manifestPath} ${event.eventType} contractStatus`);
+    assert.equal(
+      event.contractStatus,
+      PROMOTED_CONTRACT_STATUS,
+      `${manifestPath} ${event.eventType} contractStatus must reference published runtime event contract`
+    );
     assert.ok(event.confidence, `${manifestPath} ${event.eventType} confidence`);
     assert.equal(event.provenance, 'observed', `${manifestPath} ${event.eventType} provenance`);
     assert.ok(Array.isArray(event.requiredPayloadFields), `${manifestPath} ${event.eventType} requiredPayloadFields`);

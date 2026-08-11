@@ -21,7 +21,7 @@
   "expectedCanonicalEvents": [
     {
       "eventType": "ClientBuildObserved",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["fileVersion", "productVersion", "branch", "changelist"],
@@ -35,7 +35,7 @@
     },
     {
       "eventType": "ReleaseEnvironmentObserved",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["releaseChannel", "environmentName", "config", "sourceLocation"],
@@ -49,7 +49,7 @@
     },
     {
       "eventType": "GameDataVersionObserved",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["gameVersion", "dataCoreVersion", "archetypeVersion", "componentVersion"],
@@ -68,6 +68,6 @@
     "sequence": ["ClientBuildObserved", "ReleaseEnvironmentObserved", "GameDataVersionObserved"],
     "notes": "Build and environment identity must be retained before any later runtime events are accepted."
   },
-  "knownLimitations": ["The exact canonical event schema is pending issue #12."],
+  "knownLimitations": ["Expected canonical events are aligned to runtime-event/v1; future build metadata may require an additive contract update."],
   "verificationNotes": "Future extractors should emit the three expected events and attach the same environment context to later events."
 }

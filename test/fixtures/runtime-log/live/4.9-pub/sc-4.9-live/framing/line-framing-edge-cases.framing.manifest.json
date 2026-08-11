@@ -20,7 +20,7 @@
   "expectedCanonicalEvents": [
     {
       "eventType": "PuJoinRequested",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["shard", "endpoint", "port", "locationId"],

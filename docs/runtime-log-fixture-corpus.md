@@ -51,7 +51,7 @@ Each manifest must record:
 - `correlation` and `knownLimitations`.
 - `verificationNotes` explaining how future parser tests should use the fixture.
 
-Canonical event payloads remain provisional until issue #12 finalizes event contracts. Manifests therefore name expected event types, confidence, provenance, required payload fields, and synthetic payload examples without freezing final schema details.
+Promoted canonical event payloads are governed by [`runtime-event/v1`](runtime-event-contracts.md). Manifests name expected event types, confidence, provenance, required payload fields, and synthetic payload examples so parser/profile work can validate against the published contract. Candidate event names in unavailable or non-event fixtures remain unpromoted evidence gates until a future contract version or registry update accepts them.
 
 ## Sanitization Protocol
 
