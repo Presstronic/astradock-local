@@ -4,6 +4,10 @@
   "description": "Local Star Citizen log companion for recent shard history.",
   "main": "src/main.js",
   "type": "commonjs",
+  "exports": {
+    ".": "./src/main.js",
+    "./runtime-events": "./src/contracts/runtimeEvents.js"
+  },
   "scripts": {
     "start": "electron .",
     "test": "node --test",
