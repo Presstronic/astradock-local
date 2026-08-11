@@ -111,6 +111,22 @@ const ISSUE_10_NEGATIVE_FIXTURES = new Set([
   'mission/mission-lifecycle-transitions.unavailable',
   'negative/mission-notification-ui-lifecycle.non-event'
 ]);
+const ISSUE_11_DEFERRED_DESTINATION_EVENTS = new Set([
+  'DestinationSet',
+  'DestinationChanged',
+  'DestinationCleared',
+  'TravelStarted',
+  'TravelArrived',
+  'TravelCancelled',
+  'TravelFailed',
+  'DestinationCurrentStateConfirmedEmpty'
+]);
+const ISSUE_11_NEGATIVE_FIXTURES = new Set([
+  'destination/destination-travel-transitions.unavailable',
+  'destination/place-name-destination-noise.non-event',
+  'destination/temporal-proximity-route-noise.non-event',
+  'negative/object-container-ship-navigation.non-event'
+]);
 
 const SENSITIVE_PATTERNS = [
   { name: 'ipv4 address', pattern: /\b(?:\d{1,3}\.){3}\d{1,3}\b/ },
@@ -410,6 +426,67 @@ test('issue 10 mission lifecycle evidence gates unsupported transitions', () => 
 
   for (const eventType of ISSUE_10_DEFERRED_MISSION_EVENTS) {
     assert.ok(deferredEvents.has(eventType), `missing deferred issue 10 event gate ${eventType}`);
+  }
+});
+
+test('issue 11 destination and travel evidence gates unsupported transitions', () => {
+  const evidenceMatrixPath = path.join(__dirname, '..', 'docs', 'destination-travel-evidence-matrix.md');
+  assertNoSensitivePatterns(evidenceMatrixPath);
+
+  const evidenceMatrix = fs.readFileSync(evidenceMatrixPath, 'utf8');
+  for (const requiredText of [
+    'Issue #11 evidence spike result',
+    'DestinationSet',
+    'DestinationChanged',
+    'DestinationCleared',
+    'TravelStarted',
+    'TravelArrived',
+    'TravelCancelled',
+    'TravelFailed',
+    'DestinationCurrentStateConfirmedEmpty',
+    'object-container',
+    'place-name',
+    'Temporal',
+    'unsupported',
+    'unknown',
+    'Privacy Review',
+    'Technology and Libraries'
+  ]) {
+    assert.ok(evidenceMatrix.includes(requiredText), `destination evidence matrix missing ${requiredText}`);
+  }
+
+  const relevantManifests = walkFiles(path.join(FIXTURE_ROOT, 'live', '4.9-pub', 'sc-4.9-live'))
+    .filter((file) => file.endsWith('.manifest.json'))
+    .map(readJson)
+    .filter((manifest) => ISSUE_11_NEGATIVE_FIXTURES.has(
+      manifest.fixtureId.replace('live/4.9-pub/sc-4.9-live/', '')
+    ));
+
+  const fixtureIds = new Set(relevantManifests.map((manifest) => (
+    manifest.fixtureId.replace('live/4.9-pub/sc-4.9-live/', '')
+  )));
+  const deferredEvents = new Set(relevantManifests.flatMap((manifest) => (
+    manifest.expectedNonEvents.map((event) => event.eventType)
+  )));
+  const promotedDestinationEvents = relevantManifests.flatMap((manifest) => (
+    manifest.expectedCanonicalEvents.filter((event) => (
+      event.eventType.startsWith('Destination') || event.eventType.startsWith('Travel')
+    ))
+  ));
+  const unavailableManifest = relevantManifests.find((manifest) => (
+    manifest.fixtureId.endsWith('/destination-travel-transitions.unavailable')
+  ));
+
+  for (const fixtureId of ISSUE_11_NEGATIVE_FIXTURES) {
+    assert.ok(fixtureIds.has(fixtureId), `missing issue 11 fixture ${fixtureId}`);
+  }
+
+  assert.ok(unavailableManifest, 'issue 11 unavailable destination/travel lifecycle annotation is required');
+  assert.equal(unavailableManifest.outcome, 'unavailable');
+  assert.equal(promotedDestinationEvents.length, 0, 'issue 11 must not promote destination or travel canonical events');
+
+  for (const eventType of ISSUE_11_DEFERRED_DESTINATION_EVENTS) {
+    assert.ok(deferredEvents.has(eventType), `missing deferred issue 11 event gate ${eventType}`);
   }
 });
 

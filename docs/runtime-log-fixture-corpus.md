@@ -93,6 +93,8 @@ Before approving a fixture PR, verify:
 | Party lifecycle gaps | `party/party-lifecycle-transitions.unavailable`; see [`party-lifecycle-evidence-matrix.md`](party-lifecycle-evidence-matrix.md) |
 | Mission lifecycle gaps | `mission/mission-lifecycle-transitions.unavailable`; see [`mission-lifecycle-evidence-matrix.md`](mission-lifecycle-evidence-matrix.md) |
 | Mission subsystem guards | `mission/mission-service-startup.non-event`, `mission/mission-giver-asset-failure.non-event`, `mission/tutorial-step-lifecycle.non-event` |
+| Destination/travel lifecycle gaps | `destination/destination-travel-transitions.unavailable`; see [`destination-travel-evidence-matrix.md`](destination-travel-evidence-matrix.md) |
+| Destination/travel false-positive guards | `destination/place-name-destination-noise.non-event`, `destination/temporal-proximity-route-noise.non-event`, `negative/object-container-ship-navigation.non-event` |
 | Jurisdiction/monitored-space/armistice | `zone/jurisdiction-monitored-armistice.observed` |
 | Disconnect/frontend return/clean quit | `spine/disconnect-frontend-clean-exit.observed` |
 | Failure and transition gaps | `spine/failure-transition-evidence.unavailable` |
@@ -100,7 +102,7 @@ Before approving a fixture PR, verify:
 | Framing and duplicate behavior | `framing/line-framing-edge-cases.framing`, `framing/duplicate-notification-lifecycle.framing` |
 | Environment isolation | `multi/4.9-pub/sc-4.9-cross-env/environment/live-ptu-identical-identifiers.isolation` |
 
-Future controlled captures should add separate issue-backed fixtures for the deferred party lifecycle actions in [`party-lifecycle-evidence-matrix.md`](party-lifecycle-evidence-matrix.md), the deferred mission lifecycle actions in [`mission-lifecycle-evidence-matrix.md`](mission-lifecycle-evidence-matrix.md), destination/travel, combat, ship lifecycle, trade/cargo, chat, organization presence, population, normal PU exit, server error, network loss, crash, and shard/server transition.
+Future controlled captures should add separate issue-backed fixtures for the deferred party lifecycle actions in [`party-lifecycle-evidence-matrix.md`](party-lifecycle-evidence-matrix.md), the deferred mission lifecycle actions in [`mission-lifecycle-evidence-matrix.md`](mission-lifecycle-evidence-matrix.md), the deferred destination/travel actions in [`destination-travel-evidence-matrix.md`](destination-travel-evidence-matrix.md), combat, ship lifecycle, trade/cargo, chat, organization presence, population, normal PU exit, server error, network loss, crash, and shard/server transition.
 
 ## Technology and Libraries
 

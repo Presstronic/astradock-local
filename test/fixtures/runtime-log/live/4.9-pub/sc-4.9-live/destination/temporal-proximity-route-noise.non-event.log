@@ -1,0 +1,4 @@
+<2026-08-09T19:20:00.000Z> <Input> Action name="starmap.open" actor="SYNTH_HANDLE_LOCAL"
+<2026-08-09T19:20:00.250Z> [QuantumTravel] Route object routeId=SYNTH_ROUTE_A FinalStop=SYNTH_LOCATION_B shipEntity=SYNTH_SHIP_ENTITY_REMOTE owner=unknown phase=SYNTH_PHASE_A
+<2026-08-09T19:20:00.500Z> <VehicleNavigation> Updated nav target="SYNTH_LOCATION_B" shipEntity=SYNTH_SHIP_ENTITY_REMOTE authority=remote_or_unknown
+<2026-08-09T19:20:01.000Z> <Input> Action name="starmap.close" actor="SYNTH_HANDLE_LOCAL"
