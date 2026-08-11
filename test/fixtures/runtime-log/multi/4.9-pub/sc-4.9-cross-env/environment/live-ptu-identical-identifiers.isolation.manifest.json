@@ -21,7 +21,7 @@
   "expectedCanonicalEvents": [
     {
       "eventType": "ReleaseEnvironmentObserved",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["environmentKey", "releaseChannel"],
@@ -33,7 +33,7 @@
     },
     {
       "eventType": "ReleaseEnvironmentObserved",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["environmentKey", "releaseChannel"],

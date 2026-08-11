@@ -21,7 +21,7 @@
   "expectedCanonicalEvents": [
     {
       "eventType": "PuJoinRequested",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["matchmakingRequestId", "shard", "endpoint", "port", "locationId"],
@@ -36,7 +36,7 @@
     },
     {
       "eventType": "GameServerConnectionEstablished",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["endpoint", "port", "nodeId", "playerGeid", "gamerules"],
@@ -51,7 +51,7 @@
     },
     {
       "eventType": "PuEntered",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["gamerules", "loadDurationSeconds"],

@@ -113,6 +113,25 @@ test('runtime events serialize and deserialize deterministically for persistence
   }
 });
 
+test('runtime events allow explicit forward-compatible extensions without changing event identity', () => {
+  const baseEvent = RUNTIME_EVENT_EXAMPLES.PuEntered;
+  const extendedEvent = createRuntimeEvent({
+    ...clone(baseEvent),
+    extensions: {
+      futureCompatibleDiagnostic: {
+        producer: 'contract-test',
+        observedValue: 'SYNTH_EXTENSION_VALUE'
+      }
+    }
+  });
+  const serialized = serializeRuntimeEvent(extendedEvent);
+
+  assert.equal(extendedEvent.eventId, baseEvent.eventId);
+  assert.equal(validateRuntimeEvent(extendedEvent).ok, true);
+  assert.deepEqual(deserializeRuntimeEvent(serialized), extendedEvent);
+  assert.ok(serialized.includes('futureCompatibleDiagnostic'));
+});
+
 test('contract validation fails safely for missing fields, malformed timestamps, and unsupported versions', () => {
   const missingField = clone(RUNTIME_EVENT_EXAMPLES.PuJoinRequested);
   delete missingField.payload.shard;
@@ -133,6 +152,10 @@ test('contract validation fails safely for missing fields, malformed timestamps,
   const extraPayload = clone(RUNTIME_EVENT_EXAMPLES.PuJoinRequested);
   extraPayload.payload.unregisteredField = 'SYNTH_EXTRA_VALUE';
   assert.ok(validationCodes(validateRuntimeEvent(extraPayload)).has('unknown_payload_field'));
+
+  const extraEnvelope = clone(RUNTIME_EVENT_EXAMPLES.PuJoinRequested);
+  extraEnvelope.unregisteredEnvelopeField = 'SYNTH_EXTRA_VALUE';
+  assert.ok(validationCodes(validateRuntimeEvent(extraEnvelope)).has('unknown_envelope_field'));
 });
 
 test('contract validation rejects conflicting context and unknown vocabulary', () => {

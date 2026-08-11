@@ -80,7 +80,7 @@
   "knownLimitations": [
     "This annotation does not replace controlled gameplay captures.",
     "Future positive fixtures must be added per action before enabling any mission event family.",
-    "Canonical mission event names remain provisional until the runtime event contract is finalized."
+    "Mission event names remain unpromoted by runtime-event/v1 until future direct evidence fixtures justify a registry update."
   ],
   "verificationNotes": "Tests should treat these event families as explicitly unsupported for the current `sc-4.9-live` provisional profile."
 }

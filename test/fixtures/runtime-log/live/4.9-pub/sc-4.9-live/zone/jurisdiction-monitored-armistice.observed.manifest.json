@@ -21,7 +21,7 @@
   "expectedCanonicalEvents": [
     {
       "eventType": "JurisdictionEntered",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["notificationId", "jurisdiction"],
@@ -33,7 +33,7 @@
     },
     {
       "eventType": "MonitoredSpaceEntered",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["notificationId", "state"],
@@ -45,7 +45,7 @@
     },
     {
       "eventType": "ArmisticeStateChanged",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["notificationId", "state"],
@@ -57,7 +57,7 @@
     },
     {
       "eventType": "ArmisticeStateChanged",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["notificationId", "state"],

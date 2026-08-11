@@ -21,7 +21,7 @@
   "expectedCanonicalEvents": [
     {
       "eventType": "PartyCreated",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "medium",
       "provenance": "observed",
       "requiredPayloadFields": ["partyId", "leaderHandle"],
@@ -33,7 +33,7 @@
     },
     {
       "eventType": "PartyLaunchInitiated",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "medium",
       "provenance": "observed",
       "requiredPayloadFields": ["notificationId", "message"],
@@ -45,7 +45,7 @@
     },
     {
       "eventType": "PartyMemberConnected",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "medium",
       "provenance": "observed",
       "requiredPayloadFields": ["notificationId", "memberHandle"],

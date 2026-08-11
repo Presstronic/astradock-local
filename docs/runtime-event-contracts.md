@@ -8,9 +8,10 @@
 | Decision issue | [#12](https://github.com/Presstronic/astradock-local/issues/12) |
 | Contract version | `runtime-event/v1` |
 | Runtime package | [`src/contracts/runtimeEvents.js`](../src/contracts/runtimeEvents.js) |
+| Type declarations | [`src/contracts/runtimeEvents.d.ts`](../src/contracts/runtimeEvents.d.ts) |
 | Contract tests | [`test/runtimeEvents.test.js`](../test/runtimeEvents.test.js) |
 
-This document defines the canonical runtime-event envelope, event-type registry, validation behavior, deterministic serialization, and versioning rules for AstraDock Local MVP telemetry. The package is framework-independent and has no Electron, renderer, parser-regex, or storage-engine dependency.
+This document defines the canonical runtime-event envelope, typed payload registry, validation behavior, deterministic serialization, and versioning rules for AstraDock Local MVP telemetry. The package is framework-independent and has no Electron, renderer, parser-regex, or storage-engine dependency.
 
 The current repository has not yet installed the strict TypeScript/Vitest production foundation selected by ADR-0001. Issue #12 therefore implements the contract as a dependency-free CommonJS module that the current proof-of-concept test runner can verify. When the foundation migration lands, this module should be migrated behind the selected TypeScript project boundary without changing `runtime-event/v1` semantics.
 
@@ -23,6 +24,7 @@ The contract package uses:
 - Node.js built-in `crypto` for deterministic SHA-256 event IDs.
 - Node.js built-in `node:test` coverage through the existing `npm test` command.
 - Manual runtime validation so untrusted data can be checked at process, persistence, and future IPC boundaries before a schema library is selected and pinned by the application foundation work.
+- TypeScript declaration output for the public CommonJS contract surface and named event payloads.
 
 If a schema library is introduced later, the implementation issue must record the exact package, version, license, bundle/runtime cost, migration strategy, and compatibility behavior before replacing these validators.
 
@@ -52,6 +54,7 @@ Every `runtime-event/v1` event contains:
 | `traits` | Registry-owned telemetry traits: temporal utility, persistence, Station sync policy, diagnostic utility, sensitivity, subject scope, lifecycle, and volume/cost. |
 | `payload` | Event-type-specific payload validated by the registry. |
 | `evidenceReference` | Bounded pointer to retained local evidence or fixture markers. Raw log text is forbidden in the event. |
+| `extensions` | Optional object for explicitly reviewed forward-compatible metadata that does not participate in event identity. |
 
 Inferred events additionally require `derivation.reason` and `derivation.contributingEventIds`.
 
@@ -103,6 +106,7 @@ Validation errors contain stable `code`, `path`, and `message` fields only. They
 The validator rejects:
 
 - Missing envelope or payload fields.
+- Unknown envelope or payload fields outside the explicit `extensions` object.
 - Unsupported `contractVersion`.
 - Unknown `eventType`.
 - Invalid or non-normalized timestamps.
@@ -142,7 +146,7 @@ Persistence implementations may add indexed columns, migrations, and encryption,
 
 `runtime-event/v1` is the compatibility unit for the envelope and current payload contracts.
 
-Additive changes are compatible only when they do not alter the meaning of existing fields, event IDs, validation outcomes, or deterministic serialization for already-valid `v1` events. New event types may be added to the registry under `runtime-event/v1` when they have accepted evidence fixtures and tests.
+Additive changes are compatible only when they do not alter the meaning of existing fields, event IDs, validation outcomes, or deterministic serialization for already-valid `v1` events. New event types may be added to the registry under `runtime-event/v1` when they have accepted evidence fixtures and tests. Optional forward-compatible metadata must use the explicit `extensions` object; unregistered top-level and payload fields are rejected so accidental schema drift is observable.
 
 Breaking changes require a new contract version. Breaking changes include:
 
@@ -160,9 +164,10 @@ Unknown versions and unknown event types fail validation. Future replay/import c
 1. Add or update accepted evidence fixtures and negative guards under `test/fixtures/runtime-log/`.
 2. Update the relevant evidence matrix or PRD section with promotion and non-goal decisions.
 3. Add the event definition to `EVENT_TYPE_REGISTRY` with owner, summary, traits, fixture ID, payload schema, and example payload.
-4. Confirm `RUNTIME_EVENT_EXAMPLES` materializes a valid example.
-5. Add or update contract tests for happy path, invalid payload, serialization, environment isolation, and privacy handling.
-6. Update this document if the event family changes registry scope, versioning rules, or technology assumptions.
-7. Run `npm test`.
+4. Add or update the matching `RuntimeEventPayloadMap` entry in `src/contracts/runtimeEvents.d.ts`.
+5. Confirm `RUNTIME_EVENT_EXAMPLES` materializes a valid example.
+6. Add or update contract tests for happy path, invalid payload, forward compatibility, serialization, environment isolation, and privacy handling.
+7. Update this document if the event family changes registry scope, versioning rules, or technology assumptions.
+8. Run `npm test`.
 
 Do not encode extraction regexes, renderer DTOs, SQLite table details, or Station upload behavior in the contract definition.

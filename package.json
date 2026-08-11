@@ -6,7 +6,11 @@
   "type": "commonjs",
   "exports": {
     ".": "./src/main.js",
-    "./runtime-events": "./src/contracts/runtimeEvents.js"
+    "./runtime-events": {
+      "types": "./src/contracts/runtimeEvents.d.ts",
+      "require": "./src/contracts/runtimeEvents.js",
+      "default": "./src/contracts/runtimeEvents.js"
+    }
   },
   "scripts": {
     "start": "electron .",

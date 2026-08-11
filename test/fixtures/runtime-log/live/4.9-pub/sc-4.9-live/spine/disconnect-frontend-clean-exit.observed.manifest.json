@@ -21,7 +21,7 @@
   "expectedCanonicalEvents": [
     {
       "eventType": "PuDisconnected",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["cause", "reason", "isRemote", "endpoint", "uptimeSeconds"],
@@ -36,7 +36,7 @@
     },
     {
       "eventType": "ReturnedToFrontend",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["reason"],
@@ -47,7 +47,7 @@
     },
     {
       "eventType": "ApplicationExited",
-      "contractStatus": "provisional_until_issue_12",
+      "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
       "requiredPayloadFields": ["cause", "reason", "exitCode", "clean"],

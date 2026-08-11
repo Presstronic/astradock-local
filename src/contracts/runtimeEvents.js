@@ -50,6 +50,31 @@ const BOOLEAN = 'boolean';
 const INTEGER = 'integer';
 const NUMBER = 'number';
 
+const RUNTIME_EVENT_ENVELOPE_FIELDS = Object.freeze([
+  'contractVersion',
+  'correlationIds',
+  'confidence',
+  'derivation',
+  'environment',
+  'environmentKey',
+  'eventId',
+  'eventType',
+  'evidenceReference',
+  'extensions',
+  'gameBuild',
+  'gameChannel',
+  'ingestedAt',
+  'ordering',
+  'parserVersion',
+  'payload',
+  'provenance',
+  'sourceLocation',
+  'sourceProfileId',
+  'sourceProfileVersion',
+  'sourceTimestamp',
+  'traits'
+]);
+
 const EVENT_TYPE_REGISTRY = deepFreeze({
   RuntimeSourceDiscovered: {
     owner: 'runtime-telemetry',
@@ -470,6 +495,8 @@ function validateRuntimeEvent(input) {
   }
 
   const event = input;
+  validateEnvelopeFields(event, '$', errors);
+
   if (containsForbiddenEvidenceKey(event)) {
     errors.push(error('raw_evidence_forbidden', '$', 'Runtime events must not copy raw evidence'));
   }
@@ -687,6 +714,14 @@ function buildRuntimeEventExamples() {
 function validateRequiredString(object, key, path, errors) {
   if (!isPlainObject(object) || typeof object[key] !== 'string' || object[key].trim() === '') {
     errors.push(error('required_string', path, 'Required string is missing or empty'));
+  }
+}
+
+function validateEnvelopeFields(event, path, errors) {
+  for (const key of Object.keys(event)) {
+    if (!RUNTIME_EVENT_ENVELOPE_FIELDS.includes(key)) {
+      errors.push(error('unknown_envelope_field', `${path}.${key}`, 'Envelope field is not defined by the event contract'));
+    }
   }
 }
 
