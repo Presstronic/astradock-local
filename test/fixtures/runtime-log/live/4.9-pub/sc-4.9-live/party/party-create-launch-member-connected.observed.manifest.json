@@ -1,0 +1,76 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/party/party-create-launch-member-connected.observed",
+  "title": "Party creation, launch, and named member connection",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "party",
+  "action": "party is created, launched, and one member connection notification appears",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#settled-requirement-live-party-status",
+  "logFile": "party-create-launch-member-connected.observed.log",
+  "privacyClassification": ["social", "personal", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["partyId", "leaderHandle", "memberHandle", "markerId", "trackedEntity"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Other-player handles and relationship data remain local by default."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "PartyCreated",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "medium",
+      "provenance": "observed",
+      "requiredPayloadFields": ["partyId", "leaderHandle"],
+      "payload": {
+        "partyId": "SYNTH_PARTY_A",
+        "leaderHandle": "SYNTH_HANDLE_LOCAL"
+      },
+      "evidenceMarkers": ["PartyCreated"]
+    },
+    {
+      "eventType": "PartyLaunchInitiated",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "medium",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "message"],
+      "payload": {
+        "notificationId": "SYNTH_NOTIFICATION_PARTY_LAUNCH",
+        "message": "Party launch initiated."
+      },
+      "evidenceMarkers": ["<SHUDEvent_OnNotification>", "Party launch initiated."]
+    },
+    {
+      "eventType": "PartyMemberConnected",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "medium",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "memberHandle"],
+      "payload": {
+        "notificationId": "SYNTH_NOTIFICATION_PARTY_MEMBER",
+        "memberHandle": "SYNTH_HANDLE_PARTY_MEMBER"
+      },
+      "evidenceMarkers": ["<SHUDEvent_OnNotification>", "connected."]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "PartyMemberJoined",
+      "reason": "This fixture proves a connection notification, not the full membership lifecycle."
+    },
+    {
+      "eventType": "PartyRosterSizeChanged",
+      "reason": "Marker count is not authoritative party size evidence."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "partyId+notificationId+memberHandle",
+    "sequence": ["PartyCreated", "PartyLaunchInitiated", "PartyMemberConnected"],
+    "notes": "Party marker records may corroborate activity but must not add or remove named members without direct evidence."
+  },
+  "knownLimitations": ["Invite, accept, leave, kick, leader change, disband, reconnect, and mid-party startup require issue #9 captures."],
+  "verificationNotes": "Future tests should reconstruct only supported party state and leave unsupported lifecycle fields unknown."
+}

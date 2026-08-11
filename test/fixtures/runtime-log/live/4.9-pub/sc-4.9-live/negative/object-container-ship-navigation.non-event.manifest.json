@@ -1,0 +1,43 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/negative/object-container-ship-navigation.non-event",
+  "title": "Object-container and ship-navigation lines are not location, destination, or ship-ownership proof",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "negative",
+  "action": "streaming systems mention object containers, route objects, and ship entities",
+  "outcome": "non-event",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#medium-confidence-or-diagnostic-value",
+  "logFile": "object-container-ship-navigation.non-event.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["objectContainerPath", "shipEntity", "shipClass", "location"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Object-container paths are synthetic and do not reveal a real place or player route."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "LocationConfirmed",
+      "reason": "Loaded object-container context is not proof the local player visited or stood there."
+    },
+    {
+      "eventType": "DestinationSet",
+      "reason": "Quantum route object traces do not prove local-player travel intent or state."
+    },
+    {
+      "eventType": "ShipOwnedOrPiloted",
+      "reason": "Ship class/entity observation is not ownership, spawn, boarding, or piloting evidence."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "not_applicable",
+    "sequence": [],
+    "notes": "These lines may be retained as diagnostic unknown evidence but should not become user-facing facts."
+  },
+  "knownLimitations": ["Future destination, quantum, and ship issues require controlled positive and negative captures."],
+  "verificationNotes": "Unhappy-path parser tests should assert no location, destination, or ship lifecycle event is emitted."
+}

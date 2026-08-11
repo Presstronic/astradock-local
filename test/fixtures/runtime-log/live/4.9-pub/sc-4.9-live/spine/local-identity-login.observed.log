@@ -1,0 +1,4 @@
+<2026-08-09T19:01:00.000Z> <InitiateLogin> LoginSessionId: SYNTH_LOGIN_SESSION_LOCAL releaseChannel[LIVE]
+<2026-08-09T19:01:01.000Z> <Legacy login response> status[Success] handle[SYNTH_HANDLE_LOCAL] accountId[SYNTH_ACCOUNT_LOCAL]
+<2026-08-09T19:01:02.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_LOCAL accountId SYNTH_ACCOUNT_LOCAL geid SYNTH_CHARACTER_GEID_LOCAL state Active
+<2026-08-09T19:01:03.000Z> <Expect Incoming Connection> nickname="SYNTH_HANDLE_LOCAL" playerGEID=SYNTH_PLAYER_GEID_LOCAL node_id=SYNTH_NODE_FRONTEND session=SYNTH_CLIENT_SESSION_A

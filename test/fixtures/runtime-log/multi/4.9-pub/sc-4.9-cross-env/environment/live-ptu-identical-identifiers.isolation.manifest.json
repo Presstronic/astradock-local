@@ -1,0 +1,60 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "multi/4.9-pub/sc-4.9-cross-env/environment/live-ptu-identical-identifiers.isolation",
+  "title": "Identical synthetic identifiers in LIVE and PTU remain environment-partitioned",
+  "releaseChannel": "MULTI",
+  "gameBuild": "4.9.0-MULTI.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-cross-env",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "environment",
+  "action": "same synthetic player and shard labels appear in LIVE and PTU sources",
+  "outcome": "isolation",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/product-requirements.md#76-environment-identity-and-isolation--settled-non-negotiable",
+  "logFile": "live-ptu-identical-identifiers.isolation.log",
+  "privacyClassification": ["personal", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["handle", "accountId", "characterGeid", "endpoint", "shard", "locationId", "sourcePath"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "The fixture deliberately repeats synthetic identifiers across environments to prove partition requirements."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "ReleaseEnvironmentObserved",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["environmentKey", "releaseChannel"],
+      "payload": {
+        "environmentKey": "LIVE::4.9.0-MULTI.9000000-SYNTH::%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log",
+        "releaseChannel": "LIVE"
+      },
+      "evidenceMarkers": ["Environment[PUB]", "Tag[LIVE]"]
+    },
+    {
+      "eventType": "ReleaseEnvironmentObserved",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["environmentKey", "releaseChannel"],
+      "payload": {
+        "environmentKey": "PTU::4.9.0-MULTI.9000000-SYNTH::%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/PTU/game.log",
+        "releaseChannel": "PTU"
+      },
+      "evidenceMarkers": ["Environment[PTU]", "Tag[PTU]"]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "CrossEnvironmentMergedIdentity",
+      "reason": "Identical account and shard placeholders across environments must not merge mutable state."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "environmentKey+sourceProfileId+sourceLocation",
+    "sequence": ["LIVE partition", "PTU partition"],
+    "notes": "Every future parser/projection/store test must keep these partitions separate."
+  },
+  "knownLimitations": ["This is synthetic partition evidence, not real simultaneous multi-install capture."],
+  "verificationNotes": "Unhappy-path tests should assert environmentKey is part of every event/projection/storage identity."
+}

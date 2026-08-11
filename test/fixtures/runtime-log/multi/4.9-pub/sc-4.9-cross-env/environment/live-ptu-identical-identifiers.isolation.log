@@ -1,0 +1,6 @@
+<2026-08-09T19:00:00.000Z> <Init> Environment[PUB] Tag[LIVE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log]
+<2026-08-09T19:00:01.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_SHARED accountId SYNTH_ACCOUNT_SHARED geid SYNTH_CHARACTER_GEID_SHARED state Active
+<2026-08-09T19:00:02.000Z> <Join PU> address[live-server-shared.example.invalid] port[64090] shard[SYNTH_SHARD_SHARED] locationId[SYNTH_LOCATION_LIVE]
+<2026-08-09T19:10:00.000Z> <Init> Environment[PTU] Tag[PTU] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/PTU/game.log]
+<2026-08-09T19:10:01.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_SHARED accountId SYNTH_ACCOUNT_SHARED geid SYNTH_CHARACTER_GEID_SHARED state Active
+<2026-08-09T19:10:02.000Z> <Join PU> address[ptu-server-shared.example.invalid] port[64090] shard[SYNTH_SHARD_SHARED] locationId[SYNTH_LOCATION_PTU]

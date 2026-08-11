@@ -1,0 +1,93 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/framing/line-framing-edge-cases.framing",
+  "title": "Line framing edge cases for CRLF, LF, partial lines, long lines, multiline records, truncation, rotation, and duplicate notifications",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "framing",
+  "action": "tailer receives mixed boundaries and file lifecycle events",
+  "outcome": "framing",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#recognition-strategy-for-fast-monitoring",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["endpoint", "notificationId", "longPayload"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Frame data is generated from literals in this manifest and contains no private source bytes."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "PuJoinRequested",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["shard", "endpoint", "port", "locationId"],
+      "payload": {
+        "shard": "SYNTH_SHARD_FRAMING_A",
+        "endpoint": "game-server-framing.example.invalid",
+        "port": 64091,
+        "locationId": "SYNTH_LOCATION_FRAMING_A"
+      },
+      "evidenceMarkers": ["<Join PU>"]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "PartialLineEmitted",
+      "reason": "The tailer must retain incomplete trailing bytes until the line is complete."
+    },
+    {
+      "eventType": "LongLineCrash",
+      "reason": "A generated 65536 byte complete line is expected to be retained or quarantined without crash or unbounded growth."
+    }
+  ],
+  "framingCases": [
+    {
+      "caseId": "mixed-crlf-lf",
+      "segments": [
+        "<2026-08-09T19:50:00.000Z> FileVersion: 4.9.0-LIVE.9000000-SYNTH\r\n<2026-08-09T19:50:01.000Z> Branch: sc-alpha-4.9-live-synth\n"
+      ],
+      "expectedCompleteLineCount": 2
+    },
+    {
+      "caseId": "partial-join-line",
+      "segments": [
+        "<2026-08-09T19:51:00.000Z> <Join PU> address[game-server-framing.example.invalid] port[64091] shard[SYNTH_SHARD_",
+        "FRAMING_A] locationId[SYNTH_LOCATION_FRAMING_A]\n"
+      ],
+      "expectedCompleteLineCount": 1
+    },
+    {
+      "caseId": "multiline-notification",
+      "segments": [
+        "<2026-08-09T19:52:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_MULTI] Type[Location]\n",
+        "  Message[\"Entered SYNTH_JURISDICTION_MULTI Jurisdiction\"]\n"
+      ],
+      "expectedSemanticRecordCount": 1
+    },
+    {
+      "caseId": "truncation-rotation-boundary",
+      "fileLifecycle": ["append", "truncate", "append", "replace", "append"],
+      "expectedBehavior": "reset offset on truncation, reopen replacement, do not duplicate already committed records"
+    },
+    {
+      "caseId": "long-complete-line",
+      "generatedLine": {
+        "prefix": "<2026-08-09T19:53:00.000Z> <UnknownSubsystem> payload[",
+        "repeat": "A",
+        "repeatCount": 65536,
+        "suffix": "]\n"
+      },
+      "expectedMinimumBytes": 65536
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "case-specific",
+    "sequence": ["line framing", "semantic record assembly", "tailer lifecycle recovery"],
+    "notes": "This manifest is consumed by validator tests now and by tailer implementation tests later."
+  },
+  "knownLimitations": ["No production tailer exists yet; this records expected edge-case behavior for issue #20."],
+  "verificationNotes": "Validator synthesizes framing data and verifies malformed frame declarations fail deterministically."
+}

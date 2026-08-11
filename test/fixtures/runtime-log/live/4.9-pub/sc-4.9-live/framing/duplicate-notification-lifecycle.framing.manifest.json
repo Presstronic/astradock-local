@@ -1,0 +1,48 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/framing/duplicate-notification-lifecycle.framing",
+  "title": "Notification lifecycle echoes and duplicates collapse to one semantic event",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "framing",
+  "action": "duplicate notification lifecycle records are observed",
+  "outcome": "framing",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#stage-4-deduplication",
+  "logFile": "duplicate-notification-lifecycle.framing.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["notificationId", "jurisdiction"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "This fixture intentionally repeats the same synthetic notification ID."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "JurisdictionEntered",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "jurisdiction"],
+      "payload": {
+        "notificationId": "SYNTH_NOTIFICATION_ZONE_DUP",
+        "jurisdiction": "SYNTH_JURISDICTION_DUP"
+      },
+      "evidenceMarkers": ["<SHUDEvent_OnNotification>", "Entered", "Jurisdiction"]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "DuplicateJurisdictionEntered",
+      "reason": "Notification lifecycle echoes and duplicate Add records must dedupe by notification/message/short window."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "notificationId+message+shortWindow",
+    "sequence": ["JurisdictionEntered"],
+    "notes": "Expected semantic event count is one even though multiple physical lines are present."
+  },
+  "knownLimitations": ["Exact short-window duration belongs to extraction-profile implementation."],
+  "verificationNotes": "Future parser tests should verify one event and no duplicates."
+}

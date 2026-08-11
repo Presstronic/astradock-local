@@ -1,0 +1,50 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/spine/failure-transition-evidence.unavailable",
+  "title": "Explicit unavailable annotations for failure and transition captures",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "spine",
+  "action": "normal PU exit, server error, network loss, client crash, and shard transition capture review",
+  "outcome": "unavailable",
+  "provenance": "unavailable_evidence_annotation",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#evidence-gaps-and-next-capture-checklist",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": [],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "No raw snippet is committed because the reviewed evidence did not contain these complete controlled actions."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "NormalPuExited",
+      "reason": "No controlled normal PU exit-to-menu snippet has been captured yet."
+    },
+    {
+      "eventType": "ServerErrorObserved",
+      "reason": "No controlled server-error fixture distinct from remote idle disconnect has been captured yet."
+    },
+    {
+      "eventType": "NetworkLossObserved",
+      "reason": "No controlled local network-loss fixture has been captured yet."
+    },
+    {
+      "eventType": "ApplicationCrashed",
+      "reason": "No crash marker plus file-handle/process-exit evidence has been captured yet."
+    },
+    {
+      "eventType": "ShardTransitionObserved",
+      "reason": "No shard/server-meshing transition without frontend return has been captured yet."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "not_applicable",
+    "sequence": [],
+    "notes": "This manifest prevents downstream work from fabricating positive events for uncaptured transitions."
+  },
+  "knownLimitations": ["Blocks promotion of failure/transition-specific event types until controlled fixtures exist."],
+  "verificationNotes": "Future capture PRs should replace each unavailable annotation with a minimal observed fixture when evidence exists."
+}

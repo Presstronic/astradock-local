@@ -1,0 +1,6 @@
+<2026-08-09T19:05:00.000Z> {Join PU} id[SYNTH_MATCHMAKING_REQUEST_A] status[Queued] port[64090]
+<2026-08-09T19:05:01.000Z> <Join PU> address[game-server-alpha.example.invalid] port[64090] shard[SYNTH_SHARD_STANTON_US_EAST_A] locationId[SYNTH_LOCATION_STANTON_A]
+<2026-08-09T19:05:02.000Z> <Session Manager [Request Connect]> Connecting game-server-alpha.example.invalid:64090
+<2026-08-09T19:05:03.000Z> <Channel Created> remoteAddr=game-server-alpha.example.invalid:64090 nickname="SYNTH_HANDLE_LOCAL" playerGEID=SYNTH_PLAYER_GEID_LOCAL node_id=SYNTH_NODE_PU session=SYNTH_CLIENT_SESSION_A
+<2026-08-09T19:05:04.000Z> <Channel Connection Complete> remoteAddr=game-server-alpha.example.invalid:64090 gamerules="SC_Default" node_id=SYNTH_NODE_PU
+<2026-08-09T19:05:05.000Z> taskname="OnClientEnteredGame" state=eCVS_InGame(17) status="Finished" rules="SC_Default" elapsedSecs=12

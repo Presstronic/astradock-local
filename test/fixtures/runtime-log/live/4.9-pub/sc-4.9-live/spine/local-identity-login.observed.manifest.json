@@ -1,0 +1,71 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/spine/local-identity-login.observed",
+  "title": "Local login and identity correlation",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "spine",
+  "action": "local player authenticates and identity values are observed",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#identifier-model",
+  "logFile": "local-identity-login.observed.log",
+  "privacyClassification": ["personal", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["handle", "accountId", "characterGeid", "playerGeid", "nodeId", "loginSessionId", "clientSession"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "All stable identity values are synthetic and must never be uploaded by default."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "LoginStarted",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["loginSessionId", "releaseChannel"],
+      "payload": {
+        "loginSessionId": "SYNTH_LOGIN_SESSION_LOCAL",
+        "releaseChannel": "LIVE"
+      },
+      "evidenceMarkers": ["<InitiateLogin>"]
+    },
+    {
+      "eventType": "AccountAuthenticated",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["handle", "accountId"],
+      "payload": {
+        "handle": "SYNTH_HANDLE_LOCAL",
+        "accountId": "SYNTH_ACCOUNT_LOCAL"
+      },
+      "evidenceMarkers": ["<Legacy login response>"]
+    },
+    {
+      "eventType": "IdentityObserved",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["characterName", "accountId", "characterGeid", "playerGeid", "nodeId", "clientSession"],
+      "payload": {
+        "characterName": "SYNTH_HANDLE_LOCAL",
+        "accountId": "SYNTH_ACCOUNT_LOCAL",
+        "characterGeid": "SYNTH_CHARACTER_GEID_LOCAL",
+        "playerGeid": "SYNTH_PLAYER_GEID_LOCAL",
+        "nodeId": "SYNTH_NODE_FRONTEND",
+        "clientSession": "SYNTH_CLIENT_SESSION_A"
+      },
+      "evidenceMarkers": ["<AccountLoginCharacterStatus_Character>", "<Expect Incoming Connection>"]
+    }
+  ],
+  "expectedNonEvents": [],
+  "correlation": {
+    "dedupeKey": "accountId+characterGeid+playerGeid+clientSession",
+    "sequence": ["LoginStarted", "AccountAuthenticated", "IdentityObserved"],
+    "notes": "The identity model preserves each identifier separately instead of collapsing them into one player ID."
+  },
+  "knownLimitations": ["Handle and character name match in this fixture; implementations must not assume they always match."],
+  "verificationNotes": "Future parser tests should verify additive identity correlation and no renderer-safe surface exposes raw identifiers by default."
+}

@@ -1,0 +1,76 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/spine/disconnect-frontend-clean-exit.observed",
+  "title": "PU disconnect, frontend return, and clean application exit",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "spine",
+  "action": "PU connection disconnects, frontend reconnects, and application exits cleanly",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#disconnect-and-session-end",
+  "logFile": "disconnect-frontend-clean-exit.observed.log",
+  "privacyClassification": ["local", "network_sanitized", "personal", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["endpoint", "reason", "cause", "handle", "playerGeid", "nodeId", "session"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Remote and frontend endpoints are reserved .example.invalid hostnames."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "PuDisconnected",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["cause", "reason", "isRemote", "endpoint", "uptimeSeconds"],
+      "payload": {
+        "cause": "SYNTH_CAUSE_REMOTE_IDLE",
+        "reason": "SYNTH_REASON_REMOTE_TIMEOUT",
+        "isRemote": true,
+        "endpoint": "game-server-alpha.example.invalid",
+        "uptimeSeconds": 3900
+      },
+      "evidenceMarkers": ["<Channel Disconnected>"]
+    },
+    {
+      "eventType": "ReturnedToFrontend",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["reason"],
+      "payload": {
+        "reason": "OnLobbyPostGameUnload"
+      },
+      "evidenceMarkers": ["RequestFrontEndReason", "<Channel Created>"]
+    },
+    {
+      "eventType": "ApplicationExited",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["cause", "reason", "exitCode", "clean"],
+      "payload": {
+        "cause": "SYNTH_CAUSE_USER_EXIT",
+        "reason": "SYNTH_REASON_NORMAL_QUIT",
+        "exitCode": 0,
+        "clean": true
+      },
+      "evidenceMarkers": ["<SystemQuit>"]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "ApplicationCrashed",
+      "reason": "SystemQuit with exitCode 0 is clean application exit evidence."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "endpoint+nodeId+cause+shortWindow",
+    "sequence": ["PuDisconnected", "ReturnedToFrontend", "ApplicationExited"],
+    "notes": "Channel disconnection, process disconnection, and destruction-style echoes collapse into one logical disconnect."
+  },
+  "knownLimitations": ["This fixture covers a remote PU disconnect and clean app quit, not client crash or network-loss capture."],
+  "verificationNotes": "Future extractors must distinguish PU disconnect/frontend return from full logout."
+}

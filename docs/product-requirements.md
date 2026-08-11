@@ -924,6 +924,8 @@ The approved v0.1.0 platform, artifact, lifecycle, validation, and update contra
 
 Maintain small, representative, sanitized fixtures organized by Star Citizen channel/build and known action. Never commit real player logs or destructive over-sanitization that removes correlation structure.
 
+The accepted fixture directory, manifest schema, sanitization protocol, human review checklist, and initial coverage are maintained in [`runtime-log-fixture-corpus.md`](runtime-log-fixture-corpus.md). Fixture validation is part of `npm test`.
+
 Each capture should record privately:
 
 - Wall-clock action time.

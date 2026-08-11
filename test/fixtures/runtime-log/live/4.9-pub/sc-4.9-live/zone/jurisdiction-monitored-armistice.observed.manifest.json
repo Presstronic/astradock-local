@@ -1,0 +1,79 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/zone/jurisdiction-monitored-armistice.observed",
+  "title": "Jurisdiction, monitored-space, and armistice HUD notifications",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "zone",
+  "action": "local HUD receives jurisdiction and zone-state notifications",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#high-confidence",
+  "logFile": "jurisdiction-monitored-armistice.observed.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["jurisdictionLabel", "notificationId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Jurisdiction label is synthetic but preserves message shape."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "JurisdictionEntered",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "jurisdiction"],
+      "payload": {
+        "notificationId": "SYNTH_NOTIFICATION_ZONE_A",
+        "jurisdiction": "SYNTH_JURISDICTION_A"
+      },
+      "evidenceMarkers": ["Entered", "Jurisdiction"]
+    },
+    {
+      "eventType": "MonitoredSpaceEntered",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "state"],
+      "payload": {
+        "notificationId": "SYNTH_NOTIFICATION_MONITORED_A",
+        "state": "entered"
+      },
+      "evidenceMarkers": ["Entered Monitored Space"]
+    },
+    {
+      "eventType": "ArmisticeStateChanged",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "state"],
+      "payload": {
+        "notificationId": "SYNTH_NOTIFICATION_ARMISTICE_A",
+        "state": "entered"
+      },
+      "evidenceMarkers": ["Entering Armistice Zone"]
+    },
+    {
+      "eventType": "ArmisticeStateChanged",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "state"],
+      "payload": {
+        "notificationId": "SYNTH_NOTIFICATION_ARMISTICE_B",
+        "state": "left"
+      },
+      "evidenceMarkers": ["Leaving Armistice Zone"]
+    }
+  ],
+  "expectedNonEvents": [],
+  "correlation": {
+    "dedupeKey": "notificationId+message",
+    "sequence": ["JurisdictionEntered", "MonitoredSpaceEntered", "ArmisticeStateChanged", "ArmisticeStateChanged"],
+    "notes": "Notification lifecycle echoes must not duplicate the domain event."
+  },
+  "knownLimitations": ["This is notification evidence, not exact player coordinates."],
+  "verificationNotes": "Future projection tests should represent unsupported or stale zone state honestly when terminal evidence is absent."
+}

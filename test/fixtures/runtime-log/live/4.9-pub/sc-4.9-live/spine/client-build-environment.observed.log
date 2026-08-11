@@ -1,0 +1,7 @@
+<2026-08-09T19:00:00.000Z> FileVersion: 4.9.0-LIVE.9000000-SYNTH
+<2026-08-09T19:00:00.010Z> ProductVersion: 4.9.0-LIVE.9000000-SYNTH
+<2026-08-09T19:00:00.020Z> Branch: sc-alpha-4.9-live-synth
+<2026-08-09T19:00:00.030Z> Changelist: SYNTH_CHANGE_9000000
+<2026-08-09T19:00:01.000Z> <Init> Environment[PUB] Tag[LIVE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log]
+<2026-08-09T19:00:02.000Z> <Game Version> version[4.9.0-LIVE.9000000-SYNTH] environment[LIVE]
+<2026-08-09T19:00:03.000Z> <SetDatabaseVersion> dataCore[SYNTH_DATACORE_4_9] archetype[SYNTH_ARCHETYPE_4_9] component[SYNTH_COMPONENT_4_9]

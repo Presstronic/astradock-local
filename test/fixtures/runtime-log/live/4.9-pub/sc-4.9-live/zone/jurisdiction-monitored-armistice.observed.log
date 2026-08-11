@@ -1,0 +1,4 @@
+<2026-08-09T19:10:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_ZONE_A] Type[Location] Message["Entered SYNTH_JURISDICTION_A Jurisdiction"]
+<2026-08-09T19:10:01.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_MONITORED_A] Type[Location] Message["Entered Monitored Space"]
+<2026-08-09T19:10:02.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_ARMISTICE_A] Type[Location] Message["Entering Armistice Zone"]
+<2026-08-09T19:20:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_ARMISTICE_B] Type[Location] Message["Leaving Armistice Zone"]
