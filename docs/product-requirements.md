@@ -408,6 +408,8 @@ Destination state shall include the raw observed destination identity/name, disp
 
 No destination shall be inferred from loaded object containers, arbitrary place names, another ship's quantum-navigation record, or temporal proximity alone. Until annotated destination-setting and travel samples prove a pattern, the instrument surface displays destination as unavailable/unknown rather than guessing.
 
+Issue #11 confirms that the current `sc-4.9-live` provisional profile has no promoted destination or travel events. See [`destination-travel-evidence-matrix.md`](destination-travel-evidence-matrix.md) for the unsupported lifecycle decisions, false-positive fixtures, freshness and clear/stale rules, and future capture requirements.
+
 ### 8.6 Inventory, equipment, and cargo — Candidate
 
 Current evidence exposes inventory requests, moves, stores, equipment/attachment state, item classes, source/target inventory identifiers, completion outcomes, and cargo-platform state.

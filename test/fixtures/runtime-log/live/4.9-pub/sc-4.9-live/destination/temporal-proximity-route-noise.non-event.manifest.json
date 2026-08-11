@@ -1,0 +1,58 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/destination/temporal-proximity-route-noise.non-event",
+  "title": "Temporal proximity between map input and route records is not travel proof",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "destination",
+  "action": "local map input occurs near a route update for an unproven ship entity",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/destination-travel-evidence-matrix.md#promotion-decisions",
+  "logFile": "temporal-proximity-route-noise.non-event.log",
+  "privacyClassification": ["destination", "travel", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["actorHandle", "routeId", "destination", "shipEntity"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Route and entity values are synthetic and deliberately leave ownership/local attribution unproven."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "DestinationSet",
+      "reason": "Map-open timing plus a route object is not a direct destination-set source."
+    },
+    {
+      "eventType": "DestinationChanged",
+      "reason": "Nearby route updates for an unknown entity must not mutate local destination state."
+    },
+    {
+      "eventType": "TravelStarted",
+      "reason": "The route record does not prove the local player started travel."
+    },
+    {
+      "eventType": "TravelArrived",
+      "reason": "The route record does not prove terminal arrival."
+    },
+    {
+      "eventType": "TravelCancelled",
+      "reason": "Map close is not a travel cancellation signal."
+    },
+    {
+      "eventType": "TravelFailed",
+      "reason": "Unknown route phase is not failure evidence."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "temporal-route-noise+SYNTH_ROUTE_A",
+    "sequence": ["local map open", "unknown route update", "remote_or_unknown navigation update", "local map close"],
+    "notes": "Temporal adjacency and repeated destination text are intentionally preserved while local attribution remains unproven."
+  },
+  "knownLimitations": [
+    "This synthetic edge case does not prove exact Star Citizen input log spelling.",
+    "It exists to lock the product boundary that timing and route proximity are insufficient without direct semantic evidence."
+  ],
+  "verificationNotes": "Unhappy-path parser tests should assert no destination or travel lifecycle event is emitted from temporal proximity alone."
+}

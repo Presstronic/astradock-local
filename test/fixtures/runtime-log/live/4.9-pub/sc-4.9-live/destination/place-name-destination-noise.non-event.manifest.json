@@ -1,0 +1,50 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/destination/place-name-destination-noise.non-event",
+  "title": "Nearby place-name and label-cache records are not destination proof",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "destination",
+  "action": "nearby place-name, label-cache, and object-container records mention a location-like string",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/destination-travel-evidence-matrix.md#evidence-sources",
+  "logFile": "place-name-destination-noise.non-event.log",
+  "privacyClassification": ["destination", "location", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["placeName", "objectContainerPath", "locationMarker"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Place-name values are synthetic and demonstrate a tempting false positive without exposing real route or location data."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "DestinationSet",
+      "reason": "A nearby place-name is not proof the local player selected a destination."
+    },
+    {
+      "eventType": "DestinationChanged",
+      "reason": "Label cache churn must not mutate destination state."
+    },
+    {
+      "eventType": "TravelArrived",
+      "reason": "Object-container or place-name presence is not proof of arrival."
+    },
+    {
+      "eventType": "LocationConfirmed",
+      "reason": "Loaded location-like strings are not direct player position evidence."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "place-name-noise+SYNTH_PLACE_NAME_A",
+    "sequence": ["resolver failure", "label cache", "object-container stream"],
+    "notes": "The shared synthetic place name preserves correlation while proving that correlation alone is insufficient."
+  },
+  "knownLimitations": [
+    "This synthetic edge case guards false positives; it is not a positive destination capture.",
+    "Future positive captures must prove local-player map interaction and destination semantics separately."
+  ],
+  "verificationNotes": "Unhappy-path parser tests should assert no destination, travel-arrival, or confirmed-location event is emitted."
+}
