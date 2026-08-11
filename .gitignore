@@ -9,3 +9,6 @@ yarn-error.log*
 
 Data.p4k*
 Game.log*
+
+# Sanitized runtime fixture snippets are intentionally committed.
+!test/fixtures/runtime-log/**/*.log

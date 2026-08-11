@@ -1,0 +1,73 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/spine/client-build-environment.observed",
+  "title": "Client build, release environment, and game data version observation",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "spine",
+  "action": "client startup publishes build and environment metadata",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#high-confidence",
+  "logFile": "client-build-environment.observed.log",
+  "privacyClassification": ["local", "diagnostic", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["sourcePath", "changelist", "databaseVersionFingerprints"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "The source path uses a fixture-root macro and does not identify a real installation."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "ClientBuildObserved",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["fileVersion", "productVersion", "branch", "changelist"],
+      "payload": {
+        "fileVersion": "4.9.0-LIVE.9000000-SYNTH",
+        "productVersion": "4.9.0-LIVE.9000000-SYNTH",
+        "branch": "sc-alpha-4.9-live-synth",
+        "changelist": "SYNTH_CHANGE_9000000"
+      },
+      "evidenceMarkers": ["FileVersion:", "ProductVersion:", "Branch:", "Changelist:"]
+    },
+    {
+      "eventType": "ReleaseEnvironmentObserved",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["releaseChannel", "environmentName", "config", "sourceLocation"],
+      "payload": {
+        "releaseChannel": "LIVE",
+        "environmentName": "PUB",
+        "config": "Shipping",
+        "sourceLocation": "%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log"
+      },
+      "evidenceMarkers": ["<Init>", "Environment[PUB]", "Tag[LIVE]"]
+    },
+    {
+      "eventType": "GameDataVersionObserved",
+      "contractStatus": "provisional_until_issue_12",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["gameVersion", "dataCoreVersion", "archetypeVersion", "componentVersion"],
+      "payload": {
+        "gameVersion": "4.9.0-LIVE.9000000-SYNTH",
+        "dataCoreVersion": "SYNTH_DATACORE_4_9",
+        "archetypeVersion": "SYNTH_ARCHETYPE_4_9",
+        "componentVersion": "SYNTH_COMPONENT_4_9"
+      },
+      "evidenceMarkers": ["<Game Version>", "<SetDatabaseVersion>"]
+    }
+  ],
+  "expectedNonEvents": [],
+  "correlation": {
+    "dedupeKey": "releaseChannel+gameBuild+sourceProfileId",
+    "sequence": ["ClientBuildObserved", "ReleaseEnvironmentObserved", "GameDataVersionObserved"],
+    "notes": "Build and environment identity must be retained before any later runtime events are accepted."
+  },
+  "knownLimitations": ["The exact canonical event schema is pending issue #12."],
+  "verificationNotes": "Future extractors should emit the three expected events and attach the same environment context to later events."
+}

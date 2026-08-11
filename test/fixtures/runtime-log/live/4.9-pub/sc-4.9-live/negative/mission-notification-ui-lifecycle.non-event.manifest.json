@@ -1,0 +1,43 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/negative/mission-notification-ui-lifecycle.non-event",
+  "title": "Generic HUD notification lifecycle with MissionId is not mission progress evidence",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "negative",
+  "action": "HUD notification add/next/fade/remove lifecycle includes a mission-shaped identifier",
+  "outcome": "non-event",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/game-log-pattern-analysis-2026-08-09.md#requested-telemetry-feasibility",
+  "logFile": "mission-notification-ui-lifecycle.non-event.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["notificationId", "missionId", "message"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Mission-shaped identifiers are synthetic and not proof of mission lifecycle."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "MissionAccepted",
+      "reason": "A MissionId on a generic HUD lifecycle line does not prove acceptance."
+    },
+    {
+      "eventType": "MissionObjectiveProgressed",
+      "reason": "Notification lifecycle transitions are UI behavior, not objective-state evidence."
+    },
+    {
+      "eventType": "MissionCompleted",
+      "reason": "No completion outcome, reward, or terminal mission state is present."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "notificationId+message",
+    "sequence": [],
+    "notes": "Repeated Next/StartFade/Remove records should not duplicate or promote a domain event."
+  },
+  "knownLimitations": ["Mission lifecycle promotion requires issue #10 evidence."],
+  "verificationNotes": "Parser tests should retain this as negative evidence and keep Mission UI unsupported/unknown."
+}

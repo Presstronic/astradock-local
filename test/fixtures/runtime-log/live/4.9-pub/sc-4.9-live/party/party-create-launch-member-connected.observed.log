@@ -1,0 +1,5 @@
+<2026-08-09T19:03:00.000Z> <PartyService> PartyCreated partyId[SYNTH_PARTY_A] leader[SYNTH_HANDLE_LOCAL]
+<2026-08-09T19:04:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_PARTY_LAUNCH] Type[Party] Message["Party launch initiated."]
+<2026-08-09T19:06:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_PARTY_MEMBER] Type[Party] Message["SYNTH_HANDLE_PARTY_MEMBER connected."]
+<2026-08-09T19:06:01.000Z> <PartyMarker> partyId[SYNTH_PARTY_A] markerId[SYNTH_MARKER_MEMBER_A] trackedEntity[SYNTH_TRACKED_ENTITY_MEMBER_A]
+<2026-08-09T19:07:00.000Z> <PartyMarker> partyId[SYNTH_PARTY_A] markerId[SYNTH_MARKER_MEMBER_A] state[streaming]

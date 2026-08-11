@@ -1,0 +1,3 @@
+<2026-08-09T19:15:00.000Z> <ObjectContainer> Streaming container path="SYNTH_OC_PATH_STATION_A/Hangar/SYNTH_SHIP_ENTITY_A" entityClass="SYNTH_SHIP_CLASS_A"
+<2026-08-09T19:15:01.000Z> [QuantumTravel] Route object FinalStop=SYNTH_LOCATION_B shipEntity=SYNTH_SHIP_ENTITY_A owner=unknown
+<2026-08-09T19:15:02.000Z> <VehicleSeat> Entity proximity update ship=SYNTH_SHIP_ENTITY_A seat=pilot source=streaming
