@@ -29,13 +29,13 @@ The examples are sufficiently coherent to guide early product design in these ar
 - Compact event rows, bounded chrome, hairline dividers, mono data labels, and efficient spatial rhythm.
 - Event-kind color separated from urgency weight.
 - Fast restrained motion with reduced-motion support.
-- Light-theme compatibility without allowing it to compromise the dark-default experience.
+- Dark-only MVP product theming; light tokens exist only to prevent invented values and are not a supported product surface.
 
 ## Artifact inventory and interpretation
 
 ### `DECISIONS.md` and `tokens/astradock.css`
 
-`DECISIONS.md` is the authoritative decision record, and `tokens/astradock.css` is the implementation token contract. Settled decisions include the palette and accent law, three density steps, panel chrome, row behavior, detail-dock behavior, Terminal/Table distinctions, left-rail regions, shell dimensions, and cross-cutting state/accessibility rules.
+`DECISIONS.md` is the authoritative decision record, and `tokens/astradock.css` is the implementation token contract. Settled decisions include the palette and accent law, three density steps, panel chrome, row behavior, detail-dock behavior, Terminal/Table distinctions, left-rail regions, shell dimensions, and cross-cutting state/accessibility rules. The repository-level issue #7 contract is recorded in [`mvp-design-tokens-and-interaction-matrix.md`](mvp-design-tokens-and-interaction-matrix.md).
 
 ### `AstraDock Runtime Monitor.dc.html`
 
@@ -80,7 +80,7 @@ This document is not yet complete. Treat completed interactions as source design
 - Critical red `#C4141F` with white text for critical/fatal states and destructive-action hover.
 - Near-black/navy ink surfaces.
 - Separate success, warning, event-kind, and severity semantics.
-- A light `:root` theme and dark `.dark` default.
+- A dark `.dark`/`:root` MVP surface. The light `:root:not(.dark)` token block is not a shipping product surface.
 
 The palette and accent law are locked in `DECISIONS.md`. The framework/component choice remains a separate technical decision.
 
@@ -115,7 +115,7 @@ AstraDock deliberately uses interaction accent blue `#38B6FF` on canvas `#07090D
 - Icons: Lucide outline icons or an approved equivalent with consistent stroke/optical sizing.
 - No emoji as status or navigation language.
 
-Remote Google Fonts and CDN-delivered Lucide used by the specimens are not an offline desktop distribution plan. Before implementation, confirm licenses and choose bundled/self-hosted fonts and icons or explicit system fallbacks so core UI remains available offline.
+Remote Google Fonts and CDN-delivered Lucide used by the specimens are not an offline desktop distribution plan. The MVP direction is bundled or self-hosted Space Grotesk, Hanken Grotesk, JetBrains Mono, and Lucide assets with included license notices and system fallbacks. Current source review records Space Grotesk, Google Fonts/source-package Hanken Grotesk, and JetBrains Mono under SIL Open Font License 1.1; Lucide is ISC with inherited MIT notices for Feather-derived icons. Exact package/file selection remains an implementation supply-chain review.
 
 ## Live-stream interaction rules
 
@@ -123,7 +123,7 @@ Remote Google Fonts and CDN-delivered Lucide used by the specimens are not an of
 - Selection copies/anchors the selected event by ID; it never points at a mutable visual index.
 - The live stream continues while detail is open.
 - Table defaults to a bottom drawer; Terminal defaults to a right drawer.
-- Users can change dock placement through visible controls; the preference remains local and resettable.
+- Users can change dock placement through visible controls; the preference remains local, persisted per view, and resettable.
 - Selecting or browsing away from the live edge preserves reading position and shows unseen-event count/return-to-live affordance.
 - Detail repeats enough selected-row context to remain intelligible after the row leaves the viewport.
 - Event-kind hue identifies type; stronger visual weight communicates urgency. Urgent styling must remain rare.
@@ -140,7 +140,7 @@ Remote Google Fonts and CDN-delivered Lucide used by the specimens are not an of
 
 ## Accessibility and responsive requirements
 
-Early specimens are not accessibility acceptance evidence. Production design shall include:
+Early specimens are not accessibility acceptance evidence. Production design shall meet the matrix in [`mvp-design-tokens-and-interaction-matrix.md`](mvp-design-tokens-and-interaction-matrix.md), including:
 
 - Complete keyboard navigation and visible focus.
 - Correct table/grid/list/dialog/drawer semantics.
@@ -174,4 +174,5 @@ Production code should consume semantic design tokens and reviewed components ra
 4. Party and Mission interiors.
 5. Completion of `AstraDock Interactions.dc.html`.
 6. Completion of `AstraDock Dashboard.dc.html`.
-7. Any implementation requirement not settled by the authoritative files must be confirmed with the owner rather than inferred.
+7. Exact component vendor choices, package versions, and implementation architecture behind the design-system boundary.
+8. Any implementation requirement not settled by the authoritative files or [`mvp-design-tokens-and-interaction-matrix.md`](mvp-design-tokens-and-interaction-matrix.md) must be confirmed with the owner rather than inferred.

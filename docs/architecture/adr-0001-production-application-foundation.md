@@ -270,7 +270,7 @@ renderer/design-system/
 
 Application features should import AstraDock primitives such as `Button`, `Dialog`, `Tabs`, `Drawer`, `Table`, and `StatusIndicator`, not a component vendor directly. This does not justify abstracting ordinary HTML without a meaningful consistency, accessibility, or replacement benefit.
 
-The supplied design-system archive settles the semantic palette and the design rules explicitly recorded in its authoritative `DECISIONS.md` and `tokens/astradock.css`. Component foundation, packaged typography/icon delivery, and any interaction acceptance behavior not yet completed in the design documents remain open. Missing or ambiguous design behavior must be confirmed with the owner rather than inferred.
+The supplied design-system archive settles the semantic palette and the design rules explicitly recorded in its authoritative `DECISIONS.md` and `tokens/astradock.css`. The issue #7 contract in [`../mvp-design-tokens-and-interaction-matrix.md`](../mvp-design-tokens-and-interaction-matrix.md) settles the interim MVP token semantics, packaged typography/icon direction, responsive/window/drawer behavior, sanitization rules, and shared interaction/accessibility acceptance matrix. Component vendor choices and exact package versions remain implementation decisions behind the AstraDock design-system boundary. Missing or ambiguous behavior outside those documents must be confirmed with the owner rather than inferred.
 
 ## Error containment and recovery
 

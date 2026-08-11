@@ -703,9 +703,9 @@ The future experience must nevertheless:
 
 ### 15.0 Design foundation — Settled direction
 
-The supplied examples establish the approved interim direction: a dark-default, dense, mission-control-inspired application; instrument-like current state; Terminal/Table presentations over one live stream; stable shared drilldown with locally configurable right/bottom docks; restrained motion; semantic tokens; and production-grade responsive/accessibility behavior.
+The supplied examples establish the approved interim direction: a dark-only MVP, dense, mission-control-inspired application; instrument-like current state; Terminal/Table presentations over one live stream; stable shared drilldown with locally configurable right/bottom docks; restrained motion; semantic tokens; and production-grade responsive/accessibility behavior.
 
-Detailed artifact authority, visual foundations, interaction rules, settled tokens, open design work, reuse restrictions, and implementation guardrails are maintained in [`interim-design-foundation.md`](interim-design-foundation.md). Within the supplied archive, `DECISIONS.md` overrides conflicting specimens and `tokens/astradock.css` is the code contract. `AstraDock Interactions.dc.html` remains unfinished and `AstraDock Dashboard.dc.html` remains substantially unfinished; unspecified behavior must not be inferred. This PRD remains authoritative for product behavior and MVP scope.
+Detailed artifact authority, visual foundations, reuse restrictions, and implementation guardrails are maintained in [`interim-design-foundation.md`](interim-design-foundation.md). The accepted semantic-token, responsive, drawer, offline-asset, sanitization, and interaction/accessibility contract is maintained in [`mvp-design-tokens-and-interaction-matrix.md`](mvp-design-tokens-and-interaction-matrix.md). Within the supplied archive, `DECISIONS.md` overrides conflicting specimens and `tokens/astradock.css` is the code contract. `AstraDock Interactions.dc.html` remains unfinished and `AstraDock Dashboard.dc.html` remains substantially unfinished; unspecified behavior must not be inferred. This PRD remains authoritative for product behavior and MVP scope.
 
 Mock features and telemetry in design specimens do not expand scope or prove data availability. The design documents are authoritative for design direction rather than production source, and their shadcn/ui mapping does not settle the application framework.
 
@@ -790,7 +790,7 @@ Selecting a table row or terminal line shall open the same details experience fo
 - Table view opens the details drawer from the bottom.
 - Terminal view opens the details drawer from the right side.
 
-Users shall be able to override drawer placement at any time through visible on-screen controls. The selected placement shall be stored only on the local machine for now. It is a presentation preference, is not Station telemetry, and shall not be synchronized. The precise preference scope—global, per view, or per workspace—remains to be finalized with the interaction design, but behavior must be deterministic and resettable.
+Users shall be able to override drawer placement at any time through visible on-screen controls. The selected placement shall be stored only on the local machine, persisted per view, and resettable. It is a presentation preference, is not Station telemetry, and shall not be synchronized. Responsive fallback behavior follows the accepted issue #7 matrix and must not mutate the stored preference.
 
 The drawer is anchored to the immutable event ID, not the row or line's current visual index, so new events, filtering, virtualization, retention, or reordering cannot silently change the selected subject. Terminal and table views use the same drilldown data contract, content rules, privacy treatment, actions, and loading/error states; drawer placement must not create divergent detail features.
 
@@ -811,7 +811,7 @@ The selected event remains inspectable even as it scrolls out of the virtualized
 
 ### 15.5 Shared stream controls — Candidate pending workflow design
 
-Terminal and table views should likely share environment-scoped controls for event-type filters, session/time range, party/member, shard/server, provenance, confidence, diagnostic visibility, search, live/historical mode, and export. Drawer placement is confirmed as a locally persisted preference. Exact scope and persistence behavior for other preferences, along with remaining controls, defaults, and URL/navigation state, await the design system and workflow specification.
+Terminal and table views should likely share environment-scoped controls for event-type filters, session/time range, party/member, shard/server, provenance, confidence, diagnostic visibility, search, live/historical mode, and export. Drawer placement is confirmed as a locally persisted per-view preference. Exact scope and persistence behavior for other preferences, along with remaining controls, defaults, and URL/navigation state, await the design system and workflow specification.
 
 ### 15.6 MVP at-a-glance live context — Settled direction
 
@@ -835,13 +835,15 @@ The design should distinguish primary play-relevant state from expandable diagno
 
 Current evidence does not justify presenting exact player position, route destination, shard population, player roster, server latency/FPS, current ship ownership/occupancy, mission objective state, quantum phase, jump-tunnel phase, kills, or deaths as reliable live state. These may be added to MVP only if fresh annotated fixtures establish dependable patterns without delaying the coherent release; otherwise they remain later evidence-driven additions.
 
-Potential presentation regions, pending the design system, are:
+The approved interim shell includes:
 
 - A persistent environment/source/status header.
-- Compact current-state cards or a status rail for shard/connection, party, jurisdiction/zone, and session time.
+- Tabs for Runtime Monitor plus visible but unavailable post-MVP Data Operations and History & Analytics areas.
+- A compact current-state rail with dedicated Instruments, Party, and Mission sections.
 - A prioritized warning/attention area that appears only when actionable.
 - The central rolling Terminal/Table event stream.
 - Shared event drilldown drawers for detail and evidence.
+- A status bar for monitoring state, environment, local-only status, retention, backlog, and parser profile.
 
 State surfaces must show freshness and uncertainty. When a terminal event is missing or monitoring begins mid-session, the interface shall display `unknown` or `stale` rather than carrying an old value forward as current truth.
 
