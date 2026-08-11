@@ -916,9 +916,16 @@ If later testing or a game patch makes the signal unreliable, the affected extra
 
 ## 16. Supported platforms and packaging
 
-Current packaging targets Windows NSIS/portable and Linux AppImage/deb. Star Citizen is primarily a Windows workload; Linux support addresses Wine/Proton/LUG installations.
+The approved v0.1.0 platform, artifact, lifecycle, validation, and update contract is defined by [`ADR-0002`](architecture/adr-0002-mvp-platform-packaging-and-update-policy.md).
 
-**Open:** Establish supported operating systems, minimum versions, native Windows priority, Linux support level, update mechanism, signing/notarization, and packaging architecture.
+- Windows is primary. Windows 10 22H2 x64 and supported Windows 11 x64 releases are supported. Windows 10 support must be revisited if it restricts security, supported Electron/Chromium upgrades, or product functionality.
+- Windows ships one per-user NSIS installer without administrator privileges. No Windows portable artifact ships.
+- Linux x86_64 support follows the explicit LUG-aligned distribution matrix in ADR-0002 and initially ships one AppImage rather than distribution-native packages.
+- GitHub Releases is the expected v0.1.0 publication and update origin.
+- Updates are checked and downloaded automatically, verified, and installed silently on the next normal application restart. AstraDock never force-restarts during active monitoring.
+- Very limited prerelease alpha builds may temporarily be unsigned with explicit warnings. Signed and timestamped Windows artifacts are required before v0.1.0 is complete under [issue #50](https://github.com/Presstronic/astradock-local/issues/50).
+- Upgrades preserve application data. Downgrades are best effort and must fail safely rather than corrupting or silently discarding newer data.
+- Windows uninstall prompts to retain or delete local application data, with retention as the safe default. Linux program removal and XDG application-data deletion remain separate explicit actions.
 
 ## 17. Evidence and validation strategy
 
@@ -1059,18 +1066,17 @@ Runtime parsing, rules, persistence, and synchronization must not depend on rend
 
 1. Primary persona and single indispensable first-release workflow.
 2. MVP, Phase 1, and Phase 2 scope and explicit non-goals.
-3. Supported platforms and priority order.
-4. Initial canonical event set beyond the proven telemetry spine.
-5. Party-history retention and whether social data may ever synchronize.
-6. Local persistence engine and retention controls.
-7. Rule/assertion authoring model and sandbox.
-8. Station API, authentication, device identity, schemas, and retention.
-9. First official datasets to mine and publish.
-10. Extraction-tool distribution and update model.
-11. Packaging details not settled by [`ADR-0001`](architecture/adr-0001-production-application-foundation.md), including exact tool versions and artifact integration.
-12. Performance/reliability service objectives.
-13. Product analytics and diagnostics policy.
-14. Design-system delivery and future UI information architecture.
+3. Initial canonical event set beyond the proven telemetry spine.
+4. Party-history retention and whether social data may ever synchronize.
+5. Local persistence engine and retention controls.
+6. Rule/assertion authoring model and sandbox.
+7. Station API, authentication, device identity, schemas, and retention.
+8. First official datasets to mine and publish.
+9. Extraction-tool distribution and update model.
+10. Packaging implementation details not settled by [`ADR-0002`](architecture/adr-0002-mvp-platform-packaging-and-update-policy.md), including exact tool versions and CI integration.
+11. Performance/reliability service objectives.
+12. Product analytics and diagnostics policy.
+13. Design-system delivery and future UI information architecture.
 
 ## 22. Risks and mitigations
 
@@ -1103,13 +1109,12 @@ Research spikes are appropriate where evidence, external contracts, licensing, o
 
 1. Define primary user/persona and the indispensable first-release workflow.
 2. Inventory what Station already owns and define offline expectations.
-3. Decide supported platform priority.
-4. Review and name the first canonical event contracts.
-5. Capture fresh annotated fixtures, beginning with party lifecycle and combat/session events.
-6. Specify persistence, privacy/retention, and Station contracts.
-7. Establish measurable performance and reliability objectives.
-8. Justify MVP/Phase 1/Phase 2 boundaries.
-9. Translate the approved specification into the issue backlog.
+3. Review and name the first canonical event contracts.
+4. Capture fresh annotated fixtures, beginning with party lifecycle and combat/session events.
+5. Specify persistence, privacy/retention, and Station contracts.
+6. Establish measurable performance and reliability objectives.
+7. Justify MVP/Phase 1/Phase 2 boundaries.
+8. Translate the approved specification into the issue backlog.
 
 Do not begin rebuilding the application until the owner explicitly authorizes implementation.
 
