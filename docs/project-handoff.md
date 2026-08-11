@@ -139,6 +139,10 @@ These are informed starting principles, not a finalized technical specification:
 - Redact or minimize sensitive information at the upload boundary.
 - Hide external extraction tools behind adapters so tool choice can change independently of the application domain.
 
+## Architecture Decisions
+
+- [ADR 0001: MVP Local Persistence Engine and Retention Model](adr/0001-mvp-local-persistence.md) selects encrypted SQLite, main-process repository boundaries, 30-day telemetry retention, a 250 MB soft cap, and defined deletion/reset modes for the MVP local store.
+
 ## External Game-Data Tool Research
 
 ### StarBreaker
@@ -172,7 +176,7 @@ Before distributing either tool, confirm its current license, release packaging,
 - The initial user personas and highest-value live telemetry workflows.
 - The first event types beyond the prototype's shard/session observations.
 - The rule/assertion authoring model and its trust/sandbox boundaries.
-- Local database choice, retention, export, and deletion controls.
+- Local export controls for retained telemetry and evidence.
 - Station endpoints, authentication, tenant/device identity, event schemas, batching, retention, and idempotency rules.
 - The first official game datasets worth mining and synchronizing.
 - Whether extraction tools are user-supplied, managed downloads, or bundled binaries.
