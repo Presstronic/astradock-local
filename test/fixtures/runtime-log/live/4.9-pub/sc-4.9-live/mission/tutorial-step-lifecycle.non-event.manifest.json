@@ -1,0 +1,43 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/mission/tutorial-step-lifecycle.non-event",
+  "title": "Tutorial lifecycle is not general mission lifecycle evidence",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "mission",
+  "action": "tutorial flow starts and completes one tutorial step",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/mission-lifecycle-evidence-matrix.md#evidence-sources",
+  "logFile": "tutorial-step-lifecycle.non-event.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["tutorialFlow", "tutorialStep", "tutorialMission"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Tutorial identifiers are synthetic and are not evidence of the player's ordinary mission list."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "MissionAccepted",
+      "reason": "Tutorial step start is not proof that the local player accepted a normal mission."
+    },
+    {
+      "eventType": "MissionObjectiveCompleted",
+      "reason": "Tutorial step completion is not a general mission objective completion event."
+    },
+    {
+      "eventType": "MissionCompleted",
+      "reason": "A tutorial step result is not proof that a mission contract completed."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "tutorial-flow+step",
+    "sequence": [],
+    "notes": "Tutorial lifecycle may need its own future profile but must not backfill mission telemetry."
+  },
+  "knownLimitations": ["Synthetic guard based on documented issue #10 unsupported tutorial behavior."],
+  "verificationNotes": "Parser tests should treat tutorial step records as non-events for mission lifecycle projection."
+}

@@ -1,0 +1,3 @@
+<2026-08-09T19:18:00.000Z> [Tutorial] Loaded tutorial flow flow=SYNTH_TUTORIAL_FLOW_A
+<2026-08-09T19:18:01.000Z> [Tutorial] Step started step=SYNTH_TUTORIAL_STEP_A mission=SYNTH_TUTORIAL_MISSION_A
+<2026-08-09T19:18:02.000Z> [Tutorial] Step completed step=SYNTH_TUTORIAL_STEP_A result=SYNTH_STEP_COMPLETE

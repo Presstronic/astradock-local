@@ -1,0 +1,43 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/mission/mission-giver-asset-failure.non-event",
+  "title": "Mission giver asset failure is not mission lifecycle evidence",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "mission",
+  "action": "mission giver asset and conversation package fail to load",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/mission-lifecycle-evidence-matrix.md#evidence-sources",
+  "logFile": "mission-giver-asset-failure.non-event.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["missionGiver", "location", "conversationPackage", "missionTemplate"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Mission template and giver identifiers are synthetic and do not represent an accepted player contract."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "MissionOffered",
+      "reason": "Loading a mission giver asset does not prove a player-facing offer."
+    },
+    {
+      "eventType": "MissionWithdrawn",
+      "reason": "Missing mission-giver data does not prove a previously offered mission was withdrawn."
+    },
+    {
+      "eventType": "MissionFailed",
+      "reason": "Asset fallback is a subsystem error, not a local-player mission outcome."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "mission-giver+asset+mission-template",
+    "sequence": [],
+    "notes": "Mission-giver records can be diagnostic source context only."
+  },
+  "knownLimitations": ["Synthetic guard based on documented issue #10 unsupported asset-failure behavior."],
+  "verificationNotes": "Parser tests should retain these lines as non-authoritative mission noise and emit no mission transition."
+}

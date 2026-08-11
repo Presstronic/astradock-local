@@ -1,0 +1,43 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/mission/mission-service-startup.non-event",
+  "title": "Mission service startup is not current mission evidence",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "mission",
+  "action": "mission service initializes, subscribes, and hydrates cached definitions",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/mission-lifecycle-evidence-matrix.md#evidence-sources",
+  "logFile": "mission-service-startup.non-event.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["profile", "topic", "session", "cacheSource"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Startup and hydration records may mention mission systems but do not prove player-facing mission state."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "MissionOffered",
+      "reason": "Service initialization does not prove a mission offer to the local player."
+    },
+    {
+      "eventType": "MissionAccepted",
+      "reason": "Subscription and cache hydration do not prove local acceptance."
+    },
+    {
+      "eventType": "MissionCurrentSetConfirmedEmpty",
+      "reason": "A cached definition count is not an authoritative current mission projection."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "mission-service-startup+session",
+    "sequence": [],
+    "notes": "These records may be retained as diagnostic source activity but must not create or clear mission projection state."
+  },
+  "knownLimitations": ["Synthetic guard based on documented issue #10 unsupported startup behavior."],
+  "verificationNotes": "Parser tests should assert no mission alert, no active mission, and no confirmed empty mission set."
+}
