@@ -64,6 +64,31 @@ const REQUIRED_NEGATIVE_EVENTS = new Set([
   'MissionCompleted',
   'CrossEnvironmentMergedIdentity'
 ]);
+const ISSUE_9_PROMOTED_PARTY_EVENTS = new Set([
+  'PartyCreated',
+  'PartyLaunchInitiated',
+  'PartyMemberConnected'
+]);
+const ISSUE_9_DEFERRED_PARTY_EVENTS = new Set([
+  'PartyInviteObserved',
+  'PartyJoined',
+  'PartyMemberJoined',
+  'PartyMemberDisconnected',
+  'PartyMemberReconnected',
+  'PartyLeft',
+  'PartyMemberLeft',
+  'PartyMemberRemoved',
+  'PartyLeaderChanged',
+  'PartyDisbanded',
+  'PartyRosterReconstructedAtStartup'
+]);
+const ISSUE_9_PARTY_GUARD_EVENTS = new Set([
+  'PartyMemberJoined',
+  'PartyMemberLeft',
+  'PartyMemberRemoved',
+  'PartyDisbanded',
+  'PartyRosterSizeChanged'
+]);
 const ISSUE_10_DEFERRED_MISSION_EVENTS = new Set([
   'MissionOffered',
   'MissionSharedWithPlayer',
@@ -277,6 +302,60 @@ test('privacy scanner rejects representative unsafe fixture content', () => {
     const scanner = SENSITIVE_PATTERNS.find(({ name }) => name === sample.name);
     assert.ok(scanner, `missing scanner for ${sample.name}`);
     assert.match(sample.value, scanner.pattern, `${sample.name} sample must be rejected`);
+  }
+});
+
+test('issue 9 party lifecycle evidence gates promoted and deferred events', () => {
+  const evidenceMatrixPath = path.join(__dirname, '..', 'docs', 'party-lifecycle-evidence-matrix.md');
+  assertNoSensitivePatterns(evidenceMatrixPath);
+
+  const evidenceMatrix = fs.readFileSync(evidenceMatrixPath, 'utf8');
+  for (const requiredText of [
+    'Issue #9 evidence spike result',
+    'PartyCreated',
+    'PartyLaunchInitiated',
+    'PartyMemberConnected',
+    'marker-only',
+    'mid-party',
+    'Privacy Review',
+    'Technology and Libraries'
+  ]) {
+    assert.ok(evidenceMatrix.includes(requiredText), `party evidence matrix missing ${requiredText}`);
+  }
+
+  const partyManifests = walkFiles(path.join(FIXTURE_ROOT, 'live', '4.9-pub', 'sc-4.9-live', 'party'))
+    .filter((file) => file.endsWith('.manifest.json'))
+    .map(readJson);
+
+  const promotedEvents = new Set(partyManifests.flatMap((manifest) => (
+    manifest.expectedCanonicalEvents.map((event) => event.eventType)
+  )));
+  const deferredEvents = new Set(partyManifests.flatMap((manifest) => (
+    manifest.expectedNonEvents.map((event) => event.eventType)
+  )));
+  const unavailableManifest = partyManifests.find((manifest) => (
+    manifest.fixtureId.endsWith('/party-lifecycle-transitions.unavailable')
+  ));
+  const markerGuardManifest = partyManifests.find((manifest) => (
+    manifest.fixtureId.endsWith('/party-marker-only-membership.non-event')
+  ));
+
+  assert.ok(unavailableManifest, 'issue 9 unavailable party lifecycle annotation is required');
+  assert.equal(unavailableManifest.outcome, 'unavailable');
+  assert.ok(markerGuardManifest, 'issue 9 marker-only party guard fixture is required');
+  assert.equal(markerGuardManifest.outcome, 'non-event');
+
+  for (const eventType of ISSUE_9_PROMOTED_PARTY_EVENTS) {
+    assert.ok(promotedEvents.has(eventType), `missing promoted issue 9 event ${eventType}`);
+  }
+
+  for (const eventType of ISSUE_9_DEFERRED_PARTY_EVENTS) {
+    assert.ok(deferredEvents.has(eventType), `missing deferred issue 9 event gate ${eventType}`);
+  }
+
+  const markerGuardEvents = new Set(markerGuardManifest.expectedNonEvents.map((event) => event.eventType));
+  for (const eventType of ISSUE_9_PARTY_GUARD_EVENTS) {
+    assert.ok(markerGuardEvents.has(eventType), `marker-only fixture must guard ${eventType}`);
   }
 });
 
