@@ -500,7 +500,7 @@ These costs are accepted because they directly support the product's reliability
 - Message payloads and subscriptions must be bounded; event streams use paging/invalidation rather than unbounded pushes.
 - Backpressure exists at filesystem, processing, persistence, and renderer-delivery boundaries.
 - Shutdown, runtime readiness, commands, queries, and restarts use explicit timeouts.
-- Numeric performance and reliability objectives remain issue #6 decisions and must be applied to this architecture.
+- Numeric performance and reliability objectives are defined by [`ADR-0004`](adr-0004-mvp-performance-and-reliability-objectives.md) and must be applied to this architecture.
 
 ## Accessibility implications
 
@@ -521,7 +521,7 @@ This ADR intentionally does not settle:
 
 - Exact packaging and updater dependency versions and CI integration, within the policy established by [`ADR-0002`](adr-0002-mvp-platform-packaging-and-update-policy.md): issues #45 and #50.
 - Persistence driver selection and implementation details under the policy established by [`ADR-0003`](adr-0003-mvp-local-persistence-engine-and-retention-model.md).
-- Numeric latency, resource, backlog, recovery, and soak objectives: issue #6.
+- Performance/reliability implementation and measurement details under the objectives established by [`ADR-0004`](adr-0004-mvp-performance-and-reliability-objectives.md).
 - Component foundation, packaged typography/icons, and unfinished interaction acceptance details: design-system follow-up; semantic colors are settled by the supplied design system.
 - Fixture corpus and evidence acceptance: issues #8–#11.
 - Exact canonical events, process schemas, schema library, and version compatibility: issue #12.

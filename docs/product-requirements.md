@@ -682,18 +682,9 @@ The specification must define understandable consent, current collection/sync st
 
 ## 14. Reliability and performance requirements
 
-The production specification shall establish measurable objectives for:
+The MVP Runtime Monitor uses provisional numeric objectives for latency, throughput, resource use, workload shape, stale detection, data integrity, recovery, and release soak testing. The targets are strict enough to gate implementation and release review, but may be revised when representative sanitized corpus data and packaged-build measurements justify a change.
 
-- Event-observation latency under normal append load.
-- Sustained and burst log throughput.
-- Maximum tailer/parser memory use and queue depth.
-- Recovery after truncation, rotation, process restart, and network outage.
-- Duplicate-event and silent-loss tolerance.
-- Database growth and retention behavior.
-- Mining-job CPU, memory, disk, and cancellation responsiveness.
-- Station batching, retry, and time-to-drain behavior.
-
-Exact targets remain open pending representative corpus and platform measurements.
+See [`ADR-0004`](architecture/adr-0004-mvp-performance-and-reliability-objectives.md).
 
 ## 15. User experience requirements
 
@@ -1071,9 +1062,8 @@ Runtime parsing, rules, persistence, and synchronization must not depend on rend
 7. First official datasets to mine and publish.
 8. Extraction-tool distribution and update model.
 9. Packaging implementation details not settled by [`ADR-0002`](architecture/adr-0002-mvp-platform-packaging-and-update-policy.md), including exact tool versions and CI integration.
-10. Performance/reliability service objectives.
-11. Product analytics and diagnostics policy.
-12. Design-system delivery and future UI information architecture.
+10. Product analytics and diagnostics policy.
+11. Design-system delivery and future UI information architecture.
 
 ## 22. Risks and mitigations
 
@@ -1108,10 +1098,9 @@ Research spikes are appropriate where evidence, external contracts, licensing, o
 2. Inventory what Station already owns and define offline expectations.
 3. Review and name the first canonical event contracts.
 4. Capture fresh annotated fixtures, beginning with party lifecycle and combat/session events.
-5. Specify persistence, privacy/retention, and Station contracts.
-6. Establish measurable performance and reliability objectives.
-7. Justify MVP/Phase 1/Phase 2 boundaries.
-8. Translate the approved specification into the issue backlog.
+5. Specify Station contracts.
+6. Justify MVP/Phase 1/Phase 2 boundaries.
+7. Translate the approved specification into the issue backlog.
 
 Do not begin rebuilding the application until the owner explicitly authorizes implementation.
 
