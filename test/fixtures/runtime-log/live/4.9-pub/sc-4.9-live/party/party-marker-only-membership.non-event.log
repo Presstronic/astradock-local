@@ -1,0 +1,4 @@
+<2026-08-09T19:12:00.000Z> <PartyMarker> partyId[SYNTH_PARTY_A] markerId[SYNTH_MARKER_MEMBER_A] trackedEntity[SYNTH_TRACKED_ENTITY_MEMBER_A] state[streaming]
+<2026-08-09T19:12:01.000Z> <PartyMarker> partyId[SYNTH_PARTY_A] markerId[SYNTH_MARKER_MEMBER_B] trackedEntity[SYNTH_TRACKED_ENTITY_MEMBER_B] state[streaming]
+<2026-08-09T19:12:02.000Z> <PartyMarker> partyId[SYNTH_PARTY_A] markerId[SYNTH_MARKER_MEMBER_A] state[removed]
+<2026-08-09T19:12:03.000Z> <PartyMarker> partyId[SYNTH_PARTY_A] markerId[SYNTH_MARKER_MEMBER_B] state[removed]
