@@ -1,12 +1,10 @@
-# ADR 0001: MVP Local Persistence Engine and Retention Model
+# ADR-0003: MVP local persistence engine and retention model
 
-## Status
-
-Accepted
-
-## Date
-
-2026-08-11
+- **Status:** Accepted
+- **Date:** 2026-08-11
+- **Decision owners:** AstraDock Local product owner and maintainers
+- **Decision issue:** [#5](https://github.com/Presstronic/astradock-local/issues/5)
+- **Applies to:** MVP local persistence and replay unless superseded
 
 ## Context
 

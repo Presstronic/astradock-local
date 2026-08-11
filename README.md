@@ -15,7 +15,7 @@ npm start
 npm run dist
 ```
 
-The Electron Builder config currently targets Windows `nsis`/`portable` and Linux `AppImage`/`deb`.
+The proof-of-concept Electron Builder config currently targets Windows `nsis`/`portable` and Linux `AppImage`/`deb`; that configuration is not the production release contract. The approved v0.1.0 policy will ship a per-user Windows x64 NSIS installer and a Linux x86_64 AppImage. See [`ADR-0002`](docs/architecture/adr-0002-mvp-platform-packaging-and-update-policy.md).
 
 ## Current Functionality
 
