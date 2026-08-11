@@ -308,7 +308,7 @@ Rejected. Signed Windows artifacts and a protected update trust chain are requir
 - Issue #45 implements and validates the selected artifacts and release automation.
 - Issue #50 acquires and integrates Windows code signing before v0.1.0 completion.
 - [`ADR-0003`](adr-0003-mvp-local-persistence-engine-and-retention-model.md) defines durable-data formats, migrations, corruption recovery, and deletion internals consistent with this lifecycle policy.
-- Issue #6 supplies numeric update, startup, recovery, resource, and soak thresholds.
+- [`ADR-0004`](adr-0004-mvp-performance-and-reliability-objectives.md) supplies numeric update, startup, recovery, resource, and soak thresholds.
 - Source-discovery work implements non-default Windows drives and Linux Wine/Proton/LUG paths without broad filesystem authority.
 - User and release documentation must list exact tested platform versions, artifact instructions, update behavior, data locations, uninstall behavior, and known limitations.
 
