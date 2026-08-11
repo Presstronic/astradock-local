@@ -89,6 +89,8 @@ Before approving a fixture PR, verify:
 | Local identity/login | `spine/local-identity-login.observed` |
 | PU join/shard/server | `spine/pu-join-shard-server.observed` |
 | Party creation/launch/member connection | `party/party-create-launch-member-connected.observed` |
+| Party marker-only membership guard | `party/party-marker-only-membership.non-event` |
+| Party lifecycle gaps | `party/party-lifecycle-transitions.unavailable`; see [`party-lifecycle-evidence-matrix.md`](party-lifecycle-evidence-matrix.md) |
 | Jurisdiction/monitored-space/armistice | `zone/jurisdiction-monitored-armistice.observed` |
 | Disconnect/frontend return/clean quit | `spine/disconnect-frontend-clean-exit.observed` |
 | Failure and transition gaps | `spine/failure-transition-evidence.unavailable` |
@@ -96,7 +98,7 @@ Before approving a fixture PR, verify:
 | Framing and duplicate behavior | `framing/line-framing-edge-cases.framing`, `framing/duplicate-notification-lifecycle.framing` |
 | Environment isolation | `multi/4.9-pub/sc-4.9-cross-env/environment/live-ptu-identical-identifiers.isolation` |
 
-Future controlled captures should add separate issue-backed fixtures for party lifecycle gaps, missions, destination/travel, combat, ship lifecycle, trade/cargo, chat, organization presence, population, normal PU exit, server error, network loss, crash, and shard/server transition.
+Future controlled captures should add separate issue-backed fixtures for the deferred party lifecycle actions in [`party-lifecycle-evidence-matrix.md`](party-lifecycle-evidence-matrix.md), missions, destination/travel, combat, ship lifecycle, trade/cargo, chat, organization presence, population, normal PU exit, server error, network loss, crash, and shard/server transition.
 
 ## Technology and Libraries
 

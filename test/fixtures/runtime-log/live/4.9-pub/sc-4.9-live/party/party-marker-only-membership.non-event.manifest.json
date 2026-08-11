@@ -1,0 +1,51 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/party/party-marker-only-membership.non-event",
+  "title": "Party marker stream is not authoritative membership evidence",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "party",
+  "action": "party markers appear and disappear without handle-bearing lifecycle evidence",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/party-lifecycle-evidence-matrix.md#promotion-decisions",
+  "logFile": "party-marker-only-membership.non-event.log",
+  "privacyClassification": ["social", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["partyId", "markerId", "trackedEntity"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Marker IDs and tracked entities are synthetic and intentionally not linked to handles."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "PartyMemberJoined",
+      "reason": "A marker appearing does not prove a named member joined."
+    },
+    {
+      "eventType": "PartyMemberLeft",
+      "reason": "A marker disappearing does not prove a named member left."
+    },
+    {
+      "eventType": "PartyMemberRemoved",
+      "reason": "Marker removal is not kick or removal evidence."
+    },
+    {
+      "eventType": "PartyDisbanded",
+      "reason": "All markers disappearing is not direct disband evidence."
+    },
+    {
+      "eventType": "PartyRosterSizeChanged",
+      "reason": "Marker count is not authoritative party size evidence."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "partyId+markerId+state",
+    "sequence": ["PartyMarker observed", "PartyMarker removed"],
+    "notes": "Marker records may be retained as diagnostic evidence after event contracts exist, but they must not mutate named membership."
+  },
+  "knownLimitations": ["No handle mapping is present; this fixture intentionally does not assert PartyMarkerObserved as a promoted canonical event."],
+  "verificationNotes": "Parser/profile tests should assert marker-only records do not create, remove, or count party members."
+}
