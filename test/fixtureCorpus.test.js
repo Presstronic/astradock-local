@@ -89,6 +89,28 @@ const ISSUE_9_PARTY_GUARD_EVENTS = new Set([
   'PartyDisbanded',
   'PartyRosterSizeChanged'
 ]);
+const ISSUE_10_DEFERRED_MISSION_EVENTS = new Set([
+  'MissionOffered',
+  'MissionSharedWithPlayer',
+  'MissionAccepted',
+  'MissionSharedByLocalPlayer',
+  'MissionObjectiveChanged',
+  'MissionObjectiveCompleted',
+  'MissionObjectiveFailed',
+  'MissionCompleted',
+  'MissionFailed',
+  'MissionAbandoned',
+  'MissionWithdrawn',
+  'MissionExpired',
+  'MissionCurrentSetConfirmedEmpty'
+]);
+const ISSUE_10_NEGATIVE_FIXTURES = new Set([
+  'mission/mission-service-startup.non-event',
+  'mission/mission-giver-asset-failure.non-event',
+  'mission/tutorial-step-lifecycle.non-event',
+  'mission/mission-lifecycle-transitions.unavailable',
+  'negative/mission-notification-ui-lifecycle.non-event'
+]);
 
 const SENSITIVE_PATTERNS = [
   { name: 'ipv4 address', pattern: /\b(?:\d{1,3}\.){3}\d{1,3}\b/ },
@@ -334,6 +356,60 @@ test('issue 9 party lifecycle evidence gates promoted and deferred events', () =
   const markerGuardEvents = new Set(markerGuardManifest.expectedNonEvents.map((event) => event.eventType));
   for (const eventType of ISSUE_9_PARTY_GUARD_EVENTS) {
     assert.ok(markerGuardEvents.has(eventType), `marker-only fixture must guard ${eventType}`);
+  }
+});
+
+test('issue 10 mission lifecycle evidence gates unsupported transitions', () => {
+  const evidenceMatrixPath = path.join(__dirname, '..', 'docs', 'mission-lifecycle-evidence-matrix.md');
+  assertNoSensitivePatterns(evidenceMatrixPath);
+
+  const evidenceMatrix = fs.readFileSync(evidenceMatrixPath, 'utf8');
+  for (const requiredText of [
+    'Issue #10 evidence spike result',
+    'MissionOffered',
+    'MissionSharedWithPlayer',
+    'MissionAccepted',
+    'MissionObjectiveCompleted',
+    'MissionCompleted',
+    'MissionCurrentSetConfirmedEmpty',
+    'unsupported',
+    'unknown',
+    'Privacy Review',
+    'Technology and Libraries'
+  ]) {
+    assert.ok(evidenceMatrix.includes(requiredText), `mission evidence matrix missing ${requiredText}`);
+  }
+
+  const relevantManifests = walkFiles(path.join(FIXTURE_ROOT, 'live', '4.9-pub', 'sc-4.9-live'))
+    .filter((file) => file.endsWith('.manifest.json'))
+    .map(readJson)
+    .filter((manifest) => ISSUE_10_NEGATIVE_FIXTURES.has(
+      manifest.fixtureId.replace('live/4.9-pub/sc-4.9-live/', '')
+    ));
+
+  const fixtureIds = new Set(relevantManifests.map((manifest) => (
+    manifest.fixtureId.replace('live/4.9-pub/sc-4.9-live/', '')
+  )));
+  const deferredEvents = new Set(relevantManifests.flatMap((manifest) => (
+    manifest.expectedNonEvents.map((event) => event.eventType)
+  )));
+  const promotedMissionEvents = relevantManifests.flatMap((manifest) => (
+    manifest.expectedCanonicalEvents.filter((event) => event.eventType.startsWith('Mission'))
+  ));
+  const unavailableManifest = relevantManifests.find((manifest) => (
+    manifest.fixtureId.endsWith('/mission-lifecycle-transitions.unavailable')
+  ));
+
+  for (const fixtureId of ISSUE_10_NEGATIVE_FIXTURES) {
+    assert.ok(fixtureIds.has(fixtureId), `missing issue 10 fixture ${fixtureId}`);
+  }
+
+  assert.ok(unavailableManifest, 'issue 10 unavailable mission lifecycle annotation is required');
+  assert.equal(unavailableManifest.outcome, 'unavailable');
+  assert.equal(promotedMissionEvents.length, 0, 'issue 10 must not promote mission canonical events');
+
+  for (const eventType of ISSUE_10_DEFERRED_MISSION_EVENTS) {
+    assert.ok(deferredEvents.has(eventType), `missing deferred issue 10 event gate ${eventType}`);
   }
 });
 

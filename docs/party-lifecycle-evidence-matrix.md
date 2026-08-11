@@ -118,4 +118,3 @@ Controlled gameplay captures are still required before enabling the deferred eve
 - Leader change.
 - Disband.
 - Monitor startup while already in a party.
-

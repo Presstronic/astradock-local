@@ -1,0 +1,3 @@
+<2026-08-09T19:05:00.000Z> [MissionService] Initializing mission service profile=SYNTH_PROFILE_LIVE
+<2026-08-09T19:05:01.000Z> [MissionService] Subscribed to mission stream topic=SYNTH_MISSION_TOPIC session=SYNTH_SESSION_ALPHA
+<2026-08-09T19:05:02.000Z> [MissionService] Hydrated cached mission definitions count=0 source=SYNTH_CACHE_LOCAL
