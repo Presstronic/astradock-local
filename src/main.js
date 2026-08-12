@@ -1,16 +1,23 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const { parseLogFile } = require('./logParser');
 const {
-  findExistingLogPath,
-  getDefaultLogCandidates,
-  parseLogFile
-} = require('./logParser');
+  assertSourceIsApproved,
+  discoverRuntimeSources,
+  loadSourcePreference,
+  saveSourcePreference,
+  toPublicSource,
+  validateLogSource
+} = require('./sourceDiscovery');
 
 let mainWindow;
 let watchedLogPath = null;
+let watchedSourceId = null;
 let watcher = null;
 let watchOptions = {};
+const sourceRegistry = new Map();
+let activeSourceId = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -41,12 +48,16 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-ipcMain.handle('logs:defaults', async () => ({
-  candidates: getDefaultLogCandidates(),
-  detectedPath: await findExistingLogPath()
-}));
+ipcMain.handle('sources:discover', async () => {
+  const discovery = await discoverAndRegisterSources();
+  return {
+    ...discovery,
+    sources: discovery.sources.map(toPublicSource),
+    activeSource: discovery.activeSource ? toPublicSource(discovery.activeSource) : null
+  };
+});
 
-ipcMain.handle('logs:choose', async () => {
+ipcMain.handle('sources:choose', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Choose Star Citizen game.log',
     properties: ['openFile'],
@@ -57,21 +68,58 @@ ipcMain.handle('logs:choose', async () => {
   });
 
   if (result.canceled) return null;
-  return result.filePaths[0];
+  const source = await validateLogSource(result.filePaths[0], {
+    discoveryMethods: ['user_selected']
+  });
+  rememberSource(source);
+
+  if (source.validation.isValid) {
+    activeSourceId = source.sourceId;
+    await saveSourcePreference(getSourcePreferencePath(), source);
+  }
+
+  return {
+    source: toPublicSource(source),
+    saved: source.validation.isValid
+  };
 });
 
-ipcMain.handle('logs:scan', async (_event, logPath, options = {}) => parseLogFile(logPath, options));
+ipcMain.handle('sources:select', async (_event, sourceId) => {
+  const source = await revalidateRegisteredSource(sourceId);
+  if (!source.validation.isValid) {
+    return {
+      source: toPublicSource(source),
+      selected: false
+    };
+  }
 
-ipcMain.handle('logs:watch', async (_event, logPath, options = {}) => {
+  activeSourceId = source.sourceId;
+  await saveSourcePreference(getSourcePreferencePath(), source);
+  return {
+    source: toPublicSource(source),
+    selected: true
+  };
+});
+
+ipcMain.handle('logs:scanSource', async (_event, sourceId, options = {}) => {
+  const source = await getApprovedSource(sourceId || activeSourceId);
+  const result = await parseLogFile(source.private.canonicalPath, options);
+  return toRendererScanResult(result, source);
+});
+
+ipcMain.handle('logs:watchSource', async (_event, sourceId, options = {}) => {
+  const source = await getApprovedSource(sourceId || activeSourceId);
+  const logPath = source.private.canonicalPath;
   if (watcher) watcher.close();
   watchedLogPath = logPath;
+  watchedSourceId = source.sourceId;
   watchOptions = options;
 
   watcher = fs.watch(logPath, { persistent: false }, async () => {
-    if (!mainWindow || watchedLogPath !== logPath) return;
+    if (!mainWindow || watchedLogPath !== logPath || watchedSourceId !== source.sourceId) return;
     try {
       const result = await parseLogFile(logPath, watchOptions);
-      mainWindow.webContents.send('logs:changed', result);
+      mainWindow.webContents.send('logs:changed', toRendererScanResult(result, source));
     } catch (error) {
       mainWindow.webContents.send('logs:error', error.message);
     }
@@ -84,13 +132,17 @@ ipcMain.handle('logs:unwatch', async () => {
   if (watcher) watcher.close();
   watcher = null;
   watchedLogPath = null;
+  watchedSourceId = null;
   watchOptions = {};
   return true;
 });
 
-ipcMain.handle('logs:openFolder', async (_event, logPath) => {
-  if (!logPath) return false;
-  await shell.openPath(path.dirname(logPath));
+ipcMain.handle('sources:openFolder', async (_event, sourceId) => {
+  const source = await revalidateRegisteredSource(sourceId || activeSourceId);
+  if (!source.validation.isValid) {
+    throw safeError(source.validation.status, source.validation.message);
+  }
+  await shell.openPath(path.dirname(source.private.canonicalPath));
   return true;
 });
 
@@ -115,3 +167,65 @@ ipcMain.handle('api:fetchJson', async (_event, url) => {
     body
   };
 });
+
+function getSourcePreferencePath() {
+  return path.join(app.getPath('userData'), 'source-preference.json');
+}
+
+async function discoverAndRegisterSources() {
+  const preference = await loadSourcePreference(getSourcePreferencePath());
+  const discovery = await discoverRuntimeSources({
+    restoredSourcePath: preference?.selectedSourcePath || null,
+    includePrivate: true
+  });
+
+  sourceRegistry.clear();
+  for (const source of discovery.sources) rememberSource(source);
+  activeSourceId = discovery.activeSource?.sourceId || null;
+  return discovery;
+}
+
+function rememberSource(source) {
+  sourceRegistry.set(source.sourceId, source);
+}
+
+async function revalidateRegisteredSource(sourceId) {
+  const source = sourceRegistry.get(sourceId);
+  if (!source?.private?.canonicalPath) {
+    throw safeError('source_not_found', 'That log source is no longer available. Refresh source discovery and try again.');
+  }
+
+  const refreshed = await validateLogSource(source.private.canonicalPath, {
+    discoveryMethods: source.discoveryMethods
+  });
+  if (refreshed.sourceId !== source.sourceId) sourceRegistry.delete(source.sourceId);
+  rememberSource(refreshed);
+  return refreshed;
+}
+
+async function getApprovedSource(sourceId) {
+  const source = await revalidateRegisteredSource(sourceId);
+  if (!source.validation.isValid) {
+    throw safeError(source.validation.status, source.validation.message);
+  }
+  assertSourceIsApproved(source);
+  activeSourceId = source.sourceId;
+  return source;
+}
+
+function safeError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function toRendererScanResult(result, source) {
+  const {
+    logPath: _logPath,
+    ...safeResult
+  } = result;
+  return {
+    ...safeResult,
+    source: toPublicSource(source)
+  };
+}

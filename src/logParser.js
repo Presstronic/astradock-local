@@ -1,59 +1,12 @@
 const fs = require('node:fs/promises');
-const os = require('node:os');
-const path = require('node:path');
 const {
   createPartitionedIdentity,
   deriveEnvironmentContext,
   deriveSourceInstallationId
 } = require('./contracts/runtimeEvents');
 
-const LOG_FILE_NAME = 'game.log';
 const CONTEXT_RADIUS = 6;
 const UNKNOWN_SOURCE_LOCATION = 'UNKNOWN_SOURCE';
-
-function expandHome(value) {
-  if (!value || !value.startsWith('~')) return value;
-  return path.join(os.homedir(), value.slice(1));
-}
-
-function getDefaultLogCandidates() {
-  const home = os.homedir();
-  const candidates = [];
-
-  if (process.platform === 'win32') {
-    const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
-    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
-    candidates.push(
-      path.join(programFiles, 'Roberts Space Industries', 'StarCitizen', 'LIVE', LOG_FILE_NAME),
-      path.join(programFiles, 'Roberts Space Industries', 'StarCitizen', 'PTU', LOG_FILE_NAME),
-      path.join(programFiles, 'Roberts Space Industries', 'StarCitizen', 'EPTU', LOG_FILE_NAME),
-      path.join(programFiles, 'Roberts Space Industries', 'StarCitizen', 'TECH-PREVIEW', LOG_FILE_NAME),
-      path.join(programFilesX86, 'Steam', 'steamapps', 'common', 'Star Citizen', 'LIVE', LOG_FILE_NAME)
-    );
-  } else {
-    candidates.push(
-      path.join(home, 'Games', 'star-citizen', 'drive_c', 'Program Files', 'Roberts Space Industries', 'StarCitizen', 'LIVE', LOG_FILE_NAME),
-      path.join(home, '.local', 'share', 'Steam', 'steamapps', 'common', 'Star Citizen', 'LIVE', LOG_FILE_NAME),
-      path.join(home, '.steam', 'steam', 'steamapps', 'common', 'Star Citizen', 'LIVE', LOG_FILE_NAME),
-      path.join(home, '.var', 'app', 'com.valvesoftware.Steam', '.local', 'share', 'Steam', 'steamapps', 'common', 'Star Citizen', 'LIVE', LOG_FILE_NAME)
-    );
-  }
-
-  return candidates.map(expandHome);
-}
-
-async function findExistingLogPath() {
-  const candidates = getDefaultLogCandidates();
-  for (const candidate of candidates) {
-    try {
-      const stat = await fs.stat(candidate);
-      if (stat.isFile()) return candidate;
-    } catch {
-      // Keep checking other common install locations.
-    }
-  }
-  return null;
-}
 
 function parseLogTimestamp(line) {
   const iso = line.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(?:[.,]\d+)?/);
@@ -702,8 +655,6 @@ function parseLogText(logText, options = {}) {
 }
 
 module.exports = {
-  findExistingLogPath,
-  getDefaultLogCandidates,
   parseEnvironmentTimeline,
   parseLogFile,
   parseLogText,
