@@ -39,6 +39,8 @@ let watcher = null;
 let watchOptions = {};
 let scanInFlight = false;
 let scanPending = false;
+let monitorGeneration = 0;
+let activeMonitorScanController = null;
 let shuttingDown = false;
 let lastScan = null;
 let lastScanSource = null;
@@ -279,6 +281,7 @@ async function scanSource(source, options = {}) {
 
 async function startMonitor(source, options = {}) {
   if (watcher) await stopMonitor('source_changed');
+  monitorGeneration += 1;
   const logPath = source.private.canonicalPath;
   watchedLogPath = logPath;
   watchedSourceId = source.sourceId;
@@ -295,6 +298,8 @@ async function startMonitor(source, options = {}) {
 }
 
 async function stopMonitor(reason) {
+  monitorGeneration += 1;
+  if (activeMonitorScanController) activeMonitorScanController.abort();
   if (watcher) watcher.close();
   const wasActive = Boolean(watcher || watchedSourceId);
   watcher = null;
@@ -319,23 +324,39 @@ function scheduleMonitorScan(logPath, source) {
     return;
   }
 
+  const generation = monitorGeneration;
+  const controller = new AbortController();
+  activeMonitorScanController = controller;
   scanInFlight = true;
   setImmediate(async () => {
     try {
       if (watchedLogPath !== logPath || watchedSourceId !== source.sourceId) return;
-      const scan = await scanSource(source, watchOptions);
+      const scan = await scanSource(source, {
+        ...watchOptions,
+        signal: controller.signal
+      });
+      if (
+        controller.signal.aborted
+        || generation !== monitorGeneration
+        || watchedLogPath !== logPath
+        || watchedSourceId !== source.sourceId
+      ) {
+        return;
+      }
       publishMonitorChange({
         type: 'monitor.scan',
         monitor: getMonitorState(),
         scan
       });
     } catch (error) {
+      if (controller.signal.aborted || generation !== monitorGeneration) return;
       publishMonitorChange({
         type: 'monitor.error',
         error: fail(error).error,
         monitor: getMonitorState()
       });
     } finally {
+      if (activeMonitorScanController === controller) activeMonitorScanController = null;
       scanInFlight = false;
       if (scanPending && watchedLogPath === logPath && watchedSourceId === source.sourceId) {
         scanPending = false;

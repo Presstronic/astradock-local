@@ -29,3 +29,15 @@ test('renderer and main no longer expose third-party enrichment fetch controls',
   assert.doesNotMatch(html, /apiTemplate|Enrichment URL|api\.example/);
   assert.doesNotMatch(main, /api:fetchJson|fetch\(url/);
 });
+
+test('renderer gateway has an explicit TypeScript declaration surface', () => {
+  const declaration = readSource('contracts/rendererApi.d.ts');
+
+  assert.match(declaration, /export interface AstraDockApi/);
+  assert.match(declaration, /source:/);
+  assert.match(declaration, /monitor:/);
+  assert.match(declaration, /events:/);
+  assert.match(declaration, /settings:/);
+  assert.match(declaration, /diagnostics:/);
+  assert.match(declaration, /interface Window/);
+});

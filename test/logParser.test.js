@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   parseEnvironmentTimeline,
+  parseLogFile,
   parseLogText,
   parseShardEntries
 } = require('../src/logParser');
@@ -155,4 +156,18 @@ test('conflicting same-line environment evidence is quarantined without leaking 
   assert.equal(timeline.diagnostics[0].code, 'conflicting_environment_evidence');
   assert.equal(JSON.stringify(timeline.diagnostics).includes(sourcePath), false);
   assert.equal(timeline.activeEnvironment.releaseChannel, 'UNKNOWN');
+});
+
+test('parseLogFile supports abortable reads for monitor cancellation', async () => {
+  const controller = new AbortController();
+  controller.abort();
+
+  await assert.rejects(
+    () => parseLogFile(path.join(FIXTURE_ROOT, 'live', '4.9-pub', 'sc-4.9-live', 'spine', 'pu-join-shard-server.observed.log'), {
+      signal: controller.signal
+    }),
+    {
+      name: 'AbortError'
+    }
+  );
 });

@@ -8,6 +8,7 @@
 | Delivery issue | [#29](https://github.com/Presstronic/astradock-local/issues/29) |
 | Runtime package | [`src/main.js`](../src/main.js), [`src/preload.js`](../src/preload.js) |
 | Boundary helpers | [`src/ipcBoundary.js`](../src/ipcBoundary.js), [`src/subscriptionHub.js`](../src/subscriptionHub.js), [`src/electronSecurity.js`](../src/electronSecurity.js) |
+| Renderer API declarations | [`src/contracts/rendererApi.d.ts`](../src/contracts/rendererApi.d.ts) |
 | Tests | [`test/ipcBoundary.test.js`](../test/ipcBoundary.test.js), [`test/subscriptionHub.test.js`](../test/subscriptionHub.test.js), [`test/electronSecurity.test.js`](../test/electronSecurity.test.js), [`test/securitySurface.test.js`](../test/securitySurface.test.js) |
 
 This document records the issue #29 boundary delivered inside the current CommonJS proof-of-concept shell. It does not supersede ADR-0001's TypeScript, React, Vite, and utility-process target. It hardens the Electron lifecycle and renderer gateway now so subsequent runtime-monitor work does not continue depending on raw prototype IPC.
@@ -48,6 +49,8 @@ diagnostics.getHealth()
 ```
 
 The preload does not expose `ipcRenderer`, channel names, generic `invoke` or `send`, Node.js modules, filesystem functions, arbitrary paths, arbitrary URLs, or network helpers. All methods use versioned `astradock:v1:*` IPC channels and unwrap structured results into renderer exceptions with safe `code`, `message`, `retryable`, and `correlationId` fields.
+
+`src/contracts/rendererApi.d.ts` is the typed renderer contract for this CommonJS increment. It references `runtime-event/v1` environment types where renderer DTOs carry canonical environment context, and it does not introduce or promote any new runtime event families.
 
 Legacy prototype operations are intentionally removed:
 
@@ -111,6 +114,8 @@ The main process now owns monitor state independently of renderer subscriptions.
 - Cleanup when a renderer is destroyed or unsubscribes.
 - Bounded pending messages per subscriber. When a subscriber falls behind, stale pending changes are dropped and the next envelope reports the drop count.
 
+Stopping or replacing the monitor aborts the active watch-triggered file read when Node.js can cancel it and suppresses stale scan/error delivery if the read completes after the monitor generation has changed.
+
 The current monitor still wraps the proof-of-concept whole-file parser and `fs.watch`; replacing that with the ADR-0001 utility-process runtime and resilient incremental tailer remains the responsibility of later runtime-monitor issues.
 
 ## Evidence Detail
@@ -167,6 +172,7 @@ Focused coverage includes:
 - IPC validation and safe error redaction.
 - Hardened BrowserWindow options, CSP, and renderer URL policy.
 - Subscription backpressure and cleanup.
+- Abortable monitor file reads.
 - Static checks that legacy enrichment and raw log IPC surfaces are absent.
 
 Manual desktop verification should cover:
