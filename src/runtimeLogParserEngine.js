@@ -15,6 +15,11 @@ const {
   deriveSourceInstallationId,
   validateRuntimeEvent
 } = require('./contracts/runtimeEvents');
+const {
+  RuntimeEventOrchestrator,
+  buildDedupeKey,
+  getRuntimeEventFamilyPolicy
+} = require('./runtimeEventOrchestrator');
 
 const DEFAULT_MAX_LINE_BYTES = 64 * 1024;
 const DEFAULT_MAX_RECORD_BYTES = 128 * 1024;
@@ -84,7 +89,7 @@ class RuntimeLogLineFramer {
     this.discardingOversizedLine = false;
   }
 
-  push(chunk) {
+  push(chunk, metadata = {}) {
     const bytes = toBuffer(chunk);
     const diagnostics = [];
     const lines = [];
@@ -122,7 +127,7 @@ class RuntimeLogLineFramer {
 
       const lineBytes = Buffer.byteLength(physicalLine, 'utf8');
       const content = physicalLine.replace(/\r?\n$/, '');
-      const frame = this.buildLineFrame(content, lineBytes);
+      const frame = this.buildLineFrame(content, lineBytes, metadata);
       this.bufferBytes = Math.max(0, this.bufferBytes - lineBytes);
 
       if (lineBytes > this.maxLineBytes) {
@@ -169,13 +174,15 @@ class RuntimeLogLineFramer {
     return { lines, diagnostics };
   }
 
-  buildLineFrame(text, byteLength) {
+  buildLineFrame(text, byteLength, metadata = {}) {
     const frame = {
       text,
       lineNumber: this.nextLineNumber,
       sourceByteOffset: this.nextByteOffset,
       byteLength
     };
+    if (Number.isSafeInteger(metadata.generation)) frame.sourceGeneration = metadata.generation;
+    if (Number.isSafeInteger(metadata.sequence)) frame.sourceChunkSequence = metadata.sequence;
     this.nextLineNumber += 1;
     this.nextByteOffset += byteLength;
     return frame;
@@ -243,7 +250,9 @@ class RuntimeLogRecordAssembler {
       endLineNumber: line.lineNumber,
       sourceByteOffset: line.sourceByteOffset,
       byteLength: line.byteLength,
-      lineCount: 1
+      lineCount: 1,
+      sourceGeneration: line.sourceGeneration,
+      sourceChunkSequence: line.sourceChunkSequence
     };
 
     return { records, diagnostics };
@@ -284,12 +293,16 @@ class RuntimeLogParserEngine {
         minUnknownRecords: DEFAULT_DRIFT_MIN_UNKNOWN_RECORDS,
         unknownRatio: DEFAULT_DRIFT_UNKNOWN_RATIO,
         ...(options.driftDetection || {})
-      }
+      },
+      orchestration: options.orchestration || {}
     };
     this.profiles = loaded.profiles;
-    this.framer = new RuntimeLogLineFramer(options.framer);
-    this.assembler = new RuntimeLogRecordAssembler(options.assembler);
-    this.dedupeKeys = new Set();
+    this.framerOptions = options.framer || {};
+    this.assemblerOptions = options.assembler || {};
+    this.framer = new RuntimeLogLineFramer(this.framerOptions);
+    this.assembler = new RuntimeLogRecordAssembler(this.assemblerOptions);
+    this.orchestrator = options.orchestrator || new RuntimeEventOrchestrator(this.options.orchestration);
+    this.currentSourceGeneration = null;
     this.events = [];
     this.diagnostics = [];
     this.unknownEvidenceStore = options.unknownEvidenceStore || new UnknownEvidenceStore({
@@ -330,7 +343,9 @@ class RuntimeLogParserEngine {
   }
 
   push(chunk) {
-    const output = this.framer.push(chunk);
+    const input = normalizeChunkInput(chunk);
+    this.applyChunkScope(input);
+    const output = this.framer.push(input.bytes, input.metadata);
     this.addDiagnostics(output.diagnostics);
     this.consumeLines(output.lines);
     return this.snapshot({ incremental: true });
@@ -377,8 +392,44 @@ class RuntimeLogParserEngine {
         const produced = this.applyExtractor(extractor, selectedProfile, record);
         pendingEvents.push(...produced);
       }
-      this.emitNonConflictingEvents(pendingEvents, record);
+      this.emitNonConflictingEvents(pendingEvents, record, selectedProfile);
     }
+  }
+
+  applyChunkScope(input) {
+    if (!Number.isSafeInteger(input.metadata.generation)) return;
+    if (this.currentSourceGeneration === null) {
+      this.currentSourceGeneration = input.metadata.generation;
+      if (Number.isSafeInteger(input.metadata.offsetStart) && input.metadata.offsetStart !== this.framer.nextByteOffset) {
+        this.framer = new RuntimeLogLineFramer({
+          ...this.framerOptions,
+          sourceByteOffset: input.metadata.offsetStart
+        });
+      }
+      return;
+    }
+    if (this.currentSourceGeneration === input.metadata.generation) return;
+
+    const previousGeneration = this.currentSourceGeneration;
+    this.currentSourceGeneration = input.metadata.generation;
+    this.framer = new RuntimeLogLineFramer({
+      ...this.framerOptions,
+      sourceByteOffset: Number.isSafeInteger(input.metadata.offsetStart) ? input.metadata.offsetStart : 0
+    });
+    this.assembler = new RuntimeLogRecordAssembler(this.assemblerOptions);
+    this.orchestrator.resetSourceScope({ sourceGeneration: input.metadata.generation });
+    this.state.matchmakingByPort.clear();
+    this.state.channelByEndpoint.clear();
+    this.state.frontendReason = null;
+    this.addDiagnostic({
+      code: 'source_generation_changed',
+      severity: 'warn',
+      message: 'Runtime source generation changed; buffered record and bounded correlation state were reset.',
+      details: {
+        previousGeneration,
+        sourceGeneration: input.metadata.generation
+      }
+    });
   }
 
   observeEnvironmentEvidence(record) {
@@ -699,13 +750,12 @@ class RuntimeLogParserEngine {
       return [];
     }
 
-    const dedupeKey = buildDedupeKey(this.environment.environmentKey, eventType, payload, extractor.dedupeFields);
-    if (this.dedupeKeys.has(dedupeKey)) return [];
+    const policy = getRuntimeEventFamilyPolicy(eventType, extractor, this.options.orchestration);
+    const dedupeKey = buildDedupeKey(this.environment.environmentKey, eventType, payload, policy.dedupeFields);
 
     const sourceTimestamp = parseSourceTimestamp(record.normalizedText) || this.environment.observedAt;
     const sourceLocation = this.state.sourceLocation || this.options.sourceLocation || UNKNOWN_SOURCE_LOCATION;
     const sourceId = deriveSourceInstallationId(sourceLocation);
-    const ingestionSequence = this.ingestionSequence + 1;
     const event = {
       eventType,
       sourceTimestamp,
@@ -720,11 +770,13 @@ class RuntimeLogParserEngine {
       parserVersion: profile.parserVersion,
       provenance: 'observed',
       confidence: extractor.confidence || 'medium',
-      correlationIds: buildCorrelationIds(this.environment.environmentKey, eventType, dedupeKey),
+      correlationIds: buildCorrelationIds(this.environment.environmentKey, eventType, dedupeKey, payload),
       ordering: {
-        ingestionSequence,
+        ingestionSequence: this.orchestrator.ingestionSequence + 1,
         sourceSequence: record.startLineNumber,
-        sourceByteOffset: record.sourceByteOffset
+        sourceByteOffset: record.sourceByteOffset,
+        ...(Number.isSafeInteger(record.sourceGeneration) ? { sourceGeneration: record.sourceGeneration } : {}),
+        ...(Number.isSafeInteger(record.sourceChunkSequence) ? { sourceChunkSequence: record.sourceChunkSequence } : {})
       },
       payload,
       evidenceReference: {
@@ -773,42 +825,25 @@ class RuntimeLogParserEngine {
       return [];
     }
 
-    return [{ event: validation.event, dedupeKey, extractorId: extractor.id }];
+    return [{ event: validation.event, dedupeKey, extractorId: extractor.id, extractor, policy }];
   }
 
-  emitNonConflictingEvents(pendingEvents, record) {
-    const byEventType = new Map();
-    for (const pending of pendingEvents) {
-      if (!byEventType.has(pending.event.eventType)) byEventType.set(pending.event.eventType, []);
-      byEventType.get(pending.event.eventType).push(pending);
+  emitNonConflictingEvents(pendingEvents, record, selectedProfile) {
+    const result = this.orchestrator.processRecord({
+      candidates: pendingEvents,
+      record,
+      selectedProfile
+    });
+    this.addDiagnostics(result.diagnostics);
+    for (const capture of result.unknownEvidence) {
+      this.addUnknownEvidence(record, selectedProfile || this.selectProfileSnapshot(), capture.reason, {
+        evidenceMarkers: capture.evidenceMarkers,
+        sensitivity: capture.sensitivity
+      });
     }
-
-    for (const [eventType, candidates] of byEventType.entries()) {
-      const payloads = new Set(candidates.map((candidate) => JSON.stringify(candidate.event.payload)));
-      if (payloads.size > 1) {
-        this.addDiagnostic({
-          code: 'match_conflict',
-          severity: 'error',
-          message: 'Conflicting extractor matches were quarantined for this record.',
-          lineNumber: record.startLineNumber,
-          sourceByteOffset: record.sourceByteOffset,
-          details: {
-            eventType,
-            extractorIds: candidates.map((candidate) => candidate.extractorId)
-          }
-        });
-        this.addUnknownEvidence(record, this.selectProfileSnapshot(), 'match_conflict', {
-          evidenceMarkers: candidates.flatMap((candidate) => candidate.event.evidenceReference.evidenceMarkers || []),
-          sensitivity: 'local'
-        });
-        continue;
-      }
-
-      const candidate = candidates[0];
-      if (this.dedupeKeys.has(candidate.dedupeKey)) continue;
-      this.dedupeKeys.add(candidate.dedupeKey);
-      this.ingestionSequence = candidate.event.ordering.ingestionSequence;
-      this.events.push(candidate.event);
+    for (const event of result.emitted) {
+      this.ingestionSequence = event.ordering.ingestionSequence;
+      this.events.push(event);
       this.stats.eventsEmitted += 1;
     }
   }
@@ -859,6 +894,10 @@ class RuntimeLogParserEngine {
       environment: this.environment,
       selectedProfile,
       parserVersion: selectedProfile?.parserVersion || 'runtime-log-parser/0.1.0',
+      orchestration: {
+        stats: this.orchestrator.getStats(),
+        decisions: this.orchestrator.getRecentDecisions()
+      },
       stats: { ...this.stats }
     };
   }
@@ -1163,19 +1202,32 @@ function isProfileCompatible(profile, environment) {
     buildPrefixes.some((prefix) => environment.buildVersion.startsWith(prefix));
 }
 
-function buildDedupeKey(environmentKey, eventType, payload, fields = []) {
-  return createPartitionedIdentity(environmentKey, 'dedupe', [
-    eventType,
-    ...fields.map((field) => payload[field])
-  ]);
-}
-
-function buildCorrelationIds(environmentKey, eventType, dedupeKey) {
-  return {
+function buildCorrelationIds(environmentKey, eventType, dedupeKey, payload = {}) {
+  const ids = {
     environmentSessionId: createPartitionedIdentity(environmentKey, 'environment_session', ['runtime-log-parser']),
     eventDedupeId: dedupeKey,
     eventFamilyId: createPartitionedIdentity(environmentKey, 'event_family', [eventType])
   };
+  const add = (key, namespace, parts) => {
+    if (parts.every((part) => part !== null && part !== undefined && part !== '')) {
+      ids[key] = createPartitionedIdentity(environmentKey, namespace, parts);
+    }
+  };
+
+  add('loginSessionId', 'login_session', [payload.loginSessionId]);
+  add('localAccountId', 'local_account', [payload.accountId]);
+  add('clientSessionId', 'client_session', [payload.clientSession]);
+  add('matchmakingRequestId', 'matchmaking_request', [payload.matchmakingRequestId]);
+  add('serverConnectionId', 'server_connection', [payload.endpoint, payload.port, payload.nodeId, payload.gamerules]);
+  add('partyId', 'party', [payload.partyId]);
+  add('notificationId', 'notification', [payload.notificationId]);
+  add('buildFingerprintId', 'build_fingerprint', [
+    payload.fileVersion || payload.gameVersion,
+    payload.productVersion || payload.dataCoreVersion,
+    payload.branch || payload.archetypeVersion,
+    payload.changelist || payload.componentVersion
+  ]);
+  return ids;
 }
 
 function channelPayload(text) {
@@ -1322,6 +1374,20 @@ function toBuffer(chunk) {
   if (Buffer.isBuffer(chunk)) return chunk;
   if (chunk instanceof Uint8Array) return Buffer.from(chunk);
   return Buffer.from(String(chunk), 'utf8');
+}
+
+function normalizeChunkInput(input) {
+  if (input && typeof input === 'object' && !Buffer.isBuffer(input) && !(input instanceof Uint8Array) && input.bytes) {
+    return {
+      bytes: toBuffer(input.bytes),
+      metadata: {
+        generation: input.generation,
+        sequence: input.sequence,
+        offsetStart: input.offsetStart
+      }
+    };
+  }
+  return { bytes: toBuffer(input), metadata: {} };
 }
 
 function validateRequired(value, path, code, errors) {

@@ -805,6 +805,26 @@ function toPersistenceRecord(input) {
   });
 }
 
+function createRuntimeEventOrderKey(input) {
+  const sourceTimestampMs = timestampToMillis(input.sourceTimestamp);
+  const ordering = isPlainObject(input.ordering) ? input.ordering : {};
+  return [
+    padOrderNumber(sourceTimestampMs),
+    padOrderNumber(ordering.ingestionSequence),
+    padOrderNumber(ordering.sourceGeneration),
+    padOrderNumber(ordering.sourceByteOffset),
+    String(input.eventId || '')
+  ].join('::');
+}
+
+function compareRuntimeEventOrder(left, right) {
+  const leftKey = createRuntimeEventOrderKey(left);
+  const rightKey = createRuntimeEventOrderKey(right);
+  if (leftKey < rightKey) return -1;
+  if (leftKey > rightKey) return 1;
+  return 0;
+}
+
 function deriveRuntimeEventId(input) {
   const identity = {
     contractVersion: input.contractVersion || CONTRACT_VERSION,
@@ -959,7 +979,7 @@ function validateOrdering(value, path, errors) {
     errors.push(error('invalid_ingestion_sequence', `${path}.ingestionSequence`, 'Ingestion sequence must be a non-negative integer'));
   }
 
-  for (const optionalKey of ['sourceSequence', 'sourceByteOffset']) {
+  for (const optionalKey of ['sourceSequence', 'sourceByteOffset', 'sourceGeneration', 'sourceChunkSequence']) {
     if (Object.hasOwn(value, optionalKey) && !isNonNegativeInteger(value[optionalKey])) {
       errors.push(error('invalid_ordering_number', `${path}.${optionalKey}`, 'Ordering number must be a non-negative integer'));
     }
@@ -1180,6 +1200,16 @@ function deriveEnvironmentConfidence(value) {
   return 'unknown';
 }
 
+function timestampToMillis(value) {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function padOrderNumber(value) {
+  const normalized = Number.isSafeInteger(value) && value >= 0 ? value : 0;
+  return String(normalized).padStart(16, '0');
+}
+
 function sortForStableSerialization(value) {
   if (Array.isArray(value)) {
     return value.map(sortForStableSerialization);
@@ -1212,8 +1242,10 @@ module.exports = {
   RuntimeEventValidationError,
   assertSameEnvironment,
   assertValidRuntimeEvent,
+  compareRuntimeEventOrder,
   createPartitionedIdentity,
   createRuntimeEvent,
+  createRuntimeEventOrderKey,
   deserializeRuntimeEvent,
   deriveEnvironmentContext,
   deriveEnvironmentKey,

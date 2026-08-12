@@ -14,6 +14,7 @@ const {
   parseRuntimeLogText
 } = require('../src/runtimeLogParserEngine');
 const {
+  compareRuntimeEventOrder,
   validateRuntimeEvent
 } = require('../src/contracts/runtimeEvents');
 
@@ -229,6 +230,99 @@ test('duplicate notification lifecycle records are deduped by profile hints', ()
 
   assert.deepEqual(result.events.map((event) => event.eventType), ['JurisdictionEntered']);
   assertPayloadIncludes(result.events[0], manifest.expectedCanonicalEvents[0], manifest.fixtureId);
+});
+
+test('orchestration suppresses only bounded duplicate event-family identities', () => {
+  const duplicateLine = '<2026-08-09T19:52:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_REPEAT] Type[Location] Message["Entered SYNTH_JURISDICTION_REPEAT Jurisdiction"]';
+  const repeatedAfterWindow = '<2026-08-09T20:10:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_REPEAT] Type[Location] Message["Entered SYNTH_JURISDICTION_REPEAT Jurisdiction"]';
+  const result = parseRuntimeLogText([
+    duplicateLine,
+    duplicateLine,
+    repeatedAfterWindow
+  ].join('\n') + '\n', {
+    ...LIVE_PROFILE_OPTIONS,
+    fixtureId: 'runtime-log-parser/orchestration-dedupe-window',
+    sourceProfileVersion: 'draft-2026-08-12'
+  });
+
+  assert.deepEqual(result.events.map((event) => event.eventType), ['JurisdictionEntered', 'JurisdictionEntered']);
+  assert.notEqual(result.events[0].eventId, result.events[1].eventId, 'same payload outside the bounded window remains distinct');
+  assert.equal(result.orchestration.stats.duplicateSuppressed, 1);
+  assert.ok(result.orchestration.decisions.some((decision) => decision.decision === 'suppressed_duplicate'));
+  assert.ok(result.events.every((event) => event.extensions.orchestration.policyId.includes('JurisdictionEntered')));
+});
+
+test('orchestration dedupe never crosses environment partitions', () => {
+  const notification = '<SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_SHARED] Type[Location] Message["Entered SYNTH_JURISDICTION_SHARED Jurisdiction"]';
+  const result = parseRuntimeLogText([
+    '<2026-08-09T19:00:00.000Z> <Init> Environment[PUB] Tag[LIVE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log]',
+    '<2026-08-09T19:00:00.010Z> <Game Version> version[4.9.0-LIVE.9000000-SYNTH] environment[LIVE]',
+    `<2026-08-09T19:01:00.000Z> ${notification}`,
+    '<2026-08-09T19:02:00.000Z> <Init> Environment[PTU] Tag[PTU] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/PTU/game.log]',
+    '<2026-08-09T19:02:00.010Z> <Game Version> version[4.9.0-PTU.9000000-SYNTH] environment[PTU]',
+    `<2026-08-09T19:03:00.000Z> ${notification}`
+  ].join('\n') + '\n', {
+    sourceLocation: '%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log',
+    sourceProfileId: 'sc-4.9-cross-env',
+    gameBuild: '4.9.0-LIVE.9000000-SYNTH',
+    fixtureId: 'runtime-log-parser/orchestration-cross-environment',
+    sourceProfileVersion: 'draft-2026-08-12',
+    ingestedAt: '2026-08-09T21:00:00.000Z'
+  });
+
+  assert.deepEqual(result.events.map((event) => event.eventType), [
+    'ReleaseEnvironmentObserved',
+    'JurisdictionEntered',
+    'ReleaseEnvironmentObserved',
+    'JurisdictionEntered'
+  ]);
+  const jurisdictions = result.events.filter((event) => event.eventType === 'JurisdictionEntered');
+  assert.equal(new Set(jurisdictions.map((event) => event.environmentKey)).size, 2);
+  assert.equal(new Set(jurisdictions.map((event) => event.correlationIds.notificationId)).size, 2);
+  assert.equal(result.orchestration.stats.duplicateSuppressed, 0);
+});
+
+test('tailer chunk generation changes reset bounded correlation and preserve source ordering metadata', () => {
+  const engine = new RuntimeLogParserEngine({
+    ...LIVE_PROFILE_OPTIONS,
+    fixtureId: 'runtime-log-parser/orchestration-source-generation',
+    sourceProfileVersion: 'draft-2026-08-12'
+  });
+  const line = '<2026-08-09T19:52:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_GENERATION] Type[Location] Message["Entered SYNTH_JURISDICTION_GENERATION Jurisdiction"]\n';
+  const bytes = Buffer.from(line, 'utf8');
+
+  engine.push({ bytes, generation: 1, sequence: 10, offsetStart: 4096 });
+  engine.push({ bytes, generation: 1, sequence: 11, offsetStart: 4096 });
+  engine.push({ bytes, generation: 1, sequence: 12, offsetStart: 4096 });
+  engine.push({ bytes, generation: 2, sequence: 13, offsetStart: 0 });
+  const result = engine.end();
+
+  assert.equal(result.events.length, 2);
+  assert.deepEqual(result.events.map((event) => event.ordering.sourceGeneration), [1, 2]);
+  assert.deepEqual(result.events.map((event) => event.ordering.sourceByteOffset), [4096, 0]);
+  assert.equal(result.orchestration.stats.duplicateSuppressed, 1);
+  assert.equal(result.orchestration.stats.sourceScopeResets, 1);
+  assert.ok(result.diagnostics.some((diagnostic) => diagnostic.code === 'source_generation_changed'));
+});
+
+test('event order comparator is stable for late arrivals with equal source timestamps', () => {
+  const result = parseRuntimeLogText([
+    '<2026-08-09T19:52:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_ORDER_B] Type[Location] Message["Entered SYNTH_JURISDICTION_ORDER_B Jurisdiction"]',
+    '<2026-08-09T19:52:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_ORDER_A] Type[Location] Message["Entered SYNTH_JURISDICTION_ORDER_A Jurisdiction"]',
+    '<2026-08-09T19:51:59.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_ORDER_LATE] Type[Location] Message["Entered SYNTH_JURISDICTION_ORDER_LATE Jurisdiction"]'
+  ].join('\n') + '\n', {
+    ...LIVE_PROFILE_OPTIONS,
+    fixtureId: 'runtime-log-parser/orchestration-total-order',
+    sourceProfileVersion: 'draft-2026-08-12'
+  });
+  const sorted = result.events.slice().sort(compareRuntimeEventOrder);
+
+  assert.deepEqual(sorted.map((event) => event.payload.notificationId), [
+    'SYNTH_NOTIFICATION_ORDER_LATE',
+    'SYNTH_NOTIFICATION_ORDER_B',
+    'SYNTH_NOTIFICATION_ORDER_A'
+  ]);
+  assert.deepEqual(result.events.map((event) => event.ordering.ingestionSequence), [1, 2, 3]);
 });
 
 test('negative fixtures produce no canonical events and do not invoke every extractor', () => {

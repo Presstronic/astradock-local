@@ -7,8 +7,10 @@ const {
   CONTRACT_VERSION,
   EVENT_TYPE_REGISTRY,
   RUNTIME_EVENT_EXAMPLES,
+  compareRuntimeEventOrder,
   createRuntimeEvent,
   createPartitionedIdentity,
+  createRuntimeEventOrderKey,
   deserializeRuntimeEvent,
   deriveEnvironmentContext,
   deriveEnvironmentKey,
@@ -115,6 +117,61 @@ test('runtime events serialize and deserialize deterministically for persistence
     assert.equal(persistenceRecord.serializedEvent, serialized, `${eventType} persistence payload`);
     assert.doesNotThrow(() => deserializeRuntimeEvent(persistenceRecord.serializedEvent));
   }
+});
+
+test('runtime event order keys provide deterministic total ordering across replay inputs', () => {
+  const base = clone(RUNTIME_EVENT_EXAMPLES.PuJoinRequested);
+  const sameTimestampEarlierOffset = createRuntimeEvent({
+    ...clone(base),
+    evidenceReference: {
+      ...clone(base.evidenceReference),
+      lineRange: { start: 1, end: 1 }
+    },
+    ordering: {
+      ingestionSequence: 1,
+      sourceSequence: 1,
+      sourceGeneration: 2,
+      sourceByteOffset: 128
+    }
+  });
+  const sameTimestampLaterOffset = createRuntimeEvent({
+    ...clone(base),
+    evidenceReference: {
+      ...clone(base.evidenceReference),
+      lineRange: { start: 2, end: 2 }
+    },
+    ordering: {
+      ingestionSequence: 2,
+      sourceSequence: 2,
+      sourceGeneration: 2,
+      sourceByteOffset: 256
+    }
+  });
+  const laterTimestamp = createRuntimeEvent({
+    ...clone(base),
+    sourceTimestamp: '2026-08-09T12:45:00.000Z',
+    evidenceReference: {
+      ...clone(base.evidenceReference),
+      lineRange: { start: 3, end: 3 }
+    },
+    ordering: {
+      ingestionSequence: 1,
+      sourceSequence: 3,
+      sourceGeneration: 1,
+      sourceByteOffset: 64
+    }
+  });
+
+  const shuffled = [laterTimestamp, sameTimestampLaterOffset, sameTimestampEarlierOffset];
+  const sorted = shuffled.slice().sort(compareRuntimeEventOrder);
+
+  assert.deepEqual(sorted.map((event) => event.eventId), [
+    sameTimestampEarlierOffset.eventId,
+    sameTimestampLaterOffset.eventId,
+    laterTimestamp.eventId
+  ]);
+  assert.equal(createRuntimeEventOrderKey(sameTimestampEarlierOffset), createRuntimeEventOrderKey(clone(sameTimestampEarlierOffset)));
+  assert.ok(validateRuntimeEvent(sameTimestampEarlierOffset).ok);
 });
 
 test('runtime events allow explicit forward-compatible extensions without changing event identity', () => {

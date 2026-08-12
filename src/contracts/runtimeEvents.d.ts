@@ -226,6 +226,8 @@ export interface RuntimeEventOrdering {
   ingestionSequence: number;
   sourceSequence?: number;
   sourceByteOffset?: number;
+  sourceGeneration?: number;
+  sourceChunkSequence?: number;
 }
 
 export interface RuntimeEventDerivation {
@@ -365,3 +367,5 @@ export function serializeRuntimeEvent(input: unknown): string;
 export function deserializeRuntimeEvent(serialized: string): RuntimeEvent;
 export function toPersistenceRecord(input: unknown): RuntimeEventPersistenceRecord;
 export function deriveRuntimeEventId(input: Partial<RuntimeEvent>): string;
+export function createRuntimeEventOrderKey(input: Partial<RuntimeEvent>): string;
+export function compareRuntimeEventOrder(left: Partial<RuntimeEvent>, right: Partial<RuntimeEvent>): -1 | 0 | 1;
