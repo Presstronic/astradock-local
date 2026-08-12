@@ -110,14 +110,14 @@ The benchmark command runs a dependency-free synthetic append workload against t
 - 192-byte representative synthetic lines.
 - 64 KB default tailer chunks.
 
-Local benchmark evidence captured on 2026-08-12 using Node `v22.14.0` on Linux x64:
+Representative local benchmark evidence captured on 2026-08-12 using Node `v22.14.0` on Linux x64:
 
 | Workload | Lines | Bytes | p50 delivery | p95 delivery | Max delivery |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Sustained 100 lines/s | 200 | 38,400 | 1.88 ms | 5.73 ms | 6.25 ms |
-| Burst 1,000 lines/s | 1,000 | 192,000 | 1.77 ms | 3.85 ms | 3.85 ms |
+| Sustained 100 lines/s | 200 | 38,400 | 2.03 ms | 4.74 ms | 7.35 ms |
+| Burst 1,000 lines/s | 1,000 | 192,000 | 1.65 ms | 6.03 ms | 6.03 ms |
 
-The same run delivered `230,400` of `230,400` expected bytes, reported zero backlog, and used approximately 50 MB RSS / 5 MB heap in the benchmark process. This is implementation evidence for the byte tailer only. Packaged-app CPU, renderer latency, durable persistence, and 4-hour soak evidence remain release qualification work once the downstream runtime pipeline exists.
+The same run delivered `230,400` of `230,400` expected bytes, reported zero backlog, and used approximately 49 MB RSS / 5 MB heap in the benchmark process. Sub-10ms local benchmark timings should be treated as evidence of headroom for this implementation, not as a stable product SLA. This is implementation evidence for the byte tailer only. Packaged-app CPU, renderer latency, durable persistence, and 4-hour soak evidence remain release qualification work once the downstream runtime pipeline exists.
 
 Manual verification should cover:
 
