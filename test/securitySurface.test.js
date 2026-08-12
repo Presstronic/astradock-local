@@ -30,6 +30,14 @@ test('renderer and main no longer expose third-party enrichment fetch controls',
   assert.doesNotMatch(main, /api:fetchJson|fetch\(url/);
 });
 
+test('live monitor path uses the runtime tailer instead of watch-triggered whole-file rescans', () => {
+  const main = readSource('main.js');
+
+  assert.match(main, /RuntimeLogTailer/);
+  assert.doesNotMatch(main, /require\('node:fs'\)/);
+  assert.doesNotMatch(main, /scheduleMonitorScan|activeMonitorScanController|scanPending|fs\.watch/);
+});
+
 test('renderer gateway has an explicit TypeScript declaration surface', () => {
   const declaration = readSource('contracts/rendererApi.d.ts');
 

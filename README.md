@@ -22,7 +22,7 @@ The proof-of-concept Electron Builder config currently targets Windows `nsis`/`p
 - Auto-discovers common Windows and supported Linux/Wine/Proton/LUG Star Citizen `game.log` sources without full-disk scanning.
 - Lets you choose a custom `game.log` through a trusted native dialog and revalidates the saved source before reuse.
 - Scans for shard entries and displays shard ID, name, region, build, last seen time, and source line.
-- Watches the selected log file and refreshes when it changes.
+- Monitors the selected log with an incremental byte tailer that tracks offsets, source generations, replacement, truncation, source loss/reappearance, and backpressure without watch-triggered whole-file rescans.
 - Keeps full filesystem paths in the privileged process and shows privacy-safe source labels in the renderer by default.
 - Uses a sandboxed, context-isolated renderer with a fixed capability API, validated IPC, sender checks, bounded subscriptions, and no arbitrary renderer-controlled network fetches.
 
@@ -30,3 +30,4 @@ The parser is intentionally heuristic because Star Citizen log formats vary betw
 
 Source discovery, validation states, privacy-safe DTOs, and local preference behavior are documented in [`docs/source-discovery.md`](docs/source-discovery.md).
 The hardened Electron lifecycle and renderer API are documented in [`docs/hardened-electron-boundary.md`](docs/hardened-electron-boundary.md).
+The resilient incremental monitor tailer is documented in [`docs/runtime-log-tailer.md`](docs/runtime-log-tailer.md).

@@ -3,8 +3,10 @@ const crypto = require('node:crypto');
 const API_VERSION = 1;
 const MAX_SOURCE_ID_LENGTH = 32;
 const MAX_TEXT_LENGTH = 128;
+const MAX_CHECKPOINT_ID_LENGTH = 192;
 const MAX_EVENT_LIMIT = 200;
 const MAX_CURSOR = 100000;
+const MONITOR_START_MODES = Object.freeze(['from_current_end', 'from_checkpoint', 'from_beginning']);
 
 const CHANNELS = Object.freeze({
   sourceDiscover: 'astradock:v1:source:discover',
@@ -152,8 +154,33 @@ function validateMonitorOptions(value = {}) {
   assertPlainObject(value, 'options');
   return compactObject({
     username: optionalBoundedText(value.username, 'username', 64),
-    userId: optionalBoundedText(value.userId, 'userId', MAX_TEXT_LENGTH)
+    userId: optionalBoundedText(value.userId, 'userId', MAX_TEXT_LENGTH),
+    startMode: optionalStartMode(value.startMode),
+    checkpoint: validateCheckpoint(value.checkpoint)
   });
+}
+
+function optionalStartMode(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !MONITOR_START_MODES.includes(value)) {
+    throw invalidPayload('Unsupported monitor start mode.');
+  }
+  return value;
+}
+
+function validateCheckpoint(value) {
+  if (value === undefined || value === null) return null;
+  assertPlainObject(value, 'checkpoint');
+  const sourceIdentity = optionalBoundedText(value.sourceIdentity, 'sourceIdentity', MAX_CHECKPOINT_ID_LENGTH);
+  if (!sourceIdentity) throw invalidPayload('Checkpoint source identity is required.');
+  const offset = optionalBoundedInteger(value.offset, 'offset', 0, Number.MAX_SAFE_INTEGER);
+  if (offset === null) throw invalidPayload('Checkpoint offset is required.');
+  return {
+    version: 1,
+    sourceIdentity,
+    offset,
+    generation: optionalBoundedInteger(value.generation, 'generation', 0, Number.MAX_SAFE_INTEGER) || 0
+  };
 }
 
 function validateEventQuery(value = {}) {

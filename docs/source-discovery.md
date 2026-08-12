@@ -46,7 +46,7 @@ The Electron main process:
 
 - Keeps private source paths in an in-memory registry keyed by `sourceId`.
 - Persists only the approved validated source path in local app settings.
-- Revalidates a registered source before scan, watch, or selection reuse.
+- Revalidates a registered source before scan, monitor, tailer, or selection reuse.
 - Accepts renderer commands by `sourceId`, not arbitrary paths.
 - Opens native dialogs and folders from privileged code only.
 
@@ -74,7 +74,7 @@ environmentName       Optional observed game environment name.
 installationKind      rsi_launcher, steam, lug_wine, wine, or manual_or_unknown.
 platformHint          Platform used for candidate generation.
 validation.status     valid, missing, inaccessible, permission_denied, not_file, invalid_log, or unsupported_channel.
-validation.isValid    Boolean approval for scan/watch/persistence.
+validation.isValid    Boolean approval for scan/monitor/persistence.
 validation.checkedAt  UTC validation timestamp.
 validation.message    Safe user-facing status text.
 validation.evidenceMarkers  Bounded marker names, never raw log lines.
@@ -86,7 +86,7 @@ The private DTO variant used inside `src/main.js` also contains `private.sourceP
 
 Automatic discovery ranks valid sources before invalid sources. Restored validated preferences rank first, then manually selected sources, then automatic candidates. Within equal method priority, channels rank `LIVE`, `PTU`, `EPTU`, then `HOTFIX`, followed by `UNKNOWN`.
 
-When multiple valid automatic sources exist, the deterministic active source is the highest-priority candidate and the discovery summary reports ambiguity so the UI can show explicit choices. Selecting a source saves it only after validation succeeds. Saved preferences are local app data and are revalidated on every discovery or scan/watch reuse; a moved, missing, malformed, inaccessible, or unsupported source becomes an actionable state rather than implicit approval.
+When multiple valid automatic sources exist, the deterministic active source is the highest-priority candidate and the discovery summary reports ambiguity so the UI can show explicit choices. Selecting a source saves it only after validation succeeds. Saved preferences are local app data and are revalidated on every discovery, scan, or monitor reuse; a moved, missing, malformed, inaccessible, or unsupported source becomes an actionable state rather than implicit approval.
 
 ## Privacy and Security Notes
 
@@ -96,7 +96,7 @@ When multiple valid automatic sources exist, the deterministic active source is 
 - Evidence markers are names such as `Init`, `GameVersion`, or `JoinPU`, not raw lines.
 - Directory names never become authoritative environment evidence by themselves.
 - Unknown or future channel vocabulary normalizes to `UNKNOWN`; it is never coerced to `LIVE`.
-- Renderer APIs expose product capabilities through the `window.astradock.source` and `window.astradock.monitor` namespaces: discover sources, select a known source, choose through a native dialog, scan/watch the selected source, and open the selected source folder.
+- Renderer APIs expose product capabilities through the `window.astradock.source` and `window.astradock.monitor` namespaces: discover sources, select a known source, choose through a native dialog, scan or monitor the selected source, and open the selected source folder.
 
 ## Verification Guidance
 

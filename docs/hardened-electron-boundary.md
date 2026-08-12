@@ -7,7 +7,7 @@
 | Status | Initial MVP hardening increment |
 | Delivery issue | [#29](https://github.com/Presstronic/astradock-local/issues/29) |
 | Runtime package | [`src/main.js`](../src/main.js), [`src/preload.js`](../src/preload.js) |
-| Boundary helpers | [`src/ipcBoundary.js`](../src/ipcBoundary.js), [`src/subscriptionHub.js`](../src/subscriptionHub.js), [`src/electronSecurity.js`](../src/electronSecurity.js) |
+| Boundary helpers | [`src/ipcBoundary.js`](../src/ipcBoundary.js), [`src/subscriptionHub.js`](../src/subscriptionHub.js), [`src/electronSecurity.js`](../src/electronSecurity.js), [`src/runtimeLogTailer.js`](../src/runtimeLogTailer.js) |
 | Renderer API declarations | [`src/contracts/rendererApi.d.ts`](../src/contracts/rendererApi.d.ts) |
 | Tests | [`test/ipcBoundary.test.js`](../test/ipcBoundary.test.js), [`test/subscriptionHub.test.js`](../test/subscriptionHub.test.js), [`test/electronSecurity.test.js`](../test/electronSecurity.test.js), [`test/securitySurface.test.js`](../test/securitySurface.test.js) |
 
@@ -105,7 +105,7 @@ frame-src 'none'
 
 ## Monitor Ownership and Subscriptions
 
-The main process now owns monitor state independently of renderer subscriptions. Starting the monitor scans the approved source, starts the file watcher, and publishes through one canonical subscription stream. Renderer reload or unsubscribe does not stop the watcher.
+The main process owns monitor state independently of renderer subscriptions. Starting the monitor first starts the incremental byte tailer documented in [`runtime-log-tailer.md`](runtime-log-tailer.md), then performs one explicit snapshot scan for the current proof-of-concept tables. Renderer reload or unsubscribe does not stop monitoring.
 
 `src/subscriptionHub.js` provides:
 
@@ -114,9 +114,9 @@ The main process now owns monitor state independently of renderer subscriptions.
 - Cleanup when a renderer is destroyed or unsubscribes.
 - Bounded pending messages per subscriber. When a subscriber falls behind, stale pending changes are dropped and the next envelope reports the drop count.
 
-Stopping or replacing the monitor aborts the active watch-triggered file read when Node.js can cancel it and suppresses stale scan/error delivery if the read completes after the monitor generation has changed.
+Stopping or replacing the monitor closes the active tailer watchers, stops recovery polling, gives any in-flight downstream delivery a bounded chance to settle, and suppresses stale byte/lifecycle publication after the monitor generation changes.
 
-The current monitor still wraps the proof-of-concept whole-file parser and `fs.watch`; replacing that with the ADR-0001 utility-process runtime and resilient incremental tailer remains the responsibility of later runtime-monitor issues.
+Live file changes are published as `monitor.bytes` and `monitor.lifecycle` metadata. Raw appended bytes stay inside the privileged runtime boundary for downstream framing and parsing work; they are not exposed to the renderer. The prototype `fs.watch` callback that reparsed the whole file after each notification is no longer in the live monitoring path. `monitor.scan` remains an explicit whole-file parser inspection command until incremental framing, extraction, persistence, and projections replace the proof-of-concept parser surface.
 
 ## Evidence Detail
 

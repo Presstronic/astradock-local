@@ -7,6 +7,7 @@ const state = {
   userId: '',
   theme: 'dark',
   monitorActive: false,
+  observedBytes: 0,
   environment: null,
   eventFilter: 'all',
   sessionFilter: 'all',
@@ -116,7 +117,24 @@ function applyMonitorChange(change) {
   }
   if (change.type === 'monitor.started' || change.type === 'monitor.stopped') {
     state.monitorActive = Boolean(change.monitor?.active);
+    if (change.type === 'monitor.started') state.observedBytes = 0;
     updateMonitorUi();
+    setStatus(state.monitorActive ? 'Monitoring live' : 'Monitor stopped');
+    return;
+  }
+  if (change.type === 'monitor.bytes') {
+    state.monitorActive = Boolean(change.monitor?.active);
+    state.observedBytes += Number(change.chunk?.byteLength || 0);
+    updateMonitorUi();
+    setStatus(`Monitoring live / ${state.observedBytes} bytes observed`);
+    return;
+  }
+  if (change.type === 'monitor.lifecycle') {
+    state.monitorActive = Boolean(change.monitor?.active);
+    updateMonitorUi();
+    const lifecycle = change.lifecycle?.type || 'monitor.lifecycle';
+    const status = change.monitor?.tailer?.status || lifecycle;
+    setStatus(formatTailerStatus(lifecycle, status), change.monitor?.tailer?.status === 'paused');
   }
 }
 
@@ -406,6 +424,17 @@ function formatEnvironmentLabel(environment) {
     environment.releaseChannel || 'UNKNOWN',
     environment.buildVersion && environment.buildVersion !== 'UNKNOWN_BUILD' ? environment.buildVersion : null
   ].filter(Boolean).join(' / ');
+}
+
+function formatTailerStatus(lifecycle, status) {
+  if (lifecycle === 'source.unavailable') return 'Source unavailable';
+  if (lifecycle === 'source.available') return 'Source available';
+  if (lifecycle === 'source.replaced') return 'Source replaced';
+  if (lifecycle === 'source.truncated') return 'Source truncated';
+  if (lifecycle === 'backpressure.paused') return 'Monitor backpressure';
+  if (lifecycle === 'backpressure.resumed') return 'Monitoring live';
+  if (lifecycle === 'read.error' || lifecycle === 'consumer.error') return 'Monitor degraded';
+  return status === 'monitoring' ? 'Monitoring live' : status;
 }
 
 async function inspectEntry(index) {
