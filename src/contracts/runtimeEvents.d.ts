@@ -306,6 +306,41 @@ export function assertValidRuntimeEvent<TEventType extends RuntimeEventType>(
 export function createRuntimeEvent<TEventType extends RuntimeEventType>(
   input: RuntimeEventInput<TEventType>
 ): RuntimeEvent<TEventType>;
+export function deriveEnvironmentContext(input?: {
+  releaseChannel?: string;
+  universe?: string;
+  environmentName?: string;
+  rawEnvironmentTag?: string;
+  branch?: string;
+  buildVersion?: string;
+  gameBuild?: string;
+  changelist?: string;
+  databaseVersion?: string;
+  sourceInstallationId?: string;
+  sourceLocation?: string;
+  observedAt?: string;
+  confidence?: Confidence;
+  evidenceReference?: EvidenceReference;
+}): EnvironmentContext;
+export function deriveEnvironmentKey(input?: {
+  releaseChannel?: string;
+  universe?: string;
+  buildVersion?: string;
+  gameBuild?: string;
+  branch?: string;
+  sourceInstallationId?: string;
+}): string;
+export function deriveSourceInstallationId(sourceLocation?: string): string;
+export function createPartitionedIdentity(
+  environmentKey: string,
+  namespace: string,
+  parts?: readonly unknown[]
+): string;
+export function assertSameEnvironment(
+  leftEnvironmentKey: string,
+  rightEnvironmentKey: string,
+  message?: string
+): string;
 export function serializeRuntimeEvent(input: unknown): string;
 export function deserializeRuntimeEvent(serialized: string): RuntimeEvent;
 export function toPersistenceRecord(input: unknown): RuntimeEventPersistenceRecord;

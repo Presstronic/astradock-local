@@ -8,8 +8,12 @@ const {
   EVENT_TYPE_REGISTRY,
   RUNTIME_EVENT_EXAMPLES,
   createRuntimeEvent,
+  createPartitionedIdentity,
   deserializeRuntimeEvent,
+  deriveEnvironmentContext,
+  deriveEnvironmentKey,
   deriveRuntimeEventId,
+  deriveSourceInstallationId,
   serializeRuntimeEvent,
   toPersistenceRecord,
   validateRuntimeEvent
@@ -160,8 +164,15 @@ test('contract validation fails safely for missing fields, malformed timestamps,
 
 test('contract validation rejects conflicting context and unknown vocabulary', () => {
   const conflictingContext = clone(RUNTIME_EVENT_EXAMPLES.IdentityObserved);
-  conflictingContext.environment.environmentKey = 'PTU::PU::4.9.0-LIVE.9000000-SYNTH::sc-4.9-live';
+  conflictingContext.environment.environmentKey = deriveEnvironmentKey({
+    ...conflictingContext.environment,
+    releaseChannel: 'PTU'
+  });
   assert.ok(validationCodes(validateRuntimeEvent(conflictingContext)).has('environment_key_mismatch'));
+
+  const nonCanonicalKey = clone(RUNTIME_EVENT_EXAMPLES.IdentityObserved);
+  nonCanonicalKey.environment.environmentKey = nonCanonicalKey.environmentKey = 'LIVE::manual-key-that-omits-build';
+  assert.ok(validationCodes(validateRuntimeEvent(nonCanonicalKey)).has('invalid_environment_key'));
 
   const unknownEnum = clone(RUNTIME_EVENT_EXAMPLES.ReleaseEnvironmentObserved);
   unknownEnum.environment.releaseChannel = 'NIGHTLY';
@@ -174,13 +185,12 @@ test('contract validation rejects conflicting context and unknown vocabulary', (
 
 test('identical observed identifiers remain distinct across LIVE and PTU environment keys', () => {
   const liveEvent = RUNTIME_EVENT_EXAMPLES.IdentityObserved;
-  const ptuEnvironment = {
+  const ptuEnvironment = deriveEnvironmentContext({
     ...clone(liveEvent.environment),
-    environmentKey: 'PTU::PU::4.9.0-LIVE.9000000-SYNTH::sc-4.9-live',
     releaseChannel: 'PTU',
     rawEnvironmentTag: 'PTU',
     sourceInstallationId: 'SYNTH_INSTALLATION_PTU'
-  };
+  });
   const ptuEvent = createRuntimeEvent({
     ...clone(liveEvent),
     environmentKey: ptuEnvironment.environmentKey,
@@ -191,6 +201,38 @@ test('identical observed identifiers remain distinct across LIVE and PTU environ
   assert.notEqual(liveEvent.environmentKey, ptuEvent.environmentKey);
   assert.notEqual(liveEvent.eventId, ptuEvent.eventId);
   assert.deepEqual(liveEvent.payload, ptuEvent.payload, 'identity identifiers intentionally match across partitions');
+});
+
+test('environment helpers derive UNKNOWN rather than defaulting unrecognized sources to LIVE', () => {
+  const techPreviewContext = deriveEnvironmentContext({
+    rawEnvironmentTag: 'TECH-PREVIEW',
+    environmentName: 'TECH-PREVIEW',
+    buildVersion: '4.9.0-TECH-PREVIEW.9000000-SYNTH',
+    branch: 'sc-alpha-4.9-tech-preview-synth',
+    sourceLocation: '/opt/StarCitizen/TECH-PREVIEW/game.log',
+    observedAt: '2026-08-09T12:00:00.000Z'
+  });
+
+  assert.equal(techPreviewContext.releaseChannel, 'UNKNOWN');
+  assert.equal(techPreviewContext.rawEnvironmentTag, 'TECH-PREVIEW');
+  assert.ok(techPreviewContext.environmentKey.startsWith('UNKNOWN::UNKNOWN::'));
+});
+
+test('partition helpers make cross-environment dedupe identities non-colliding', () => {
+  const liveEnvironmentKey = RUNTIME_EVENT_EXAMPLES.PuJoinRequested.environmentKey;
+  const ptuEnvironmentKey = deriveEnvironmentKey({
+    releaseChannel: 'PTU',
+    universe: 'PU',
+    buildVersion: RUNTIME_EVENT_EXAMPLES.PuJoinRequested.environment.buildVersion,
+    branch: RUNTIME_EVENT_EXAMPLES.PuJoinRequested.environment.branch,
+    sourceInstallationId: deriveSourceInstallationId('/StarCitizen/PTU/game.log')
+  });
+  const identityParts = ['SYNTH_SHARD_SHARED', '2026-08-09T19:00:02.000Z'];
+
+  assert.notEqual(
+    createPartitionedIdentity(liveEnvironmentKey, 'dedupe', identityParts),
+    createPartitionedIdentity(ptuEnvironmentKey, 'dedupe', identityParts)
+  );
 });
 
 test('validation rejects inferred events without traceable contributors and reasons', () => {
