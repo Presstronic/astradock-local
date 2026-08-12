@@ -264,10 +264,37 @@ test('runtime log tailer pauses on consumer failure without advancing the checkp
     assert.equal(tailer.getHealth().offset, 0);
     assert.equal(tailer.getCheckpoint().offset, 0);
     assert.ok(lifecycles.some((record) => record.type === LIFECYCLE_TYPES.CONSUMER_ERROR));
+    assert.equal(lifecycles.some((record) => record.type === LIFECYCLE_TYPES.READ_ERROR), false);
   } finally {
     await tailer.stop('test_done');
     await cleanup();
   }
+});
+
+test('runtime log tailer reports permission denial without exposing source paths', async () => {
+  const sourcePath = path.join(os.tmpdir(), 'private-game.log');
+  const lifecycles = [];
+  const tailer = new RuntimeLogTailer(sourcePath, {
+    useWatcher: false,
+    pollIntervalMs: 0,
+    fs: {
+      stat: async () => {
+        const error = new Error(`denied: ${sourcePath}`);
+        error.code = 'EACCES';
+        throw error;
+      }
+    },
+    onLifecycle: (record) => lifecycles.push(record)
+  });
+
+  await tailer.start();
+  await tailer.stop('test_done');
+
+  const unavailable = lifecycles.find((record) => record.type === LIFECYCLE_TYPES.SOURCE_UNAVAILABLE);
+  assert.ok(unavailable);
+  assert.equal(unavailable.status, 'permission_denied');
+  assert.equal(unavailable.recoverable, false);
+  assert.equal(JSON.stringify(lifecycles).includes(sourcePath), false);
 });
 
 async function createTempLog(contents) {

@@ -91,6 +91,7 @@ Run:
 
 ```bash
 npm test
+npm run benchmark:tailer
 npm run build
 ```
 
@@ -101,6 +102,22 @@ Focused coverage includes:
 - Truncation, replacement, deletion, and reappearance.
 - Slow-consumer backpressure without data loss.
 - Default error/lifecycle records without full-path disclosure.
+
+The benchmark command runs a dependency-free synthetic append workload against the tailer and fails if delivered bytes do not exactly match written bytes, backlog remains, the tailer leaves monitoring state, or p95 delivery exceeds 500 ms for the measured batches. It currently covers:
+
+- Sustained workload: 100 lines/s for 2 seconds.
+- Burst workload: 1,000 lines/s for 1 second.
+- 192-byte representative synthetic lines.
+- 64 KB default tailer chunks.
+
+Local benchmark evidence captured on 2026-08-12 using Node `v22.14.0` on Linux x64:
+
+| Workload | Lines | Bytes | p50 delivery | p95 delivery | Max delivery |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Sustained 100 lines/s | 200 | 38,400 | 0.65 ms | 0.95 ms | 1.01 ms |
+| Burst 1,000 lines/s | 1,000 | 192,000 | 0.46 ms | 0.72 ms | 0.72 ms |
+
+The same run delivered `230,400` of `230,400` expected bytes, reported zero backlog, and used approximately 50 MB RSS / 5 MB heap in the benchmark process. This is implementation evidence for the byte tailer only. Packaged-app CPU, renderer latency, durable persistence, and 4-hour soak evidence remain release qualification work once the downstream runtime pipeline exists.
 
 Manual verification should cover:
 

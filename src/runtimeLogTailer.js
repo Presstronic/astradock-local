@@ -329,6 +329,7 @@ class RuntimeLogTailer extends EventEmitter {
         this.sourceState.offset = offsetEnd;
         this.sourceState.lastDeliveredAt = this.now();
       } catch (error) {
+        if (error?.code === 'consumer_error') return;
         this.handleReadError(error);
         return;
       } finally {
@@ -349,6 +350,7 @@ class RuntimeLogTailer extends EventEmitter {
         if (this.onChunk) await this.onChunk(chunk);
         this.emit('chunk', chunk);
       } catch (error) {
+        error.code = 'consumer_error';
         this.paused = true;
         this.pauseReason = 'consumer_error';
         this.lastErrorCode = 'consumer_error';
