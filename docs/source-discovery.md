@@ -7,7 +7,7 @@
 | Status | Initial MVP source-discovery boundary |
 | Delivery issue | [#14](https://github.com/Presstronic/astradock-local/issues/14) |
 | Runtime package | [`src/sourceDiscovery.js`](../src/sourceDiscovery.js) |
-| Electron boundary | [`src/main.js`](../src/main.js), [`src/preload.js`](../src/preload.js) |
+| Electron boundary | [`src/main.js`](../src/main.js), [`src/preload.js`](../src/preload.js), [`docs/hardened-electron-boundary.md`](hardened-electron-boundary.md) |
 | Tests | [`test/sourceDiscovery.test.js`](../test/sourceDiscovery.test.js) |
 
 This document defines the current safe-discovery boundary for Star Citizen `game.log` sources in the existing CommonJS Electron application. It is intentionally scoped to issue #14 and does not rebuild the full TypeScript, React, Vite, and utility-process foundation selected by ADR-0001.
@@ -96,7 +96,7 @@ When multiple valid automatic sources exist, the deterministic active source is 
 - Evidence markers are names such as `Init`, `GameVersion`, or `JoinPU`, not raw lines.
 - Directory names never become authoritative environment evidence by themselves.
 - Unknown or future channel vocabulary normalizes to `UNKNOWN`; it is never coerced to `LIVE`.
-- Renderer APIs expose product capabilities: discover sources, select a known source, choose through a native dialog, scan/watch the selected source, and open the selected source folder.
+- Renderer APIs expose product capabilities through the `window.astradock.source` and `window.astradock.monitor` namespaces: discover sources, select a known source, choose through a native dialog, scan/watch the selected source, and open the selected source folder.
 
 ## Verification Guidance
 

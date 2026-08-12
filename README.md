@@ -24,12 +24,9 @@ The proof-of-concept Electron Builder config currently targets Windows `nsis`/`p
 - Scans for shard entries and displays shard ID, name, region, build, last seen time, and source line.
 - Watches the selected log file and refreshes when it changes.
 - Keeps full filesystem paths in the privileged process and shows privacy-safe source labels in the renderer by default.
-- Supports a configurable enrichment API URL using `{shardId}`, for example:
+- Uses a sandboxed, context-isolated renderer with a fixed capability API, validated IPC, sender checks, bounded subscriptions, and no arbitrary renderer-controlled network fetches.
 
-```text
-https://api.example.com/shards/{shardId}
-```
-
-The parser is intentionally heuristic because Star Citizen log formats vary between builds. Inspecting a row shows the raw surrounding log context so the parser can be tightened against real logs.
+The parser is intentionally heuristic because Star Citizen log formats vary between builds. Inspecting a row requests bounded local evidence detail so the parser can be tightened against real logs without sending raw context by default.
 
 Source discovery, validation states, privacy-safe DTOs, and local preference behavior are documented in [`docs/source-discovery.md`](docs/source-discovery.md).
+The hardened Electron lifecycle and renderer API are documented in [`docs/hardened-electron-boundary.md`](docs/hardened-electron-boundary.md).

@@ -3,10 +3,9 @@ const state = {
   userActivity: { userIds: [], actions: [], sessions: [] },
   sources: [],
   selectedSourceId: '',
-  apiTemplate: localStorage.getItem('astradock.apiTemplate') || '',
-  username: localStorage.getItem('astradock.username') || '',
-  userId: localStorage.getItem('astradock.userId') || '',
-  theme: localStorage.getItem('astradock.theme') || 'dark',
+  username: '',
+  userId: '',
+  theme: 'dark',
   monitorActive: false,
   environment: null,
   eventFilter: 'all',
@@ -26,14 +25,11 @@ const elements = {
   stopMonitor: document.querySelector('#stopMonitor'),
   refreshInline: document.querySelector('#refreshInline'),
   openFolder: document.querySelector('#openFolder'),
-  apiTemplate: document.querySelector('#apiTemplate'),
-  saveApi: document.querySelector('#saveApi'),
   candidateList: document.querySelector('#candidateList'),
   summary: document.querySelector('#summary'),
   status: document.querySelector('#status'),
   logStatusMetric: document.querySelector('#logStatusMetric'),
   pathCount: document.querySelector('#pathCount'),
-  apiStatus: document.querySelector('#apiStatus'),
   monitorStatus: document.querySelector('#monitorStatus'),
   environmentStatus: document.querySelector('#environmentStatus'),
   environmentDetail: document.querySelector('#environmentDetail'),
@@ -66,21 +62,30 @@ const elements = {
 };
 
 async function boot() {
+  const settings = await window.astradock.settings.get();
+  state.theme = settings.theme || state.theme;
+  state.username = settings.username || '';
+  state.userId = settings.userId || '';
   document.body.dataset.theme = state.theme;
-  elements.apiTemplate.value = state.apiTemplate;
   elements.username.value = state.username;
   elements.userId.value = state.userId;
-  elements.apiStatus.textContent = state.apiTemplate ? 'On' : 'Off';
   updateMonitorUi();
   setStatus('Discovering sources...');
 
-  const discovery = await window.astradock.discoverSources();
+  const discovery = await window.astradock.source.discover();
   state.sources = discovery.sources || [];
   state.selectedSourceId = discovery.activeSource?.sourceId || '';
   renderCandidates(state.sources, state.selectedSourceId);
   elements.pathCount.textContent = String(discovery.summary?.candidateCount || state.sources.length);
 
-  if (discovery.activeSource) {
+  const snapshot = await window.astradock.monitor.getSnapshot();
+  state.monitorActive = Boolean(snapshot.monitor?.active);
+
+  if (snapshot.scan) {
+    renderSelectedSource(snapshot.source || discovery.activeSource);
+    applyScanResult(snapshot.scan);
+    setStatus(state.monitorActive ? 'Monitoring live' : `Scanned ${formatDateTime(snapshot.scan.scannedAt)}`);
+  } else if (discovery.activeSource) {
     renderSelectedSource(discovery.activeSource);
     await scanSelectedSource();
   } else {
@@ -88,12 +93,31 @@ async function boot() {
     setStatus('Choose a log source');
   }
 
-  window.astradock.onLogChanged((result) => {
-    applyScanResult(result);
-    setStatus('Monitoring live');
+  window.astradock.monitor.subscribe((message) => {
+    if (message.error) {
+      setStatus(message.error.message, true);
+      return;
+    }
+    for (const envelope of message.changes || []) {
+      applyMonitorChange(envelope.change);
+    }
   });
+}
 
-  window.astradock.onLogError((message) => setStatus(message, true));
+function applyMonitorChange(change) {
+  if (change.type === 'monitor.scan' && change.scan) {
+    applyScanResult(change.scan);
+    setStatus('Monitoring live');
+    return;
+  }
+  if (change.type === 'monitor.error') {
+    setStatus(change.error?.message || 'Monitor error', true);
+    return;
+  }
+  if (change.type === 'monitor.started' || change.type === 'monitor.stopped') {
+    state.monitorActive = Boolean(change.monitor?.active);
+    updateMonitorUi();
+  }
 }
 
 function renderCandidates(candidates, selectedSourceId) {
@@ -134,7 +158,10 @@ async function scanSelectedSource() {
   setStatus('Scanning...');
 
   try {
-    const result = await window.astradock.scanSource(state.selectedSourceId, getMonitorOptions());
+    const result = await window.astradock.monitor.scan({
+      sourceId: state.selectedSourceId,
+      options: getMonitorOptions()
+    });
     applyScanResult(result);
     setStatus(`Scanned ${formatDateTime(result.scannedAt)}`);
   } catch (error) {
@@ -158,9 +185,11 @@ async function startMonitor() {
   setStatus('Starting monitor...');
 
   try {
-    const result = await window.astradock.scanSource(state.selectedSourceId, getMonitorOptions());
-    applyScanResult(result);
-    await window.astradock.watchSource(state.selectedSourceId, getMonitorOptions());
+    const result = await window.astradock.monitor.start({
+      sourceId: state.selectedSourceId,
+      options: getMonitorOptions()
+    });
+    applyScanResult(result.scan);
     state.monitorActive = true;
     updateMonitorUi();
     setStatus('Monitoring live');
@@ -170,10 +199,14 @@ async function startMonitor() {
 }
 
 async function stopMonitor() {
-  await window.astradock.unwatchLog();
-  state.monitorActive = false;
-  updateMonitorUi();
-  setStatus('Monitor stopped');
+  try {
+    await window.astradock.monitor.stop();
+    state.monitorActive = false;
+    updateMonitorUi();
+    setStatus('Monitor stopped');
+  } catch (error) {
+    setStatus(error.message, true);
+  }
 }
 
 function getMonitorOptions() {
@@ -186,9 +219,15 @@ function getMonitorOptions() {
 function saveUserFilter() {
   state.username = elements.username.value.trim();
   state.userId = elements.userId.value.trim();
-  localStorage.setItem('astradock.username', state.username);
-  localStorage.setItem('astradock.userId', state.userId);
+  window.astradock.settings.update({
+    username: state.username,
+    userId: state.userId
+  }).catch((error) => setStatus(error.message, true));
   updateMonitorUi();
+}
+
+function openSelectedSourceFolder() {
+  window.astradock.source.openFolder(state.selectedSourceId).catch((error) => setStatus(error.message, true));
 }
 
 function applyScanResult(result) {
@@ -198,7 +237,7 @@ function applyScanResult(result) {
   if (!state.userId && state.userActivity.userIds?.length) {
     state.userId = state.userActivity.userIds[0];
     elements.userId.value = state.userId;
-    localStorage.setItem('astradock.userId', state.userId);
+    window.astradock.settings.update({ userId: state.userId }).catch((error) => setStatus(error.message, true));
   }
   elements.summary.textContent = String(state.entries.length);
   elements.tableSubtitle.textContent = `${state.entries.length} unique shard${state.entries.length === 1 ? '' : 's'} found`;
@@ -375,19 +414,21 @@ async function inspectEntry(index) {
   elements.detailsTitle.textContent = entry.shardId
     ? `Shard ${entry.shardId}`
     : entry.shardName || 'Shard details';
-  elements.rawContext.textContent = entry.rawContext.join('\n');
-  elements.apiResult.textContent = 'No API URL configured.';
-
-  if (!state.apiTemplate || !entry.shardId) return;
-
-  const url = state.apiTemplate.replaceAll('{shardId}', encodeURIComponent(entry.shardId));
-  elements.apiResult.textContent = `Fetching ${url}...`;
+  elements.rawContext.textContent = 'Loading local evidence detail...';
+  elements.apiResult.textContent = JSON.stringify({
+    evidenceAvailable: Boolean(entry.evidenceAvailable),
+    environmentKey: entry.environmentKey || null,
+    lineNumber: entry.lineNumber || null
+  }, null, 2);
 
   try {
-    const result = await window.astradock.fetchJson(url);
-    elements.apiResult.textContent = JSON.stringify(result, null, 2);
+    const detail = await window.astradock.events.getEvidenceDetail({
+      kind: 'shard',
+      id: entry.id
+    });
+    elements.rawContext.textContent = detail.evidence.rawContext.join('\n') || 'No retained raw context for this entry.';
   } catch (error) {
-    elements.apiResult.textContent = error.message;
+    elements.rawContext.textContent = error.message;
   }
 }
 
@@ -414,7 +455,7 @@ function escapeHtml(value) {
 }
 
 elements.chooseLog.addEventListener('click', async () => {
-  const result = await window.astradock.chooseLog();
+  const result = await window.astradock.source.choose();
   if (!result?.source) return;
   upsertSource(result.source);
   renderSelectedSource(result.source);
@@ -433,13 +474,7 @@ elements.scanLog.addEventListener('click', scanSelectedSource);
 elements.startMonitor.addEventListener('click', startMonitor);
 elements.stopMonitor.addEventListener('click', stopMonitor);
 elements.refreshInline.addEventListener('click', scanSelectedSource);
-elements.openFolder.addEventListener('click', () => window.astradock.openSourceFolder(state.selectedSourceId));
-elements.saveApi.addEventListener('click', () => {
-  state.apiTemplate = elements.apiTemplate.value.trim();
-  localStorage.setItem('astradock.apiTemplate', state.apiTemplate);
-  elements.apiStatus.textContent = state.apiTemplate ? 'On' : 'Off';
-  setStatus('API URL saved');
-});
+elements.openFolder.addEventListener('click', openSelectedSourceFolder);
 elements.searchInput.addEventListener('input', () => {
   state.search = elements.searchInput.value;
   renderRows();
@@ -460,12 +495,12 @@ elements.quickScan.addEventListener('click', scanSelectedSource);
 elements.quickChoose.addEventListener('click', () => elements.chooseLog.click());
 elements.quickMonitor.addEventListener('click', startMonitor);
 elements.quickStop.addEventListener('click', stopMonitor);
-elements.quickFolder.addEventListener('click', () => window.astradock.openSourceFolder(state.selectedSourceId));
+elements.quickFolder.addEventListener('click', openSelectedSourceFolder);
 elements.candidateList.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-source-id]');
   if (!button) return;
   try {
-    const result = await window.astradock.selectSource(button.dataset.sourceId);
+    const result = await window.astradock.source.select(button.dataset.sourceId);
     if (!result?.source) return;
     upsertSource(result.source);
     renderSelectedSource(result.source);
@@ -494,14 +529,14 @@ elements.sessionRows.addEventListener('click', (event) => {
   renderActions();
 });
 elements.closeDetails.addEventListener('click', () => {
-  elements.apiResult.textContent = 'Inspect a shard to fetch configured API data.';
-  elements.rawContext.textContent = 'Raw log context will appear here.';
+  elements.apiResult.textContent = 'Inspect a shard to view renderer-safe metadata.';
+  elements.rawContext.textContent = 'Local evidence context will appear here.';
 });
 
 function toggleTheme() {
   state.theme = state.theme === 'dark' ? 'light' : 'dark';
   document.body.dataset.theme = state.theme;
-  localStorage.setItem('astradock.theme', state.theme);
+  window.astradock.settings.update({ theme: state.theme }).catch((error) => setStatus(error.message, true));
 }
 
 function upsertSource(source) {
@@ -513,4 +548,4 @@ function upsertSource(source) {
   }
 }
 
-boot();
+boot().catch((error) => setStatus(error.message, true));
