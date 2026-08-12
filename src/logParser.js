@@ -226,7 +226,7 @@ function parseEnvironmentTimeline(lines, options = {}) {
 
     if (!extracted) {
       lineContexts[index] = activeContext;
-      partitions.set(activeContext.environmentKey, activeContext);
+      if (line.trim()) partitions.set(activeContext.environmentKey, activeContext);
       return;
     }
 
@@ -245,8 +245,15 @@ function parseEnvironmentTimeline(lines, options = {}) {
         }
       }));
       lineContexts[index] = activeContext;
-      partitions.set(activeContext.environmentKey, activeContext);
+      if (line.trim()) partitions.set(activeContext.environmentKey, activeContext);
       return;
+    }
+
+    if (isEnvironmentBoundaryChange(facts, extracted.evidence)) {
+      facts.buildVersion = options.gameBuild || 'UNKNOWN_BUILD';
+      facts.branch = options.branch || 'UNKNOWN';
+      delete facts.changelist;
+      delete facts.databaseVersion;
     }
 
     Object.assign(facts, compactObject({
@@ -328,6 +335,14 @@ function getSameLineReleaseConflict(evidence) {
     .filter(Boolean);
   const unique = Array.from(new Set(channels));
   return unique.length > 1 ? unique : null;
+}
+
+function isEnvironmentBoundaryChange(currentFacts, evidence) {
+  if (evidence.sourceLocation && evidence.sourceLocation !== currentFacts.sourceLocation) return true;
+
+  const nextReleaseChannel = normalizeReleaseChannel(evidence.rawEnvironmentTag || evidence.gameEnvironmentTag);
+  const currentReleaseChannel = normalizeReleaseChannel(currentFacts.rawEnvironmentTag);
+  return Boolean(nextReleaseChannel && currentReleaseChannel && nextReleaseChannel !== currentReleaseChannel);
 }
 
 function createEnvironmentDiagnostic(input) {

@@ -81,6 +81,57 @@ test('keeps shard, session, action, and user identity state partitioned by envir
   );
 });
 
+test('keeps EPTU and HOTFIX collisions isolated from each other', () => {
+  const result = parseLogText(`
+<2026-08-09T20:00:00.000Z> <Init> Environment[EPTU] Tag[EPTU] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/EPTU/game.log]
+<2026-08-09T20:00:01.000Z> <Game Version> version[4.9.0-EPTU.9000000-SYNTH] environment[EPTU]
+<2026-08-09T20:00:02.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_SHARED accountId SYNTH_ACCOUNT_SHARED geid SYNTH_CHARACTER_GEID_SHARED state Active
+<2026-08-09T20:00:03.000Z> <Join PU> address[eptu-server-shared.example.invalid] port[64090] shard[SYNTH_SHARD_SHARED] locationId[SYNTH_LOCATION_SHARED]
+<2026-08-09T20:10:00.000Z> <Init> Environment[HOTFIX] Tag[HOTFIX] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/HOTFIX/game.log]
+<2026-08-09T20:10:01.000Z> <Game Version> version[4.9.0-HOTFIX.9000000-SYNTH] environment[HOTFIX]
+<2026-08-09T20:10:02.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_SHARED accountId SYNTH_ACCOUNT_SHARED geid SYNTH_CHARACTER_GEID_SHARED state Active
+<2026-08-09T20:10:03.000Z> <Join PU> address[hotfix-server-shared.example.invalid] port[64090] shard[SYNTH_SHARD_SHARED] locationId[SYNTH_LOCATION_SHARED]
+`, {
+    username: 'SYNTH_HANDLE_SHARED',
+    branch: 'sc-alpha-4.9-hotfix-collision-synth'
+  });
+  const environmentKeys = new Set(result.entries.map((entry) => entry.environmentKey));
+
+  assert.equal(result.environmentPartitions.length, 4, 'build observations create distinct source contexts');
+  assert.equal(result.entries.length, 2);
+  assert.equal(result.userActivity.sessions.length, 2);
+  assert.equal(environmentKeys.size, 2);
+  assert.ok(Array.from(environmentKeys).some((key) => key.startsWith('EPTU::PU::')));
+  assert.ok(Array.from(environmentKeys).some((key) => key.startsWith('HOTFIX::PU::')));
+  assert.equal(
+    result.environmentPartitions.some(
+      (partition) => partition.releaseChannel === 'HOTFIX' && partition.buildVersion.includes('EPTU')
+    ),
+    false,
+    'source switches must not inherit the previous channel build'
+  );
+  assert.notEqual(result.entries[0].id, result.entries[1].id);
+  assert.notEqual(result.userActivity.sessions[0].id, result.userActivity.sessions[1].id);
+});
+
+test('build changes inside one channel create a new partition and stale the prior current session', () => {
+  const result = parseLogText(`
+<2026-08-09T21:00:00.000Z> <Init> Environment[PUB] Tag[LIVE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log]
+<2026-08-09T21:00:01.000Z> <Game Version> version[4.9.0-LIVE.9000000-SYNTH] environment[LIVE]
+<2026-08-09T21:00:02.000Z> <Join PU> address[live-build-a.example.invalid] port[64090] shard[SYNTH_SHARD_SHARED] locationId[SYNTH_LOCATION_SHARED]
+<2026-08-09T21:10:00.000Z> <Game Version> version[4.9.1-LIVE.9000001-SYNTH] environment[LIVE]
+<2026-08-09T21:10:01.000Z> <Join PU> address[live-build-b.example.invalid] port[64090] shard[SYNTH_SHARD_SHARED] locationId[SYNTH_LOCATION_SHARED]
+`);
+  const sessionEnvironmentKeys = new Set(result.userActivity.sessions.map((session) => session.environmentKey));
+  const staleSession = result.userActivity.sessions.find((session) => session.staleReason === 'environment_changed');
+
+  assert.equal(result.entries.length, 2);
+  assert.equal(result.userActivity.sessions.length, 2);
+  assert.equal(sessionEnvironmentKeys.size, 2);
+  assert.ok(staleSession, 'previous build session should not remain current truth');
+  assert.notEqual(result.userActivity.sessions[0].environmentKey, result.userActivity.sessions[1].environmentKey);
+});
+
 test('unknown source evidence derives UNKNOWN release channel instead of LIVE', () => {
   const result = parseLogText(`
 <2026-08-09T19:00:00.000Z> <Init> Environment[TECH-PREVIEW] Tag[TECH-PREVIEW] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/TECH-PREVIEW/game.log]
@@ -89,6 +140,7 @@ test('unknown source evidence derives UNKNOWN release channel instead of LIVE', 
 
   assert.equal(result.environment.releaseChannel, 'UNKNOWN');
   assert.equal(result.environment.rawEnvironmentTag, 'TECH-PREVIEW');
+  assert.equal(result.environment.buildVersion, 'UNKNOWN_BUILD');
   assert.ok(result.environmentKey.startsWith('UNKNOWN::PU::'));
   assert.equal(result.entries[0].gameChannel, 'UNKNOWN');
 });
