@@ -156,6 +156,74 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       recoverable: true
     }
   },
+  ParserCompatibilityStatusObserved: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'Parser/profile compatibility status was evaluated for the active runtime source.',
+    traits: traits({
+      temporalUtility: 'near_real_time',
+      persistence: { scope: 'durable', retention: '30d' },
+      diagnosticUtility: 'parser_drift',
+      sensitivity: 'local',
+      subjectScopes: ['installation', 'game_build', 'session'],
+      lifecycle: 'state',
+      volumeCost: 'low'
+    }),
+    payload: {
+      status: field(STRING, { enum: ['compatible', 'unsupported_profile', 'suspected_drift'] }),
+      profileId: field(STRING),
+      profileVersion: field(STRING),
+      reason: field(STRING),
+      recordsSeen: field(INTEGER, { min: 0 }),
+      knownEventsEmitted: field(INTEGER, { min: 0 }),
+      unknownRecords: field(INTEGER, { min: 0 }),
+      unknownSampleCount: field(INTEGER, { min: 0 }),
+      droppedUnknownSamples: field(INTEGER, { min: 0 })
+    },
+    examplePayload: {
+      status: 'compatible',
+      profileId: 'sc-4.9-live',
+      profileVersion: 'draft-2026-08-11',
+      reason: 'profile_compatible',
+      recordsSeen: 42,
+      knownEventsEmitted: 7,
+      unknownRecords: 4,
+      unknownSampleCount: 2,
+      droppedUnknownSamples: 0
+    }
+  },
+  ParserDriftSuspected: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'The parser observed enough unmatched evidence to suspect profile drift.',
+    traits: traits({
+      temporalUtility: 'near_real_time',
+      persistence: { scope: 'durable', retention: '30d' },
+      diagnosticUtility: 'parser_drift',
+      sensitivity: 'local',
+      subjectScopes: ['installation', 'game_build', 'session'],
+      lifecycle: 'event',
+      volumeCost: 'low'
+    }),
+    payload: {
+      profileId: field(STRING),
+      profileVersion: field(STRING),
+      reason: field(STRING),
+      recordsSeen: field(INTEGER, { min: 0 }),
+      knownEventsEmitted: field(INTEGER, { min: 0 }),
+      unknownRecords: field(INTEGER, { min: 0 }),
+      unknownRatio: field(NUMBER, { min: 0, max: 1 })
+    },
+    examplePayload: {
+      profileId: 'sc-4.9-live',
+      profileVersion: 'draft-2026-08-11',
+      reason: 'high_unknown_ratio',
+      recordsSeen: 50,
+      knownEventsEmitted: 0,
+      unknownRecords: 48,
+      unknownRatio: 0.96
+    }
+  },
   ClientBuildObserved: {
     owner: 'runtime-contracts',
     status: 'mvp',

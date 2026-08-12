@@ -269,6 +269,9 @@ test('unsupported builds fail observably without best-guess events', () => {
   assert.equal(result.events.length, 0);
   assert.ok(result.diagnostics.some((diagnostic) => diagnostic.code === 'unsupported_profile'));
   assert.ok(result.unknownEvidence.some((evidence) => evidence.reason === 'unsupported_profile'));
+  assert.equal(result.parserHealth.status, 'unsupported_profile');
+  assert.ok(result.healthEvents.some((event) => event.eventType === 'ParserCompatibilityStatusObserved'));
+  assert.ok(result.healthEvents.every((event) => validateRuntimeEvent(event).ok));
 });
 
 test('conflicting matches and malformed records fail safely and observably', () => {
@@ -317,5 +320,75 @@ test('conflicting matches and malformed records fail safely and observably', () 
   assert.ok(conflict.diagnostics.some((diagnostic) => diagnostic.code === 'match_conflict'));
   assert.equal(malformed.events.length, 0);
   assert.ok(malformed.diagnostics.some((diagnostic) => diagnostic.code === 'missing_required_fields'));
+  assert.ok(malformed.unknownEvidence.some((evidence) => evidence.reason === 'matched_missing_required_fields'));
   assert.equal(JSON.stringify(malformed.diagnostics).includes('game-server-alpha'), false);
+});
+
+test('parser health reports suspected drift from bounded privacy-aware unknown evidence', () => {
+  const logText = Array.from({ length: 12 }, (_unused, index) => (
+    `<2026-08-09T19:30:${String(index).padStart(2, '0')}.000Z> <UnknownTelemetry> accountId[ACC_${index}] handle[HANDLE_${index}] remoteAddr 10.1.0.${index}:64090 SourcePath[/home/pilot/StarCitizen/LIVE/game.log]`
+  )).join('\n') + '\n';
+
+  const result = parseRuntimeLogText(logText, {
+    ...LIVE_PROFILE_OPTIONS,
+    gameBuild: '4.9.0-LIVE.9000000',
+    sourceProfileVersion: 'draft-2026-08-11',
+    unknownEvidence: {
+      maxSamples: 2,
+      maxSamplesPerBucket: 1,
+      maxTotalSampleBytes: 320,
+      maxSampleBytes: 160
+    },
+    driftDetection: {
+      minRecords: 10,
+      minUnknownRecords: 8,
+      unknownRatio: 0.7
+    }
+  });
+
+  assert.equal(result.events.length, 0);
+  assert.equal(result.parserHealth.status, 'suspected_drift');
+  assert.equal(result.parserHealth.reason, 'high_unknown_ratio');
+  assert.equal(result.unknownEvidenceSummary.recordCount, 12);
+  assert.ok(result.unknownEvidenceSummary.sampleCount <= 2);
+  assert.ok(result.unknownEvidenceSummary.droppedSampleCount > 0);
+  assert.equal(JSON.stringify(result.unknownEvidence).includes('ACC_'), false);
+  assert.equal(JSON.stringify(result.unknownEvidence).includes('HANDLE_'), false);
+  assert.equal(JSON.stringify(result.unknownEvidence).includes('10.1.0.'), false);
+  assert.equal(JSON.stringify(result.unknownEvidence).includes('/home/pilot'), false);
+  assert.ok(result.healthEvents.some((event) => event.eventType === 'ParserDriftSuspected'));
+  assert.ok(result.healthEvents.every((event) => validateRuntimeEvent(event).ok));
+});
+
+test('parser exposes scoped query, delete, and reset interfaces for unknown evidence', () => {
+  const engine = new RuntimeLogParserEngine({
+    ...LIVE_PROFILE_OPTIONS,
+    gameBuild: '4.9.0-LIVE.9000000',
+    sourceProfileVersion: 'draft-2026-08-11',
+    unknownEvidence: {
+      maxSamples: 10,
+      maxSamplesPerBucket: 2
+    }
+  });
+
+  engine.push(Buffer.from([
+    '<2026-08-09T19:40:00.000Z> <UnknownLive> accountId[ACC_LIVE]',
+    '<2026-08-09T19:40:01.000Z> <UnknownLive> accountId[ACC_LIVE_2]'
+  ].join('\n') + '\n'));
+  engine.end();
+
+  const query = engine.queryUnknownEvidence({ includeSamples: true, limit: 10 });
+  assert.equal(query.summary.recordCount, 2);
+  assert.equal(JSON.stringify(query).includes('ACC_LIVE'), false);
+
+  const deletedSensitive = engine.deleteUnknownEvidence({ mode: 'sensitive_evidence' });
+  assert.equal(deletedSensitive.deletedRecords, 2);
+  assert.equal(engine.queryUnknownEvidence().summary.recordCount, 0);
+
+  engine.push(Buffer.from('<2026-08-09T19:40:02.000Z> <UnknownLiveAgain>\n'));
+  engine.end();
+  assert.equal(engine.queryUnknownEvidence().summary.recordCount, 1);
+  const reset = engine.resetUnknownEvidence();
+  assert.equal(reset.deletedRecords, 1);
+  assert.equal(engine.queryUnknownEvidence().summary.recordCount, 0);
 });
