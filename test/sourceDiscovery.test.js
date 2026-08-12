@@ -112,6 +112,36 @@ test('supports non-default roots and restored preferences with revalidation-safe
   assert.equal(JSON.stringify(discovery).includes('SecondaryDrive'), false, 'restored public DTO must remain privacy-safe');
 });
 
+test('revalidates moved restored preferences as missing instead of keeping approval', async () => {
+  const root = await makeTempDir();
+  const customRoot = path.join(root, 'ExternalLibrary', 'StarCitizen');
+  const liveLog = path.join(customRoot, 'LIVE', LOG_FILE_NAME);
+  const preferencePath = path.join(root, 'settings', 'source-preference.json');
+  await writeGameLog(liveLog, 'LIVE');
+
+  const source = await validateLogSource(liveLog, {
+    discoveryMethods: ['user_selected'],
+    now: NOW
+  });
+  await saveSourcePreference(preferencePath, source, { now: NOW });
+  await fs.rename(liveLog, `${liveLog}.moved`);
+
+  const preference = await loadSourcePreference(preferencePath);
+  const discovery = await discoverRuntimeSources({
+    platform: 'linux',
+    home: path.join(root, 'home'),
+    extraRoots: [customRoot],
+    restoredSourcePath: preference.selectedSourcePath,
+    now: NOW
+  });
+  const restored = discovery.sources.find((candidate) => candidate.discoveryMethods.includes('restored_setting'));
+
+  assert.equal(discovery.activeSource, null);
+  assert.equal(discovery.summary.selectionReason, 'no_valid_source');
+  assert.equal(restored.validation.status, VALIDATION_STATUSES.MISSING);
+  assert.equal(restored.validation.message.includes(root), false);
+});
+
 test('returns actionable validation states for missing, directory, malformed, and unsupported sources', async () => {
   const root = await makeTempDir();
   const missingSource = await validateLogSource(path.join(root, 'StarCitizen', 'LIVE', LOG_FILE_NAME), { now: NOW });

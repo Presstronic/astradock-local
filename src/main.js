@@ -103,7 +103,8 @@ ipcMain.handle('sources:select', async (_event, sourceId) => {
 
 ipcMain.handle('logs:scanSource', async (_event, sourceId, options = {}) => {
   const source = await getApprovedSource(sourceId || activeSourceId);
-  return parseLogFile(source.private.canonicalPath, options);
+  const result = await parseLogFile(source.private.canonicalPath, options);
+  return toRendererScanResult(result, source);
 });
 
 ipcMain.handle('logs:watchSource', async (_event, sourceId, options = {}) => {
@@ -118,7 +119,7 @@ ipcMain.handle('logs:watchSource', async (_event, sourceId, options = {}) => {
     if (!mainWindow || watchedLogPath !== logPath || watchedSourceId !== source.sourceId) return;
     try {
       const result = await parseLogFile(logPath, watchOptions);
-      mainWindow.webContents.send('logs:changed', result);
+      mainWindow.webContents.send('logs:changed', toRendererScanResult(result, source));
     } catch (error) {
       mainWindow.webContents.send('logs:error', error.message);
     }
@@ -216,4 +217,15 @@ function safeError(code, message) {
   const error = new Error(message);
   error.code = code;
   return error;
+}
+
+function toRendererScanResult(result, source) {
+  const {
+    logPath: _logPath,
+    ...safeResult
+  } = result;
+  return {
+    ...safeResult,
+    source: toPublicSource(source)
+  };
 }
