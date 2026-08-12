@@ -65,18 +65,18 @@
               <p>Recent Star Citizen shard activity from your local game log</p>
             </div>
             <div class="head-actions">
-              <button id="scanLog" class="ghost">Scan log</button>
+              <button id="scanLog" class="ghost">Scan source</button>
               <button id="stopMonitor" class="ghost danger">Stop monitor</button>
               <button id="startMonitor" class="primary">Start monitor</button>
-              <button id="chooseLog" class="primary">Choose log</button>
+              <button id="chooseLog" class="primary">Choose game.log</button>
             </div>
           </div>
 
           <section class="control-strip">
             <div class="field wide">
-              <label for="logPath">Log file</label>
+              <label for="logPath">Active log source</label>
               <div class="field-row">
-                <input id="logPath" type="text" spellcheck="false" />
+                <input id="logPath" type="text" spellcheck="false" readonly />
                 <button id="openFolder" title="Open folder">↗</button>
               </div>
             </div>
@@ -111,7 +111,7 @@
             </article>
             <article class="metric-card">
               <div class="metric-icon gray">▤</div>
-              <span>Detected paths</span>
+              <span>Source candidates</span>
               <strong id="pathCount">0</strong>
               <p>Common locations checked</p>
             </article>
@@ -160,7 +160,7 @@
                   <tbody id="shardRows"></tbody>
                 </table>
                 <div class="empty" id="emptyState">
-                  Choose your Star Citizen <strong>game.log</strong> and scan again.
+                  Choose a validated Star Citizen <strong>game.log</strong> source and scan again.
                 </div>
               </div>
             </article>
@@ -168,8 +168,8 @@
             <article class="card path-card">
               <div class="card-head">
                 <div>
-                  <h3>Checked Paths</h3>
-                  <p>Auto-detection candidates</p>
+                  <h3>Log Sources</h3>
+                  <p>Validated candidates and actionable states</p>
                 </div>
               </div>
               <ul id="candidateList"></ul>
@@ -199,7 +199,7 @@
                 </div>
               </div>
               <div class="quick-grid">
-                <button id="quickScan">▤ Scan log</button>
+                <button id="quickScan">▤ Scan source</button>
                 <button id="quickChoose">⌕ Choose file</button>
                 <button id="quickMonitor">◎ Start monitor</button>
                 <button id="quickStop">□ Stop monitor</button>

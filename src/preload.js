@@ -1,12 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('astradock', {
-  getDefaultLogs: () => ipcRenderer.invoke('logs:defaults'),
-  chooseLog: () => ipcRenderer.invoke('logs:choose'),
-  scanLog: (logPath, options) => ipcRenderer.invoke('logs:scan', logPath, options),
-  watchLog: (logPath, options) => ipcRenderer.invoke('logs:watch', logPath, options),
+  discoverSources: () => ipcRenderer.invoke('sources:discover'),
+  chooseLog: () => ipcRenderer.invoke('sources:choose'),
+  selectSource: (sourceId) => ipcRenderer.invoke('sources:select', sourceId),
+  scanSource: (sourceId, options) => ipcRenderer.invoke('logs:scanSource', sourceId, options),
+  watchSource: (sourceId, options) => ipcRenderer.invoke('logs:watchSource', sourceId, options),
   unwatchLog: () => ipcRenderer.invoke('logs:unwatch'),
-  openLogFolder: (logPath) => ipcRenderer.invoke('logs:openFolder', logPath),
+  openSourceFolder: (sourceId) => ipcRenderer.invoke('sources:openFolder', sourceId),
   fetchJson: (url) => ipcRenderer.invoke('api:fetchJson', url),
   onLogChanged: (callback) => {
     const listener = (_event, result) => callback(result);

@@ -662,18 +662,49 @@ td {
 }
 
 .path-card li {
-  overflow-wrap: anywhere;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.45;
-  padding: 10px 12px;
+  padding: 0;
 }
 
 .path-card li.found {
   color: var(--green);
   background: var(--green-soft);
+}
+
+.path-card li.invalid {
+  color: var(--muted);
+}
+
+.path-card li button {
+  width: 100%;
+  min-height: 56px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.path-card li button span,
+.path-card li button small {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.path-card li button span {
+  font-weight: 800;
+}
+
+.path-card li button small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .details {

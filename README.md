@@ -19,10 +19,11 @@ The proof-of-concept Electron Builder config currently targets Windows `nsis`/`p
 
 ## Current Functionality
 
-- Auto-checks common Windows and Linux Star Citizen `game.log` locations.
-- Lets you choose a custom `game.log`.
+- Auto-discovers common Windows and supported Linux/Wine/Proton/LUG Star Citizen `game.log` sources without full-disk scanning.
+- Lets you choose a custom `game.log` through a trusted native dialog and revalidates the saved source before reuse.
 - Scans for shard entries and displays shard ID, name, region, build, last seen time, and source line.
 - Watches the selected log file and refreshes when it changes.
+- Keeps full filesystem paths in the privileged process and shows privacy-safe source labels in the renderer by default.
 - Supports a configurable enrichment API URL using `{shardId}`, for example:
 
 ```text
@@ -30,3 +31,5 @@ https://api.example.com/shards/{shardId}
 ```
 
 The parser is intentionally heuristic because Star Citizen log formats vary between builds. Inspecting a row shows the raw surrounding log context so the parser can be tightened against real logs.
+
+Source discovery, validation states, privacy-safe DTOs, and local preference behavior are documented in [`docs/source-discovery.md`](docs/source-discovery.md).

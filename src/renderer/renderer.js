@@ -1,7 +1,8 @@
 const state = {
   entries: [],
   userActivity: { userIds: [], actions: [], sessions: [] },
-  selectedLogPath: '',
+  sources: [],
+  selectedSourceId: '',
   apiTemplate: localStorage.getItem('astradock.apiTemplate') || '',
   username: localStorage.getItem('astradock.username') || '',
   userId: localStorage.getItem('astradock.userId') || '',
@@ -71,18 +72,20 @@ async function boot() {
   elements.userId.value = state.userId;
   elements.apiStatus.textContent = state.apiTemplate ? 'On' : 'Off';
   updateMonitorUi();
-  setStatus('Detecting logs...');
+  setStatus('Discovering sources...');
 
-  const defaults = await window.astradock.getDefaultLogs();
-  renderCandidates(defaults.candidates, defaults.detectedPath);
-  elements.pathCount.textContent = defaults.candidates.length;
+  const discovery = await window.astradock.discoverSources();
+  state.sources = discovery.sources || [];
+  state.selectedSourceId = discovery.activeSource?.sourceId || '';
+  renderCandidates(state.sources, state.selectedSourceId);
+  elements.pathCount.textContent = String(discovery.summary?.candidateCount || state.sources.length);
 
-  if (defaults.detectedPath) {
-    state.selectedLogPath = defaults.detectedPath;
-    elements.logPath.value = defaults.detectedPath;
-    await scanSelectedLog();
+  if (discovery.activeSource) {
+    renderSelectedSource(discovery.activeSource);
+    await scanSelectedSource();
   } else {
-    setStatus('Choose a log file');
+    renderSelectedSource(null);
+    setStatus('Choose a log source');
   }
 
   window.astradock.onLogChanged((result) => {
@@ -93,29 +96,45 @@ async function boot() {
   window.astradock.onLogError((message) => setStatus(message, true));
 }
 
-function renderCandidates(candidates, detectedPath) {
+function renderCandidates(candidates, selectedSourceId) {
   elements.candidateList.innerHTML = '';
   for (const candidate of candidates) {
     const item = document.createElement('li');
-    item.textContent = candidate;
-    if (candidate === detectedPath) item.classList.add('found');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.sourceId = candidate.sourceId;
+    button.innerHTML = `
+      <span>${escapeHtml(candidate.displayLabel)}</span>
+      <small>${escapeHtml(formatSourceState(candidate))}</small>
+    `;
+    item.append(button);
+    item.classList.toggle('found', candidate.sourceId === selectedSourceId);
+    item.classList.toggle('invalid', !candidate.validation?.isValid);
     elements.candidateList.append(item);
   }
 }
 
-async function scanSelectedLog() {
-  const logPath = elements.logPath.value.trim();
-  if (!logPath) {
-    setStatus('Choose a log file first', true);
+function renderSelectedSource(source) {
+  if (!source) {
+    elements.logPath.value = '';
+    elements.logPath.placeholder = 'No validated Star Citizen game.log selected';
     return;
   }
 
-  state.selectedLogPath = logPath;
+  elements.logPath.value = `${source.displayLabel} / ${formatSourceState(source)}`;
+}
+
+async function scanSelectedSource() {
+  if (!state.selectedSourceId) {
+    setStatus('Choose a log source first', true);
+    return;
+  }
+
   saveUserFilter();
   setStatus('Scanning...');
 
   try {
-    const result = await window.astradock.scanLog(logPath, getMonitorOptions());
+    const result = await window.astradock.scanSource(state.selectedSourceId, getMonitorOptions());
     applyScanResult(result);
     setStatus(`Scanned ${formatDateTime(result.scannedAt)}`);
   } catch (error) {
@@ -124,11 +143,10 @@ async function scanSelectedLog() {
 }
 
 async function startMonitor() {
-  const logPath = elements.logPath.value.trim();
   saveUserFilter();
 
-  if (!logPath) {
-    setStatus('Choose a log file first', true);
+  if (!state.selectedSourceId) {
+    setStatus('Choose a log source first', true);
     return;
   }
 
@@ -137,13 +155,12 @@ async function startMonitor() {
     return;
   }
 
-  state.selectedLogPath = logPath;
   setStatus('Starting monitor...');
 
   try {
-    const result = await window.astradock.scanLog(logPath, getMonitorOptions());
+    const result = await window.astradock.scanSource(state.selectedSourceId, getMonitorOptions());
     applyScanResult(result);
-    await window.astradock.watchLog(logPath, getMonitorOptions());
+    await window.astradock.watchSource(state.selectedSourceId, getMonitorOptions());
     state.monitorActive = true;
     updateMonitorUi();
     setStatus('Monitoring live');
@@ -326,6 +343,14 @@ function renderEnvironmentStatus(result = {}) {
   ].filter(Boolean).join(' / ') || 'Unknown build';
 }
 
+function formatSourceState(source) {
+  const status = source.validation?.status || 'unknown';
+  const channel = source.channelHint || 'UNKNOWN';
+  const build = source.buildVersion && source.buildVersion !== 'UNKNOWN_BUILD' ? source.buildVersion : null;
+  if (source.validation?.isValid) return [channel, build, source.validation.message].filter(Boolean).join(' / ');
+  return [channel, source.validation?.message || status].filter(Boolean).join(' / ');
+}
+
 function filterEntries() {
   const term = state.search.trim().toLowerCase();
   if (!term) return state.entries;
@@ -389,17 +414,26 @@ function escapeHtml(value) {
 }
 
 elements.chooseLog.addEventListener('click', async () => {
-  const logPath = await window.astradock.chooseLog();
-  if (!logPath) return;
-  elements.logPath.value = logPath;
-  await scanSelectedLog();
+  const result = await window.astradock.chooseLog();
+  if (!result?.source) return;
+  upsertSource(result.source);
+  renderSelectedSource(result.source);
+  if (!result.saved) {
+    state.selectedSourceId = '';
+    renderCandidates(state.sources, state.selectedSourceId);
+    setStatus(result.source.validation?.message || 'Selected source is not valid', true);
+    return;
+  }
+  state.selectedSourceId = result.source.sourceId;
+  renderCandidates(state.sources, state.selectedSourceId);
+  await scanSelectedSource();
 });
 
-elements.scanLog.addEventListener('click', scanSelectedLog);
+elements.scanLog.addEventListener('click', scanSelectedSource);
 elements.startMonitor.addEventListener('click', startMonitor);
 elements.stopMonitor.addEventListener('click', stopMonitor);
-elements.refreshInline.addEventListener('click', scanSelectedLog);
-elements.openFolder.addEventListener('click', () => window.astradock.openLogFolder(elements.logPath.value.trim()));
+elements.refreshInline.addEventListener('click', scanSelectedSource);
+elements.openFolder.addEventListener('click', () => window.astradock.openSourceFolder(state.selectedSourceId));
 elements.saveApi.addEventListener('click', () => {
   state.apiTemplate = elements.apiTemplate.value.trim();
   localStorage.setItem('astradock.apiTemplate', state.apiTemplate);
@@ -422,11 +456,32 @@ elements.username.addEventListener('change', saveUserFilter);
 elements.userId.addEventListener('change', saveUserFilter);
 elements.themeToggle.addEventListener('click', toggleTheme);
 elements.quickTheme.addEventListener('click', toggleTheme);
-elements.quickScan.addEventListener('click', scanSelectedLog);
+elements.quickScan.addEventListener('click', scanSelectedSource);
 elements.quickChoose.addEventListener('click', () => elements.chooseLog.click());
 elements.quickMonitor.addEventListener('click', startMonitor);
 elements.quickStop.addEventListener('click', stopMonitor);
-elements.quickFolder.addEventListener('click', () => window.astradock.openLogFolder(elements.logPath.value.trim()));
+elements.quickFolder.addEventListener('click', () => window.astradock.openSourceFolder(state.selectedSourceId));
+elements.candidateList.addEventListener('click', async (event) => {
+  const button = event.target.closest('button[data-source-id]');
+  if (!button) return;
+  try {
+    const result = await window.astradock.selectSource(button.dataset.sourceId);
+    if (!result?.source) return;
+    upsertSource(result.source);
+    renderSelectedSource(result.source);
+    if (!result.selected) {
+      state.selectedSourceId = '';
+      renderCandidates(state.sources, state.selectedSourceId);
+      setStatus(result.source.validation?.message || 'Source is not valid', true);
+      return;
+    }
+    state.selectedSourceId = result.source.sourceId;
+    renderCandidates(state.sources, state.selectedSourceId);
+    await scanSelectedSource();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+});
 elements.shardRows.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-index]');
   if (button) inspectEntry(Number(button.dataset.index));
@@ -447,6 +502,15 @@ function toggleTheme() {
   state.theme = state.theme === 'dark' ? 'light' : 'dark';
   document.body.dataset.theme = state.theme;
   localStorage.setItem('astradock.theme', state.theme);
+}
+
+function upsertSource(source) {
+  const existingIndex = state.sources.findIndex((candidate) => candidate.sourceId === source.sourceId);
+  if (existingIndex >= 0) {
+    state.sources.splice(existingIndex, 1, source);
+  } else {
+    state.sources.unshift(source);
+  }
 }
 
 boot();
