@@ -46,6 +46,26 @@ export interface RuntimeEventPayloadMap {
     reason: 'missing' | 'permission_denied' | 'locked' | 'rotated' | 'unsupported';
     recoverable: boolean;
   };
+  ParserCompatibilityStatusObserved: {
+    status: 'compatible' | 'unsupported_profile' | 'suspected_drift';
+    profileId: string;
+    profileVersion: string;
+    reason: string;
+    recordsSeen: number;
+    knownEventsEmitted: number;
+    unknownRecords: number;
+    unknownSampleCount: number;
+    droppedUnknownSamples: number;
+  };
+  ParserDriftSuspected: {
+    profileId: string;
+    profileVersion: string;
+    reason: string;
+    recordsSeen: number;
+    knownEventsEmitted: number;
+    unknownRecords: number;
+    unknownRatio: number;
+  };
   ClientBuildObserved: {
     fileVersion: string;
     productVersion: string;

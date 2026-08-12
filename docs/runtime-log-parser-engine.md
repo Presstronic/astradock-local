@@ -2,7 +2,9 @@
 
 ## Status
 
-Issue #21 introduces the first dependency-free runtime log parser engine boundary. It consumes byte chunks from the incremental tailer, frames complete lines, assembles bounded semantic records, selects a compatible extraction profile, and emits only validated `runtime-event/v1` events for fixture-promoted patterns.
+Issue #21 introduced the first dependency-free runtime log parser engine boundary. It consumes byte chunks from the incremental tailer, frames complete lines, assembles bounded semantic records, selects a compatible extraction profile, and emits only validated `runtime-event/v1` events for fixture-promoted patterns.
+
+Issue #22 adds bounded, privacy-aware unknown-evidence diagnostics and parser health reporting to that boundary. Unknown evidence is classified after framing/profile dispatch, sampled under explicit count/byte/time caps, minimized before it can appear in summaries, partitioned by environment/build, and kept local-only by default.
 
 The legacy scan parser in `src/logParser.js` remains available for the current proof-of-concept renderer. New telemetry pipeline work should use `src/runtimeLogParserEngine.js`.
 
@@ -26,12 +28,14 @@ The parser engine owns:
 - Bounded multiline continuation assembly for known continuation records.
 - Deterministic profile loading, validation, ordering, compatibility selection, and dispatch.
 - Canonical `runtime-event/v1` emission for promoted fixture-backed event families.
-- Classified unknown evidence for unsupported or unmatched records.
+- Classified, minimized, bounded unknown evidence for unsupported, unmatched, incomplete, or conflicting records.
+- Parser/profile compatibility and suspected-drift health summaries.
 
 The parser engine does not own:
 
 - File watching, offset recovery, truncation, rotation, or backpressure. Those remain in `RuntimeLogTailer`.
 - Durable persistence, replay, renderer projections, or Station synchronization.
+- SQLite persistence of unknown-evidence diagnostics. The current implementation is an in-memory repository boundary that matches the accepted retention/deletion semantics and can be replaced by the encrypted SQLite store selected by ADR-0003.
 - User-authored rules or arbitrary executable profile code.
 - Event promotion for mission, destination, travel, unsupported party lifecycle, crash, network-loss, or shard-transition families.
 
@@ -70,6 +74,51 @@ Unsupported builds and invalid profile requests produce diagnostics and unknown 
 
 Runtime events do not copy raw line text. Evidence references include source IDs, fixture IDs when applicable, evidence markers, line ranges, and sensitivity.
 
+## Unknown Evidence Diagnostics
+
+Unknown evidence is retained for parser diagnosis only. It is never uploaded by the parser engine and is not written into application logs. Capture currently covers:
+
+- `unsupported_profile`: no loaded profile is compatible with the active release channel/build evidence.
+- `no_profile_match`: a compatible profile exists, but cheap dispatch found no extractor for the record.
+- `matched_missing_required_fields`: an extractor matched but could not build a valid event payload.
+- `match_conflict`: multiple extractors produced conflicting payloads for one event type.
+
+The in-memory store records aggregate counts even when samples are capped. Samples are grouped by environment key, game build, category, reason, and a redacted fingerprint. Defaults are intentionally conservative:
+
+- Retention: 30 days.
+- Maximum retained samples: 250.
+- Maximum sample size: 320 bytes.
+- Maximum total sample bytes: 96 KiB.
+- Maximum samples per bucket: 4.
+- Maximum buckets: 1,000.
+
+Summaries include bucket/category/environment counts, sample counts, dropped sample counts, sensitivity, redaction status, structural evidence markers, line ranges, source byte offsets, and redacted snippets when detail is explicitly requested. They do not include raw log lines.
+
+Minimization currently redacts common secrets, session tokens, account/player identifiers, handles, endpoints, and local filesystem paths. Redaction is not the sole privacy control: the store also bounds capture, deduplicates repeated evidence, partitions by environment/build, supports scoped deletion/reset, and omits raw lines from diagnostics.
+
+The parser engine exposes:
+
+- `queryUnknownEvidence(query)` for bounded local inspection by environment/build/category/reason.
+- `deleteUnknownEvidence(scope)` for targeted local removal, including sensitive-only deletion.
+- `resetUnknownEvidence()` for complete local unknown-evidence reset.
+- `getParserHealth()` for compatibility/drift status without sample detail.
+
+## Parser Health
+
+Parser health is reported separately from canonical gameplay telemetry so that UI and persistence code can treat it as diagnostics. `snapshot()` returns:
+
+- `unknownEvidenceSummary`
+- `unknownEvidence`
+- `parserHealth`
+- `healthEvents`
+
+`healthEvents` contains validated `runtime-event/v1` diagnostic events:
+
+- `ParserCompatibilityStatusObserved`
+- `ParserDriftSuspected`
+
+The drift heuristic is deliberately conservative and configurable. By default it requires at least 25 records, at least 15 unknown records, and an unknown ratio of 75% before reporting `suspected_drift`. Unsupported profiles are reported as compatibility uncertainty, not as a Star Citizen fault.
+
 ## Verification
 
 Run:
@@ -89,5 +138,9 @@ Focused coverage includes:
 - Duplicate notification dedupe.
 - Negative fixtures producing no canonical events.
 - Unsupported build/profile diagnostics.
+- Privacy minimization for unknown samples and metadata.
+- High-volume unknown sampling caps with preserved aggregate counts.
+- Environment/build partitioning, retention cleanup, scoped deletion, and reset.
+- Parser compatibility and suspected drift health events.
 
 The parser benchmark feeds 5,000 framed records across deliberately uneven chunk sizes, requires 50 promoted canonical events, checks that dispatch avoids invoking every extractor for every record, and enforces a conservative local parse ceiling.

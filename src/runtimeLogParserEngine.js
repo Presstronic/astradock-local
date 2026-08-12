@@ -4,6 +4,10 @@ const {
   PROFILE_SCHEMA_VERSION
 } = require('./runtimeLogProfiles');
 const {
+  DEFAULT_UNKNOWN_EVIDENCE_POLICY,
+  UnknownEvidenceStore
+} = require('./unknownEvidenceStore');
+const {
   EVENT_TYPE_REGISTRY,
   createPartitionedIdentity,
   createRuntimeEvent,
@@ -15,6 +19,9 @@ const {
 const DEFAULT_MAX_LINE_BYTES = 64 * 1024;
 const DEFAULT_MAX_RECORD_BYTES = 128 * 1024;
 const DEFAULT_MAX_CONTINUATION_LINES = 8;
+const DEFAULT_DRIFT_MIN_RECORDS = 25;
+const DEFAULT_DRIFT_MIN_UNKNOWN_RECORDS = 15;
+const DEFAULT_DRIFT_UNKNOWN_RATIO = 0.75;
 const UNKNOWN_SOURCE_LOCATION = 'UNKNOWN_SOURCE';
 const UNKNOWN_MATCHMAKING_REQUEST = 'UNKNOWN_MATCHMAKING_REQUEST';
 const VALID_EXTRACTOR_KINDS = new Set([
@@ -267,7 +274,17 @@ class RuntimeLogParserEngine {
       gameBuild: options.gameBuild,
       branch: options.branch,
       environmentName: options.environmentName,
-      rawEnvironmentTag: options.rawEnvironmentTag
+      rawEnvironmentTag: options.rawEnvironmentTag,
+      unknownEvidence: {
+        ...DEFAULT_UNKNOWN_EVIDENCE_POLICY,
+        ...(options.unknownEvidence || {})
+      },
+      driftDetection: {
+        minRecords: DEFAULT_DRIFT_MIN_RECORDS,
+        minUnknownRecords: DEFAULT_DRIFT_MIN_UNKNOWN_RECORDS,
+        unknownRatio: DEFAULT_DRIFT_UNKNOWN_RATIO,
+        ...(options.driftDetection || {})
+      }
     };
     this.profiles = loaded.profiles;
     this.framer = new RuntimeLogLineFramer(options.framer);
@@ -275,7 +292,10 @@ class RuntimeLogParserEngine {
     this.dedupeKeys = new Set();
     this.events = [];
     this.diagnostics = [];
-    this.unknownEvidence = [];
+    this.unknownEvidenceStore = options.unknownEvidenceStore || new UnknownEvidenceStore({
+      policy: this.options.unknownEvidence,
+      now: () => this.options.ingestedAt || new Date().toISOString()
+    });
     this.ingestionSequence = 0;
     this.stats = {
       recordsSeen: 0,
@@ -672,6 +692,10 @@ class RuntimeLogParserEngine {
           missing
         }
       });
+      this.addUnknownEvidence(record, profile, 'matched_missing_required_fields', {
+        evidenceMarkers: extractor.evidenceMarkers,
+        sensitivity: extractor.sensitivity || 'local'
+      });
       return [];
     }
 
@@ -773,6 +797,10 @@ class RuntimeLogParserEngine {
             extractorIds: candidates.map((candidate) => candidate.extractorId)
           }
         });
+        this.addUnknownEvidence(record, this.selectProfileSnapshot(), 'match_conflict', {
+          evidenceMarkers: candidates.flatMap((candidate) => candidate.event.evidenceReference.evidenceMarkers || []),
+          sensitivity: 'local'
+        });
         continue;
       }
 
@@ -785,19 +813,26 @@ class RuntimeLogParserEngine {
     }
   }
 
-  addUnknownEvidence(record, profile, reason) {
+  addUnknownEvidence(record, profile, reason, overrides = {}) {
     this.stats.unknownRecords += 1;
-    this.unknownEvidence.push({
+    this.unknownEvidenceStore.capture({
       reason,
+      text: record.normalizedText,
+      environmentKey: this.environment.environmentKey,
+      releaseChannel: this.environment.releaseChannel,
+      gameBuild: this.environment.buildVersion,
       sourceProfileId: profile?.id || null,
       sourceProfileVersion: profile?.version || null,
+      parserVersion: profile?.parserVersion || this.selectProfileSnapshot()?.parserVersion || 'runtime-log-parser/0.1.0',
       sourceTimestamp: parseSourceTimestamp(record.normalizedText),
       lineRange: {
         start: record.startLineNumber,
         end: record.endLineNumber
       },
       sourceByteOffset: record.sourceByteOffset,
-      evidenceMarkers: classifyUnknownEvidence(record.normalizedText)
+      evidenceMarkers: overrides.evidenceMarkers || classifyUnknownEvidence(record.normalizedText),
+      sensitivity: overrides.sensitivity || 'local',
+      observedAt: this.options.ingestedAt || parseSourceTimestamp(record.normalizedText) || new Date().toISOString()
     });
   }
 
@@ -811,15 +846,169 @@ class RuntimeLogParserEngine {
   }
 
   snapshot() {
+    const selectedProfile = this.selectProfileSnapshot();
+    const unknownEvidenceSummary = this.unknownEvidenceStore.getSummary();
+    const parserHealth = this.getParserHealth({ selectedProfile, unknownEvidenceSummary });
     return {
       events: this.events.slice(),
       diagnostics: this.diagnostics.slice(),
-      unknownEvidence: this.unknownEvidence.slice(),
+      healthEvents: this.createParserHealthEvents(parserHealth, selectedProfile),
+      unknownEvidence: this.queryUnknownEvidence({ limit: 100 }).items,
+      unknownEvidenceSummary,
+      parserHealth,
       environment: this.environment,
-      selectedProfile: this.selectProfileSnapshot(),
-      parserVersion: this.selectProfileSnapshot()?.parserVersion || 'runtime-log-parser/0.1.0',
+      selectedProfile,
+      parserVersion: selectedProfile?.parserVersion || 'runtime-log-parser/0.1.0',
       stats: { ...this.stats }
     };
+  }
+
+  queryUnknownEvidence(query = {}) {
+    return this.unknownEvidenceStore.query(query);
+  }
+
+  deleteUnknownEvidence(scope = {}) {
+    return this.unknownEvidenceStore.delete(scope);
+  }
+
+  resetUnknownEvidence() {
+    return this.unknownEvidenceStore.reset();
+  }
+
+  getParserHealth(input = {}) {
+    const selectedProfile = input.selectedProfile || this.selectProfileSnapshot();
+    const unknownEvidenceSummary = input.unknownEvidenceSummary || this.unknownEvidenceStore.getSummary();
+    const unsupportedProfile = this.diagnostics.some((diagnostic) => diagnostic.code === 'unsupported_profile');
+    const recordsSeen = this.stats.recordsSeen;
+    const unknownRecords = unknownEvidenceSummary.recordCount;
+    const unknownRatio = recordsSeen > 0 ? unknownRecords / recordsSeen : 0;
+    const driftPolicy = this.options.driftDetection;
+    const suspectedDrift = !unsupportedProfile &&
+      selectedProfile &&
+      recordsSeen >= driftPolicy.minRecords &&
+      unknownRecords >= driftPolicy.minUnknownRecords &&
+      unknownRatio >= driftPolicy.unknownRatio;
+    const status = unsupportedProfile
+      ? 'unsupported_profile'
+      : suspectedDrift
+        ? 'suspected_drift'
+        : selectedProfile
+          ? 'compatible'
+          : 'unsupported_profile';
+    const reason = unsupportedProfile
+      ? 'no_compatible_profile'
+      : suspectedDrift
+        ? 'high_unknown_ratio'
+        : 'profile_compatible';
+
+    return {
+      status,
+      reason,
+      checkedAt: this.options.ingestedAt || new Date().toISOString(),
+      profileId: selectedProfile?.id || this.options.sourceProfileId || 'unsupported_profile',
+      profileVersion: selectedProfile?.version || this.options.sourceProfileVersion || 'unknown',
+      parserVersion: selectedProfile?.parserVersion || 'runtime-log-parser/0.1.0',
+      recordsSeen,
+      knownEventsEmitted: this.stats.eventsEmitted,
+      unknownRecords,
+      unknownRatio,
+      unknownSampleCount: unknownEvidenceSummary.sampleCount,
+      droppedUnknownSamples: unknownEvidenceSummary.droppedSampleCount,
+      affectedEnvironmentKey: this.environment.environmentKey,
+      gameBuild: this.environment.buildVersion,
+      releaseChannel: this.environment.releaseChannel
+    };
+  }
+
+  createParserHealthEvents(parserHealth, selectedProfile) {
+    const events = [];
+    const profile = selectedProfile || {
+      id: parserHealth.profileId,
+      version: parserHealth.profileVersion,
+      parserVersion: parserHealth.parserVersion
+    };
+    events.push(this.createParserHealthEvent('ParserCompatibilityStatusObserved', {
+      status: parserHealth.status,
+      profileId: parserHealth.profileId,
+      profileVersion: parserHealth.profileVersion,
+      reason: parserHealth.reason,
+      recordsSeen: parserHealth.recordsSeen,
+      knownEventsEmitted: parserHealth.knownEventsEmitted,
+      unknownRecords: parserHealth.unknownRecords,
+      unknownSampleCount: parserHealth.unknownSampleCount,
+      droppedUnknownSamples: parserHealth.droppedUnknownSamples
+    }, profile, parserHealth, ['parser-health:compatibility']));
+
+    if (parserHealth.status === 'suspected_drift') {
+      events.push(this.createParserHealthEvent('ParserDriftSuspected', {
+        profileId: parserHealth.profileId,
+        profileVersion: parserHealth.profileVersion,
+        reason: parserHealth.reason,
+        recordsSeen: parserHealth.recordsSeen,
+        knownEventsEmitted: parserHealth.knownEventsEmitted,
+        unknownRecords: parserHealth.unknownRecords,
+        unknownRatio: Number(parserHealth.unknownRatio.toFixed(6))
+      }, profile, parserHealth, ['parser-health:drift']));
+    }
+
+    return events.filter(Boolean);
+  }
+
+  createParserHealthEvent(eventType, payload, profile, parserHealth, markers) {
+    const sourceTimestamp = parserHealth.checkedAt;
+    const sourceLocation = this.state.sourceLocation || this.options.sourceLocation || UNKNOWN_SOURCE_LOCATION;
+    const sourceId = deriveSourceInstallationId(sourceLocation);
+    const orderingBase = this.ingestionSequence + (eventType === 'ParserDriftSuspected' ? 2 : 1);
+    try {
+      return createRuntimeEvent({
+        eventType,
+        sourceTimestamp,
+        ingestedAt: sourceTimestamp,
+        environmentKey: this.environment.environmentKey,
+        environment: this.environment,
+        gameChannel: this.environment.releaseChannel,
+        gameBuild: this.environment.buildVersion,
+        sourceLocation,
+        sourceProfileId: profile.id || 'unsupported_profile',
+        sourceProfileVersion: profile.version || 'unknown',
+        parserVersion: profile.parserVersion || 'runtime-log-parser/0.1.0',
+        provenance: 'observed',
+        confidence: parserHealth.status === 'compatible' ? 'high' : 'medium',
+        correlationIds: {
+          environmentSessionId: createPartitionedIdentity(this.environment.environmentKey, 'environment_session', ['runtime-log-parser']),
+          parserHealthId: createPartitionedIdentity(this.environment.environmentKey, 'parser_health', [
+            eventType,
+            payload.profileId,
+            payload.profileVersion,
+            payload.status || payload.reason,
+            String(payload.recordsSeen),
+            String(payload.unknownRecords)
+          ])
+        },
+        ordering: {
+          ingestionSequence: orderingBase,
+          sourceSequence: this.stats.recordsSeen
+        },
+        payload,
+        evidenceReference: {
+          kind: 'diagnostic',
+          sourceId,
+          sensitivity: 'local',
+          evidenceMarkers: markers
+        }
+      });
+    } catch (error) {
+      this.addDiagnostic({
+        code: 'parser_health_event_validation_failed',
+        severity: 'error',
+        message: 'Parser health event failed runtime-event/v1 validation.',
+        details: {
+          eventType,
+          errorCount: error.errors?.length || 1
+        }
+      });
+      return null;
+    }
   }
 
   selectProfileSnapshot() {
@@ -1085,8 +1274,11 @@ function environmentMarkersForRecord(text) {
 
 function classifyUnknownEvidence(text) {
   const markers = [];
-  const tagMatches = String(text).match(/<[^>]+>|\[[^\]]+\]/g) || [];
-  markers.push(...tagMatches.slice(0, 4));
+  const normalized = String(text);
+  const angleTags = normalized.match(/<[^>]+>/g) || [];
+  const keyedBrackets = Array.from(normalized.matchAll(/\b(?<key>[A-Za-z][A-Za-z0-9_]*)\[[^\]]+\]/g))
+    .map((match) => `${match.groups.key}[]`);
+  markers.push(...angleTags.concat(keyedBrackets).slice(0, 4));
   return markers.length ? markers : ['unclassified-record'];
 }
 
