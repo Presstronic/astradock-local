@@ -80,6 +80,18 @@ evidenceReference
 
 The environment key is included in event IDs and persistence records. LIVE and PTU events with identical player handles, shard labels, timestamps, or entity IDs must still produce distinct event IDs.
 
+`deriveEnvironmentContext()` is the canonical helper for constructing `EnvironmentContext` values. `deriveEnvironmentKey()` derives the partition key from:
+
+```text
+releaseChannel :: universe :: buildVersion :: branch :: sourceInstallationId
+```
+
+The source installation identifier is a deterministic local hash derived from the source location when a stable installation ID is not already known. This keeps environment keys partitioned by installation without copying sensitive source paths into diagnostics or durable identifiers. Unknown or future release-channel vocabulary normalizes to `UNKNOWN` while preserving the raw value in `rawEnvironmentTag`; it must never be coerced to `LIVE`.
+
+`validateRuntimeEvent()` rejects runtime events whose top-level `environmentKey` does not match the nested context or whose nested key is not derived from the canonical partition inputs. `createPartitionedIdentity()` is available for parser, projection, dedupe, and persistence code that needs deterministic IDs scoped to one environment partition.
+
+The current proof-of-concept parser now returns `environment`, `environmentKey`, `environmentPartitions`, `environmentSwitches`, and redacted `environmentDiagnostics` on scan results. Legacy shard, action, and session DTOs also carry `environmentKey`, `environment`, `gameChannel`, and `gameBuild` so renderer-bound state cannot merge LIVE/PTU/EPTU/HOTFIX or UNKNOWN observations while the full persistence/replay implementation is still pending.
+
 ## MVP Registry Scope
 
 The registry currently promotes only event families backed by the accepted fixture corpus and application lifecycle requirements:

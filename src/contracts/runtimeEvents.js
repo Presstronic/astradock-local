@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 
 const CONTRACT_VERSION = 'runtime-event/v1';
+const UNKNOWN_ENVIRONMENT_VALUE = 'UNKNOWN';
 
 const ENUMS = Object.freeze({
   releaseChannel: ['LIVE', 'PTU', 'EPTU', 'HOTFIX', 'UNKNOWN'],
@@ -584,6 +585,123 @@ function createRuntimeEvent(input) {
   return assertValidRuntimeEvent(event);
 }
 
+function deriveEnvironmentContext(input = {}) {
+  const releaseChannel = normalizeReleaseChannel(input.releaseChannel || input.rawEnvironmentTag);
+  const universe = normalizeUniverse(input.universe);
+  const environmentName = normalizeEnvironmentText(input.environmentName);
+  const rawEnvironmentTag = normalizeEnvironmentText(input.rawEnvironmentTag || input.releaseChannel);
+  const branch = normalizeEnvironmentText(input.branch);
+  const buildVersion = normalizeEnvironmentText(input.buildVersion || input.gameBuild, 'UNKNOWN_BUILD');
+  const sourceInstallationId = normalizeEnvironmentText(
+    input.sourceInstallationId || deriveSourceInstallationId(input.sourceLocation),
+    'UNKNOWN_INSTALLATION'
+  );
+  const observedAt = input.observedAt || new Date(0).toISOString();
+  const confidence = input.confidence || deriveEnvironmentConfidence({
+    releaseChannel,
+    environmentName,
+    branch,
+    buildVersion
+  });
+  const evidenceReference = input.evidenceReference || {
+    kind: 'application',
+    sourceId: 'environment-context',
+    sensitivity: 'local',
+    evidenceMarkers: ['environment-context:derived']
+  };
+  const context = {
+    environmentKey: deriveEnvironmentKey({
+      releaseChannel,
+      universe,
+      buildVersion,
+      branch,
+      sourceInstallationId
+    }),
+    releaseChannel,
+    universe,
+    environmentName,
+    rawEnvironmentTag,
+    branch,
+    buildVersion,
+    sourceInstallationId,
+    observedAt,
+    confidence,
+    evidenceReference
+  };
+
+  if (input.changelist) context.changelist = normalizeEnvironmentText(input.changelist);
+  if (input.databaseVersion) context.databaseVersion = normalizeEnvironmentText(input.databaseVersion);
+
+  return deepFreeze(context);
+}
+
+function deriveEnvironmentKey(input = {}) {
+  const parts = [
+    normalizeReleaseChannel(input.releaseChannel),
+    normalizeUniverse(input.universe),
+    normalizeEnvironmentText(input.buildVersion || input.gameBuild, 'UNKNOWN_BUILD'),
+    normalizeEnvironmentText(input.branch, UNKNOWN_ENVIRONMENT_VALUE),
+    normalizeEnvironmentText(input.sourceInstallationId, 'UNKNOWN_INSTALLATION')
+  ];
+
+  return parts.map(encodeEnvironmentKeyPart).join('::');
+}
+
+function deriveSourceInstallationId(sourceLocation = '') {
+  const normalized = String(sourceLocation || '').trim().replace(/\\/g, '/').toLowerCase();
+  if (!normalized) return 'UNKNOWN_INSTALLATION';
+
+  const hash = crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 16);
+  return `src_${hash}`;
+}
+
+function createPartitionedIdentity(environmentKey, namespace, parts = []) {
+  if (typeof environmentKey !== 'string' || environmentKey.trim() === '') {
+    throw new Error('environmentKey is required for partitioned identity');
+  }
+  if (typeof namespace !== 'string' || !/^[a-z][a-z0-9_]*$/i.test(namespace)) {
+    throw new Error('namespace must be an alphanumeric identifier');
+  }
+
+  const identity = {
+    environmentKey,
+    namespace,
+    parts: [].concat(parts).map((part) => String(part ?? UNKNOWN_ENVIRONMENT_VALUE))
+  };
+  const hash = crypto
+    .createHash('sha256')
+    .update(JSON.stringify(sortForStableSerialization(identity)))
+    .digest('hex')
+    .slice(0, 24);
+
+  return `${namespace}_${hash}`;
+}
+
+function assertSameEnvironment(leftEnvironmentKey, rightEnvironmentKey, message = 'Environment partition mismatch') {
+  if (
+    typeof leftEnvironmentKey !== 'string' ||
+    typeof rightEnvironmentKey !== 'string' ||
+    leftEnvironmentKey.trim() === '' ||
+    rightEnvironmentKey.trim() === '' ||
+    leftEnvironmentKey !== rightEnvironmentKey
+  ) {
+    throw new Error(message);
+  }
+  return leftEnvironmentKey;
+}
+
+function normalizeReleaseChannel(value) {
+  const normalized = normalizeEnvironmentText(value).toUpperCase();
+  if (ENUMS.releaseChannel.includes(normalized)) return normalized;
+  return UNKNOWN_ENVIRONMENT_VALUE;
+}
+
+function normalizeUniverse(value) {
+  const normalized = normalizeEnvironmentText(value).toUpperCase();
+  if (ENUMS.universe.includes(normalized)) return normalized;
+  return UNKNOWN_ENVIRONMENT_VALUE;
+}
+
 function serializeRuntimeEvent(input) {
   const event = assertValidRuntimeEvent(input);
   return JSON.stringify(sortForStableSerialization(event));
@@ -659,8 +777,7 @@ function buildExampleEvent(eventType, index, overrides = {}) {
     sensitivity: definition.traits.sensitivity,
     evidenceMarkers: [`${eventType}:contract-example`]
   };
-  const environment = {
-    environmentKey: 'LIVE::PU::4.9.0-LIVE.9000000-SYNTH::sc-4.9-live',
+  const environment = deriveEnvironmentContext({
     releaseChannel: 'LIVE',
     universe: 'PU',
     environmentName: 'PUB',
@@ -673,7 +790,7 @@ function buildExampleEvent(eventType, index, overrides = {}) {
     observedAt: sourceTimestamp,
     confidence: 'confirmed',
     evidenceReference
-  };
+  });
 
   return createRuntimeEvent({
     eventType,
@@ -756,6 +873,11 @@ function validateEnvironmentContext(value, environmentKey, path, errors) {
 
   if (value.environmentKey !== environmentKey) {
     errors.push(error('environment_key_mismatch', `${path}.environmentKey`, 'Environment context must match event environment key'));
+  }
+
+  const expectedEnvironmentKey = deriveEnvironmentKey(value);
+  if (value.environmentKey !== expectedEnvironmentKey) {
+    errors.push(error('invalid_environment_key', `${path}.environmentKey`, 'Environment key must match canonical partition inputs'));
   }
 }
 
@@ -967,6 +1089,29 @@ function validateEnum(value, validValues, path, errors) {
   }
 }
 
+function normalizeEnvironmentText(value, fallback = UNKNOWN_ENVIRONMENT_VALUE) {
+  const normalized = String(value ?? '').trim();
+  return normalized || fallback;
+}
+
+function encodeEnvironmentKeyPart(value) {
+  return encodeURIComponent(normalizeEnvironmentText(value))
+    .replaceAll('%', '~')
+    .replace(/[^\w.~:-]/g, '_');
+}
+
+function deriveEnvironmentConfidence(value) {
+  const hasChannel = value.releaseChannel && value.releaseChannel !== UNKNOWN_ENVIRONMENT_VALUE;
+  const hasBuild = value.buildVersion && value.buildVersion !== 'UNKNOWN_BUILD';
+  const hasBranch = value.branch && value.branch !== UNKNOWN_ENVIRONMENT_VALUE;
+  const hasEnvironmentName = value.environmentName && value.environmentName !== UNKNOWN_ENVIRONMENT_VALUE;
+
+  if (hasChannel && hasBuild && hasBranch) return 'confirmed';
+  if (hasChannel && (hasBuild || hasEnvironmentName)) return 'high';
+  if (hasChannel || hasBuild || hasBranch || hasEnvironmentName) return 'medium';
+  return 'unknown';
+}
+
 function sortForStableSerialization(value) {
   if (Array.isArray(value)) {
     return value.map(sortForStableSerialization);
@@ -997,10 +1142,15 @@ module.exports = {
   EVENT_TYPE_REGISTRY,
   RUNTIME_EVENT_EXAMPLES,
   RuntimeEventValidationError,
+  assertSameEnvironment,
   assertValidRuntimeEvent,
+  createPartitionedIdentity,
   createRuntimeEvent,
   deserializeRuntimeEvent,
+  deriveEnvironmentContext,
+  deriveEnvironmentKey,
   deriveRuntimeEventId,
+  deriveSourceInstallationId,
   serializeRuntimeEvent,
   toPersistenceRecord,
   validateRuntimeEvent

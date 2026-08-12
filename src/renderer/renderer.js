@@ -7,6 +7,7 @@ const state = {
   userId: localStorage.getItem('astradock.userId') || '',
   theme: localStorage.getItem('astradock.theme') || 'dark',
   monitorActive: false,
+  environment: null,
   eventFilter: 'all',
   sessionFilter: 'all',
   search: ''
@@ -33,6 +34,8 @@ const elements = {
   pathCount: document.querySelector('#pathCount'),
   apiStatus: document.querySelector('#apiStatus'),
   monitorStatus: document.querySelector('#monitorStatus'),
+  environmentStatus: document.querySelector('#environmentStatus'),
+  environmentDetail: document.querySelector('#environmentDetail'),
   userIdentity: document.querySelector('#userIdentity'),
   tableSubtitle: document.querySelector('#tableSubtitle'),
   sideStatusTitle: document.querySelector('#sideStatusTitle'),
@@ -174,6 +177,7 @@ function saveUserFilter() {
 function applyScanResult(result) {
   state.entries = result.entries || [];
   state.userActivity = result.userActivity || { userIds: [], actions: [], sessions: [] };
+  state.environment = result.environment || null;
   if (!state.userId && state.userActivity.userIds?.length) {
     state.userId = state.userActivity.userIds[0];
     elements.userId.value = state.userId;
@@ -182,7 +186,10 @@ function applyScanResult(result) {
   elements.summary.textContent = String(state.entries.length);
   elements.tableSubtitle.textContent = `${state.entries.length} unique shard${state.entries.length === 1 ? '' : 's'} found`;
   elements.sideStatusTitle.textContent = 'Log monitor';
-  elements.sideStatusText.textContent = state.entries.length ? 'Shard data available' : 'No shard entries found';
+  elements.sideStatusText.textContent = result.environmentDiagnostics?.length
+    ? 'Environment diagnostic requires review'
+    : state.entries.length ? 'Shard data available' : 'No shard entries found';
+  renderEnvironmentStatus(result);
   renderRows();
   renderSessionOptions();
   renderActions();
@@ -208,6 +215,7 @@ function renderRows() {
           </div>
         </div>
       </td>
+      <td><span class="badge">${escapeHtml(formatEnvironmentLabel(entry.environment))}</span></td>
       <td><span class="badge">${escapeHtml(entry.region || 'Local')}</span></td>
       <td>${escapeHtml(entry.build || '-')}</td>
       <td>${escapeHtml(formatDateTime(entry.lastSeen) || '-')}</td>
@@ -232,6 +240,7 @@ function renderActions() {
     if (action.eventType === 'server_join') row.classList.add('server-join-row');
     row.innerHTML = `
       <td>${escapeHtml(formatDateTime(action.timestamp) || '-')}</td>
+      <td><span class="badge">${escapeHtml(formatEnvironmentLabel(action.environment))}</span></td>
       <td><span class="event-pill ${action.eventType === 'server_join' ? 'join' : ''}">${escapeHtml(action.eventLabel || 'User Action')}</span></td>
       <td>${escapeHtml(action.shardId || '-')}</td>
       <td>${escapeHtml(action.username || '-')}</td>
@@ -276,6 +285,7 @@ function renderSessions() {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td>${escapeHtml(formatDateTime(session.startedAt) || '-')}</td>
+      <td><span class="badge">${escapeHtml(formatEnvironmentLabel(session.environment))}</span></td>
       <td><strong>${escapeHtml(session.shardId || 'Unknown')}</strong></td>
       <td>${escapeHtml([session.address, session.port].filter(Boolean).join(':') || '-')}</td>
       <td>${escapeHtml(session.locationId || '-')}</td>
@@ -297,14 +307,41 @@ function updateMonitorUi() {
   elements.quickStop.disabled = !state.monitorActive;
 }
 
+function renderEnvironmentStatus(result = {}) {
+  const environment = result.environment || state.environment;
+  const partitionCount = result.environmentPartitions?.length || 0;
+  const diagnosticCount = result.environmentDiagnostics?.length || 0;
+  if (!environment) {
+    elements.environmentStatus.textContent = 'UNKNOWN';
+    elements.environmentDetail.textContent = 'No environment evidence';
+    return;
+  }
+
+  elements.environmentStatus.textContent = environment.releaseChannel || 'UNKNOWN';
+  elements.environmentDetail.textContent = [
+    environment.environmentName,
+    environment.buildVersion,
+    partitionCount > 1 ? `${partitionCount} partitions` : null,
+    diagnosticCount ? `${diagnosticCount} diagnostic${diagnosticCount === 1 ? '' : 's'}` : null
+  ].filter(Boolean).join(' / ') || 'Unknown build';
+}
+
 function filterEntries() {
   const term = state.search.trim().toLowerCase();
   if (!term) return state.entries;
   return state.entries.filter((entry) =>
-    [entry.shardId, entry.shardName, entry.region, entry.build, entry.rawLine]
+    [entry.shardId, entry.shardName, entry.region, entry.build, entry.gameChannel, entry.environmentKey, entry.rawLine]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(term))
   );
+}
+
+function formatEnvironmentLabel(environment) {
+  if (!environment) return 'UNKNOWN';
+  return [
+    environment.releaseChannel || 'UNKNOWN',
+    environment.buildVersion && environment.buildVersion !== 'UNKNOWN_BUILD' ? environment.buildVersion : null
+  ].filter(Boolean).join(' / ');
 }
 
 async function inspectEntry(index) {
