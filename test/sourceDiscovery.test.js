@@ -136,6 +136,21 @@ test('returns actionable validation states for missing, directory, malformed, an
   assert.equal(unsupportedSource.rawChannel, 'TECH-PREVIEW');
 });
 
+test('returns a permission-denied validation state for unreadable game.log files', async () => {
+  const root = await makeTempDir();
+  const unreadablePath = path.join(root, 'StarCitizen', 'LIVE', LOG_FILE_NAME);
+  await writeGameLog(unreadablePath, 'LIVE');
+  await fs.chmod(unreadablePath, 0o000);
+
+  try {
+    const source = await validateLogSource(unreadablePath, { now: NOW });
+    assert.equal(source.validation.status, VALIDATION_STATUSES.PERMISSION_DENIED);
+    assert.equal(source.validation.message.includes(root), false);
+  } finally {
+    await fs.chmod(unreadablePath, 0o600);
+  }
+});
+
 test('does not recurse arbitrary filesystem roots while generating candidate paths', async () => {
   const root = await makeTempDir();
   const nestedLog = path.join(root, 'deep', 'nested', 'StarCitizen', 'LIVE', LOG_FILE_NAME);
