@@ -39,6 +39,9 @@ jobs:
       - name: Run tailer benchmark
         run: npm run benchmark:tailer
 
+      - name: Run parser benchmark
+        run: npm run benchmark:parser
+
   build:
     name: Build (Linux)
     runs-on: ubuntu-latest
