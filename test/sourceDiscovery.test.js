@@ -166,7 +166,9 @@ test('returns actionable validation states for missing, directory, malformed, an
   assert.equal(unsupportedSource.rawChannel, 'TECH-PREVIEW');
 });
 
-test('returns a permission-denied validation state for unreadable game.log files', async () => {
+test('returns a permission-denied validation state for unreadable game.log files', {
+  skip: process.platform === 'win32' ? 'Windows runners do not make chmod(000) unreadable for the current user.' : false
+}, async () => {
   const root = await makeTempDir();
   const unreadablePath = path.join(root, 'StarCitizen', 'LIVE', LOG_FILE_NAME);
   await writeGameLog(unreadablePath, 'LIVE');
@@ -217,7 +219,9 @@ test('public source DTOs and validation messages do not reveal private source pa
   assert.equal(source.validation.message.includes('PRIVATE_PLAYER'), false);
 });
 
-test('canonicalizes symlinked game.log selections before deriving source identity', async () => {
+test('canonicalizes symlinked game.log selections before deriving source identity', {
+  skip: process.platform === 'win32' ? 'Windows symlink identity behavior depends on runner privileges and filesystem policy.' : false
+}, async () => {
   const root = await makeTempDir();
   const targetLog = path.join(root, 'StarCitizen', 'LIVE', LOG_FILE_NAME);
   const linkedRoot = path.join(root, 'SelectedLink');

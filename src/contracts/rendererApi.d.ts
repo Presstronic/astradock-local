@@ -47,6 +47,8 @@ export interface SourceSelectionResult {
 export interface MonitorOptions {
   username?: string;
   userId?: string;
+  startMode?: 'from_current_end' | 'from_checkpoint' | 'from_beginning';
+  checkpoint?: TailerCheckpoint | null;
 }
 
 export interface MonitorCommand {
@@ -59,6 +61,64 @@ export interface MonitorState {
   sourceId: string | null;
   sequence: number;
   pendingScan: boolean;
+  tailer: TailerHealth | null;
+  checkpoint: TailerCheckpoint | null;
+}
+
+export interface TailerCheckpoint {
+  version: 1;
+  sourceIdentity: string;
+  offset: number;
+  generation: number;
+  observedAt?: string | null;
+}
+
+export interface TailerHealth {
+  status: 'idle' | 'waiting_for_source' | 'monitoring' | 'paused' | 'stopped';
+  available: boolean;
+  generation: number;
+  sequence: number;
+  offset: number;
+  fileSize: number;
+  backlogBytes: number;
+  pendingCheck: boolean;
+  deliveryInFlight: boolean;
+  paused: boolean;
+  pauseReason: string | null;
+  lastErrorCode: string | null;
+  sourceIdentity: string | null;
+  lastObservedAt: string | null;
+  lastDeliveredAt: string | null;
+}
+
+export interface TailerChunkMetadata {
+  sourceId: string;
+  generation: number;
+  sequence: number;
+  sourceIdentity: string;
+  offsetStart: number;
+  offsetEnd: number;
+  byteLength: number;
+  observedAt: string;
+  ingestedAt: string;
+  fileSize: number;
+}
+
+export interface TailerLifecycleRecord {
+  type: string;
+  sequence: number;
+  emittedAt: string;
+  sourceId: string;
+  sourceIdentity: string | null;
+  previousIdentity: string | null;
+  generation?: number;
+  offset?: number;
+  size?: number;
+  status?: string;
+  reason?: string;
+  recoverable?: boolean;
+  retryable?: boolean;
+  [key: string]: unknown;
 }
 
 export interface RendererScanResult {
@@ -157,6 +217,7 @@ export interface DiagnosticsHealth {
   monitor: MonitorState;
   activeSourceId: string | null;
   sourceRegistryCount: number;
+  tailer: TailerHealth | null;
   lastScan: {
     scannedAt: string;
     modifiedAt: string | null;
@@ -186,6 +247,8 @@ export type MonitorChange =
   | { type: 'monitor.started'; monitor: MonitorState }
   | { type: 'monitor.stopped'; reason: string; monitor: MonitorState }
   | { type: 'monitor.scan'; monitor: MonitorState; scan: RendererScanResult }
+  | { type: 'monitor.bytes'; monitor: MonitorState; chunk: TailerChunkMetadata }
+  | { type: 'monitor.lifecycle'; monitor: MonitorState; lifecycle: TailerLifecycleRecord }
   | { type: 'monitor.error'; monitor: MonitorState; error: { code: string; message: string; retryable: boolean } };
 
 export type Unsubscribe = () => void;

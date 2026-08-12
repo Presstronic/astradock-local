@@ -989,13 +989,14 @@ Detailed sanitized findings and evidence gaps are maintained in [`game-log-patte
 
 The repository currently contains a small CommonJS Electron proof of concept using vanilla HTML, CSS, and JavaScript:
 
-- `src/main.js`: Electron lifecycle, file selection, filesystem watching, parsing IPC, folder opening, and optional HTTP JSON enrichment.
-- `src/preload.js`: narrow `window.astradock` renderer bridge.
+- `src/main.js`: Electron lifecycle, trusted file selection, source registry, monitor orchestration, parsing IPC, folder opening, and hardened capability handlers.
+- `src/preload.js`: narrow namespaced `window.astradock` renderer bridge.
 - `src/logParser.js`: common path discovery, whole-file parsing, heuristic shard recognition, `<Join PU>` sessions, and local-user filtering.
+- `src/runtimeLogTailer.js`: initial byte-oriented incremental tailer for approved live monitoring sources.
 - `src/renderer/`: temporary dashboard and controls.
-- `test/logParser.test.js`: basic shard parsing and deduplication coverage.
+- `test/logParser.test.js` and related runtime tests: basic parser, source discovery, contract, boundary, and tailer coverage.
 
-The watcher reparses the entire file after `fs.watch` notifications. Existing shard regexes expect optimistic legacy fields. This code is capability evidence, not an architecture or interface to preserve. Most or all may be replaced when implementation is authorized.
+Live monitoring now uses the incremental tailer instead of reparsing the entire file after `fs.watch` notifications. Explicit scan operations still use the whole-file proof-of-concept parser for current snapshot inspection. Existing shard regexes expect optimistic legacy fields. This code is capability evidence, not an architecture or interface to preserve. Most or all may be replaced when implementation is authorized.
 
 ### 19.1 Prototype retention and replacement policy — Settled
 

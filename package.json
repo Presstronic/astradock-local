@@ -15,6 +15,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
+    "benchmark:tailer": "node scripts/benchmarkRuntimeLogTailer.js",
     "build": "electron-builder --dir",
     "dist": "electron-builder"
   },

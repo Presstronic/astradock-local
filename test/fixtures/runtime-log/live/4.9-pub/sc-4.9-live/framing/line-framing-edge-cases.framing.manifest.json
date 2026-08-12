@@ -88,6 +88,6 @@
     "sequence": ["line framing", "semantic record assembly", "tailer lifecycle recovery"],
     "notes": "This manifest is consumed by validator tests now and by tailer implementation tests later."
   },
-  "knownLimitations": ["No production tailer exists yet; this records expected edge-case behavior for issue #20."],
+  "knownLimitations": ["Line framing and semantic record assembly are downstream follow-up work beyond the initial byte-oriented issue #20 tailer."],
   "verificationNotes": "Validator synthesizes framing data and verifies malformed frame declarations fail deterministically."
 }

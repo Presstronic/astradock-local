@@ -1,5 +1,4 @@
 const { app, BrowserWindow, dialog, ipcMain, session, shell } = require('electron');
-const fs = require('node:fs');
 const path = require('node:path');
 const { parseLogFile } = require('./logParser');
 const {
@@ -28,6 +27,7 @@ const {
   toPublicSource,
   validateLogSource
 } = require('./sourceDiscovery');
+const { RuntimeLogTailer } = require('./runtimeLogTailer');
 
 const rendererIndexPath = path.join(__dirname, 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -35,15 +35,14 @@ const rendererUrl = getRendererUrl(rendererIndexPath);
 let mainWindow;
 let watchedLogPath = null;
 let watchedSourceId = null;
-let watcher = null;
+let activeTailer = null;
 let watchOptions = {};
-let scanInFlight = false;
-let scanPending = false;
 let monitorGeneration = 0;
-let activeMonitorScanController = null;
 let shuttingDown = false;
 let lastScan = null;
 let lastScanSource = null;
+let lastTailerCheckpoint = null;
+let lastTailerHealth = null;
 const sourceRegistry = new Map();
 let activeSourceId = null;
 const subscriptions = new SubscriptionHub({ channel: CHANNELS.subscriptionEvent, maxSubscribers: 8 });
@@ -160,8 +159,14 @@ register(CHANNELS.monitorScan, async ({ sourceId, options }) => {
 
 register(CHANNELS.monitorStart, async ({ sourceId, options }) => {
   const source = await getApprovedSource(sourceId || activeSourceId);
-  const scan = await scanSource(source, options);
   await startMonitor(source, options);
+  let scan;
+  try {
+    scan = await scanSource(source, options);
+  } catch (error) {
+    await stopMonitor('runtime_error');
+    throw error;
+  }
   return {
     monitor: getMonitorState(),
     scan
@@ -280,16 +285,48 @@ async function scanSource(source, options = {}) {
 }
 
 async function startMonitor(source, options = {}) {
-  if (watcher) await stopMonitor('source_changed');
+  if (activeTailer) await stopMonitor('source_changed');
   monitorGeneration += 1;
+  const generation = monitorGeneration;
   const logPath = source.private.canonicalPath;
   watchedLogPath = logPath;
   watchedSourceId = source.sourceId;
   watchOptions = options;
+  lastTailerCheckpoint = null;
 
-  watcher = fs.watch(logPath, { persistent: false }, () => {
-    scheduleMonitorScan(logPath, source);
+  activeTailer = new RuntimeLogTailer(logPath, {
+    startMode: options.startMode || 'from_current_end',
+    checkpoint: options.checkpoint || null,
+    onChunk: async (chunk) => {
+      if (generation !== monitorGeneration || watchedSourceId !== source.sourceId) return;
+      lastTailerCheckpoint = {
+        version: 1,
+        sourceIdentity: chunk.sourceIdentity,
+        offset: chunk.offsetEnd,
+        generation: chunk.generation,
+        observedAt: chunk.observedAt
+      };
+      lastTailerHealth = activeTailer?.getHealth() || lastTailerHealth;
+      publishMonitorChange({
+        type: 'monitor.bytes',
+        monitor: getMonitorState(),
+        chunk: toRendererTailerChunk(chunk, source)
+      });
+    },
+    onLifecycle: (record) => {
+      if (generation !== monitorGeneration || watchedSourceId !== source.sourceId) return;
+      lastTailerCheckpoint = activeTailer?.getCheckpoint() || lastTailerCheckpoint;
+      lastTailerHealth = activeTailer?.getHealth() || lastTailerHealth;
+      publishMonitorChange({
+        type: 'monitor.lifecycle',
+        monitor: getMonitorState(),
+        lifecycle: toRendererLifecycle(record, source)
+      });
+    }
   });
+  await activeTailer.start();
+  lastTailerHealth = activeTailer.getHealth();
+  lastTailerCheckpoint = activeTailer.getCheckpoint();
 
   publishMonitorChange({
     type: 'monitor.started',
@@ -299,15 +336,17 @@ async function startMonitor(source, options = {}) {
 
 async function stopMonitor(reason) {
   monitorGeneration += 1;
-  if (activeMonitorScanController) activeMonitorScanController.abort();
-  if (watcher) watcher.close();
-  const wasActive = Boolean(watcher || watchedSourceId);
-  watcher = null;
+  const tailer = activeTailer;
+  const wasActive = Boolean(tailer || watchedSourceId);
+  activeTailer = null;
+  if (tailer) {
+    await tailer.stop(reason);
+    lastTailerHealth = tailer.getHealth();
+    lastTailerCheckpoint = tailer.getCheckpoint() || lastTailerCheckpoint;
+  }
   watchedLogPath = null;
   watchedSourceId = null;
   watchOptions = {};
-  scanInFlight = false;
-  scanPending = false;
 
   if (wasActive && !shuttingDown) {
     publishMonitorChange({
@@ -316,54 +355,6 @@ async function stopMonitor(reason) {
       monitor: getMonitorState()
     });
   }
-}
-
-function scheduleMonitorScan(logPath, source) {
-  if (scanInFlight) {
-    scanPending = true;
-    return;
-  }
-
-  const generation = monitorGeneration;
-  const controller = new AbortController();
-  activeMonitorScanController = controller;
-  scanInFlight = true;
-  setImmediate(async () => {
-    try {
-      if (watchedLogPath !== logPath || watchedSourceId !== source.sourceId) return;
-      const scan = await scanSource(source, {
-        ...watchOptions,
-        signal: controller.signal
-      });
-      if (
-        controller.signal.aborted
-        || generation !== monitorGeneration
-        || watchedLogPath !== logPath
-        || watchedSourceId !== source.sourceId
-      ) {
-        return;
-      }
-      publishMonitorChange({
-        type: 'monitor.scan',
-        monitor: getMonitorState(),
-        scan
-      });
-    } catch (error) {
-      if (controller.signal.aborted || generation !== monitorGeneration) return;
-      publishMonitorChange({
-        type: 'monitor.error',
-        error: fail(error).error,
-        monitor: getMonitorState()
-      });
-    } finally {
-      if (activeMonitorScanController === controller) activeMonitorScanController = null;
-      scanInFlight = false;
-      if (scanPending && watchedLogPath === logPath && watchedSourceId === source.sourceId) {
-        scanPending = false;
-        scheduleMonitorScan(logPath, source);
-      }
-    }
-  });
 }
 
 function publishMonitorChange(change) {
@@ -380,11 +371,14 @@ function getMonitorSnapshot() {
 }
 
 function getMonitorState() {
+  const tailerHealth = activeTailer?.getHealth() || lastTailerHealth;
   return {
-    active: Boolean(watcher && watchedSourceId),
+    active: Boolean(activeTailer && watchedSourceId),
     sourceId: watchedSourceId,
     sequence: subscriptions.getStats().sequence,
-    pendingScan: scanInFlight || scanPending
+    pendingScan: false,
+    tailer: tailerHealth ? sanitizeTailerHealth(tailerHealth) : null,
+    checkpoint: lastTailerCheckpoint
   };
 }
 
@@ -431,12 +425,14 @@ function getEvidenceDetail(request) {
 }
 
 function getDiagnosticsHealth() {
+  const tailerHealth = activeTailer?.getHealth() || lastTailerHealth;
   return {
-    status: watcher ? 'monitoring' : 'idle',
+    status: activeTailer ? 'monitoring' : 'idle',
     checkedAt: new Date().toISOString(),
     monitor: getMonitorState(),
     activeSourceId,
     sourceRegistryCount: sourceRegistry.size,
+    tailer: tailerHealth ? sanitizeTailerHealth(tailerHealth) : null,
     lastScan: lastScan ? {
       scannedAt: lastScan.scannedAt,
       modifiedAt: lastScan.modifiedAt,
@@ -445,6 +441,54 @@ function getDiagnosticsHealth() {
       sessionCount: lastScan.userActivity?.sessions?.length || 0,
       diagnosticCount: lastScan.environmentDiagnostics?.length || 0
     } : null
+  };
+}
+
+function toRendererTailerChunk(chunk, source) {
+  return {
+    sourceId: source.sourceId,
+    generation: chunk.generation,
+    sequence: chunk.sequence,
+    sourceIdentity: chunk.sourceIdentity,
+    offsetStart: chunk.offsetStart,
+    offsetEnd: chunk.offsetEnd,
+    byteLength: chunk.byteLength,
+    observedAt: chunk.observedAt,
+    ingestedAt: chunk.ingestedAt,
+    fileSize: chunk.fileSize
+  };
+}
+
+function toRendererLifecycle(record, source) {
+  const {
+    previousIdentity,
+    ...safeRecord
+  } = record;
+  return {
+    ...safeRecord,
+    sourceId: source.sourceId,
+    sourceIdentity: record.sourceIdentity || null,
+    previousIdentity: previousIdentity || null
+  };
+}
+
+function sanitizeTailerHealth(health) {
+  return {
+    status: health.status,
+    available: health.available,
+    generation: health.generation,
+    sequence: health.sequence,
+    offset: health.offset,
+    fileSize: health.fileSize,
+    backlogBytes: health.backlogBytes,
+    pendingCheck: health.pendingCheck,
+    deliveryInFlight: health.deliveryInFlight,
+    paused: health.paused,
+    pauseReason: health.pauseReason,
+    lastErrorCode: health.lastErrorCode,
+    sourceIdentity: health.sourceIdentity,
+    lastObservedAt: health.lastObservedAt,
+    lastDeliveredAt: health.lastDeliveredAt
   };
 }
 
