@@ -2,6 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AstraDock Local</title>
     <link rel="stylesheet" href="./styles.css" />
@@ -81,13 +85,6 @@
               </div>
             </div>
             <div class="field">
-              <label for="apiTemplate">Enrichment URL</label>
-              <div class="field-row">
-                <input id="apiTemplate" type="text" spellcheck="false" placeholder="https://api.example.com/shards/{shardId}" />
-                <button id="saveApi" title="Save API">✓</button>
-              </div>
-            </div>
-            <div class="field">
               <label for="username">Username filter</label>
               <div class="field-row">
                 <input id="username" type="text" spellcheck="false" placeholder="Your Star Citizen handle" />
@@ -114,12 +111,6 @@
               <span>Source candidates</span>
               <strong id="pathCount">0</strong>
               <p>Common locations checked</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-icon amber">◈</div>
-              <span>API enrichment</span>
-              <strong id="apiStatus">Off</strong>
-              <p>Optional third-party lookup</p>
             </article>
             <article class="metric-card">
               <div class="metric-icon green">◎</div>
@@ -181,13 +172,13 @@
               <div class="details-head">
                 <div>
                   <h3 id="detailsTitle">Shard details</h3>
-                  <p>Raw log context and API result</p>
+                  <p>Permitted local evidence detail</p>
                 </div>
                 <button id="closeDetails" title="Close">x</button>
               </div>
               <div class="details-grid">
-                <pre id="apiResult">Inspect a shard to fetch configured API data.</pre>
-                <pre id="rawContext">Raw log context will appear here.</pre>
+                <pre id="apiResult">Inspect a shard to view renderer-safe metadata.</pre>
+                <pre id="rawContext">Local evidence context will appear here.</pre>
               </div>
             </article>
 

@@ -625,10 +625,11 @@ function dedupeEntries(entries) {
 }
 
 async function parseLogFile(logPath, options = {}) {
-  const text = await fs.readFile(logPath, 'utf8');
+  const { signal, ...parseOptions } = options;
+  const text = await fs.readFile(logPath, { encoding: 'utf8', signal });
   const stat = await fs.stat(logPath);
   return parseLogText(text, {
-    ...options,
+    ...parseOptions,
     logPath,
     sourceLocation: logPath,
     scannedAt: new Date().toISOString(),

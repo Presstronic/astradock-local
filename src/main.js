@@ -1,7 +1,25 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, session, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { parseLogFile } = require('./logParser');
+const {
+  CHANNELS,
+  createBoundaryError,
+  fail,
+  ok,
+  validatePayload
+} = require('./ipcBoundary');
+const {
+  createBrowserWindowOptions,
+  getRendererUrl,
+  installAppSecurityPolicy,
+  isAllowedRendererUrl
+} = require('./electronSecurity');
+const { SubscriptionHub } = require('./subscriptionHub');
+const {
+  loadRendererSettings,
+  updateRendererSettings
+} = require('./settingsStore');
 const {
   assertSourceIsApproved,
   discoverRuntimeSources,
@@ -11,44 +29,61 @@ const {
   validateLogSource
 } = require('./sourceDiscovery');
 
+const rendererIndexPath = path.join(__dirname, 'renderer', 'index.html');
+const rendererUrl = getRendererUrl(rendererIndexPath);
+
 let mainWindow;
 let watchedLogPath = null;
 let watchedSourceId = null;
 let watcher = null;
 let watchOptions = {};
+let scanInFlight = false;
+let scanPending = false;
+let monitorGeneration = 0;
+let activeMonitorScanController = null;
+let shuttingDown = false;
+let lastScan = null;
+let lastScanSource = null;
 const sourceRegistry = new Map();
 let activeSourceId = null;
+const subscriptions = new SubscriptionHub({ channel: CHANNELS.subscriptionEvent, maxSubscribers: 8 });
+
+installAppSecurityPolicy({ app, session, rendererUrl });
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1120,
-    height: 760,
-    minWidth: 860,
-    minHeight: 560,
-    title: 'AstraDock Local',
-    backgroundColor: '#111417',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false
-    }
-  });
+  mainWindow = new BrowserWindow(createBrowserWindowOptions(path.join(__dirname, 'preload.js'), {
+    isPackaged: app.isPackaged
+  }));
 
-  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    if (!isAllowedRendererUrl(navigationUrl, rendererUrl)) event.preventDefault();
+  });
+  const webContentsId = mainWindow.webContents.id;
+  mainWindow.webContents.on('destroyed', () => {
+    subscriptions.removeForWebContents(webContentsId);
+  });
+  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.loadFile(rendererIndexPath);
 }
 
 app.whenReady().then(createWindow);
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+  await stopMonitor('application_shutdown');
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', async () => {
+  shuttingDown = true;
+  await stopMonitor('application_shutdown');
 });
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-ipcMain.handle('sources:discover', async () => {
+register(CHANNELS.sourceDiscover, async () => {
   const discovery = await discoverAndRegisterSources();
   return {
     ...discovery,
@@ -57,7 +92,7 @@ ipcMain.handle('sources:discover', async () => {
   };
 });
 
-ipcMain.handle('sources:choose', async () => {
+register(CHANNELS.sourceChoose, async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Choose Star Citizen game.log',
     properties: ['openFile'],
@@ -84,7 +119,7 @@ ipcMain.handle('sources:choose', async () => {
   };
 });
 
-ipcMain.handle('sources:select', async (_event, sourceId) => {
+register(CHANNELS.sourceSelect, async ({ sourceId }) => {
   const source = await revalidateRegisteredSource(sourceId);
   if (!source.validation.isValid) {
     return {
@@ -101,75 +136,99 @@ ipcMain.handle('sources:select', async (_event, sourceId) => {
   };
 });
 
-ipcMain.handle('logs:scanSource', async (_event, sourceId, options = {}) => {
-  const source = await getApprovedSource(sourceId || activeSourceId);
-  const result = await parseLogFile(source.private.canonicalPath, options);
-  return toRendererScanResult(result, source);
-});
-
-ipcMain.handle('logs:watchSource', async (_event, sourceId, options = {}) => {
-  const source = await getApprovedSource(sourceId || activeSourceId);
-  const logPath = source.private.canonicalPath;
-  if (watcher) watcher.close();
-  watchedLogPath = logPath;
-  watchedSourceId = source.sourceId;
-  watchOptions = options;
-
-  watcher = fs.watch(logPath, { persistent: false }, async () => {
-    if (!mainWindow || watchedLogPath !== logPath || watchedSourceId !== source.sourceId) return;
-    try {
-      const result = await parseLogFile(logPath, watchOptions);
-      mainWindow.webContents.send('logs:changed', toRendererScanResult(result, source));
-    } catch (error) {
-      mainWindow.webContents.send('logs:error', error.message);
-    }
-  });
-
-  return true;
-});
-
-ipcMain.handle('logs:unwatch', async () => {
-  if (watcher) watcher.close();
-  watcher = null;
-  watchedLogPath = null;
-  watchedSourceId = null;
-  watchOptions = {};
-  return true;
-});
-
-ipcMain.handle('sources:openFolder', async (_event, sourceId) => {
+register(CHANNELS.sourceOpenFolder, async ({ sourceId }) => {
   const source = await revalidateRegisteredSource(sourceId || activeSourceId);
   if (!source.validation.isValid) {
-    throw safeError(source.validation.status, source.validation.message);
+    throw createBoundaryError(source.validation.status, source.validation.message);
   }
   await shell.openPath(path.dirname(source.private.canonicalPath));
-  return true;
+  return { opened: true };
 });
 
-ipcMain.handle('api:fetchJson', async (_event, url) => {
-  const response = await fetch(url, {
-    headers: {
-      accept: 'application/json'
-    }
+register(CHANNELS.monitorSnapshot, async () => getMonitorSnapshot());
+
+register(CHANNELS.monitorScan, async ({ sourceId, options }) => {
+  const source = await getApprovedSource(sourceId || activeSourceId);
+  const scan = await scanSource(source, options);
+  publishMonitorChange({
+    type: 'monitor.scan',
+    monitor: getMonitorState(),
+    scan
   });
+  return scan;
+});
 
-  const text = await response.text();
-  let body = text;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    // Some public APIs return useful plain text errors.
-  }
-
+register(CHANNELS.monitorStart, async ({ sourceId, options }) => {
+  const source = await getApprovedSource(sourceId || activeSourceId);
+  const scan = await scanSource(source, options);
+  await startMonitor(source, options);
   return {
-    ok: response.ok,
-    status: response.status,
-    body
+    monitor: getMonitorState(),
+    scan
   };
 });
 
+register(CHANNELS.monitorStop, async () => {
+  await stopMonitor('user_requested');
+  return getMonitorState();
+});
+
+register(CHANNELS.eventsQuery, async (query) => queryEvents(query));
+
+register(CHANNELS.evidenceGet, async (request) => getEvidenceDetail(request));
+
+register(CHANNELS.settingsGet, async () => loadRendererSettings(getSettingsPath()));
+
+register(CHANNELS.settingsUpdate, async (patch) => updateRendererSettings(getSettingsPath(), patch));
+
+register(CHANNELS.diagnosticsHealth, async () => getDiagnosticsHealth());
+
+register(CHANNELS.subscriptionSubscribe, async (payload, event) => {
+  const subscription = subscriptions.add(event.sender, payload);
+  return subscription;
+});
+
+register(CHANNELS.subscriptionUnsubscribe, async ({ subscriptionId }) => {
+  const removed = subscriptions.remove(subscriptionId);
+  if (!removed) {
+    throw createBoundaryError('subscription_not_found', 'That subscription is no longer active.');
+  }
+  return { subscriptionId, removed };
+});
+
+function register(channel, handler) {
+  ipcMain.handle(channel, async (event, payload) => {
+    const correlationId = payload?.correlationId;
+    try {
+      assertTrustedSender(event);
+      const validatedPayload = validatePayload(channel, payload?.data);
+      const data = await handler(validatedPayload, event);
+      return ok(data, correlationId);
+    } catch (error) {
+      return fail(error, correlationId);
+    }
+  });
+}
+
+function assertTrustedSender(event) {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    throw createBoundaryError('invalid_sender', 'The request did not come from an approved renderer.');
+  }
+  if (event.sender.isDestroyed()) {
+    throw createBoundaryError('invalid_sender', 'The request did not come from an approved renderer.');
+  }
+  const senderUrl = event.senderFrame?.url || event.sender.getURL();
+  if (!isAllowedRendererUrl(senderUrl, rendererUrl)) {
+    throw createBoundaryError('invalid_sender', 'The request did not come from an approved renderer.');
+  }
+}
+
 function getSourcePreferencePath() {
   return path.join(app.getPath('userData'), 'source-preference.json');
+}
+
+function getSettingsPath() {
+  return path.join(app.getPath('userData'), 'renderer-settings.json');
 }
 
 async function discoverAndRegisterSources() {
@@ -192,7 +251,7 @@ function rememberSource(source) {
 async function revalidateRegisteredSource(sourceId) {
   const source = sourceRegistry.get(sourceId);
   if (!source?.private?.canonicalPath) {
-    throw safeError('source_not_found', 'That log source is no longer available. Refresh source discovery and try again.');
+    throw createBoundaryError('source_not_found');
   }
 
   const refreshed = await validateLogSource(source.private.canonicalPath, {
@@ -206,26 +265,232 @@ async function revalidateRegisteredSource(sourceId) {
 async function getApprovedSource(sourceId) {
   const source = await revalidateRegisteredSource(sourceId);
   if (!source.validation.isValid) {
-    throw safeError(source.validation.status, source.validation.message);
+    throw createBoundaryError('source_not_approved', source.validation.message);
   }
   assertSourceIsApproved(source);
   activeSourceId = source.sourceId;
   return source;
 }
 
-function safeError(code, message) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
+async function scanSource(source, options = {}) {
+  const result = await parseLogFile(source.private.canonicalPath, options);
+  lastScan = result;
+  lastScanSource = source;
+  return toRendererScanResult(result, source);
+}
+
+async function startMonitor(source, options = {}) {
+  if (watcher) await stopMonitor('source_changed');
+  monitorGeneration += 1;
+  const logPath = source.private.canonicalPath;
+  watchedLogPath = logPath;
+  watchedSourceId = source.sourceId;
+  watchOptions = options;
+
+  watcher = fs.watch(logPath, { persistent: false }, () => {
+    scheduleMonitorScan(logPath, source);
+  });
+
+  publishMonitorChange({
+    type: 'monitor.started',
+    monitor: getMonitorState()
+  });
+}
+
+async function stopMonitor(reason) {
+  monitorGeneration += 1;
+  if (activeMonitorScanController) activeMonitorScanController.abort();
+  if (watcher) watcher.close();
+  const wasActive = Boolean(watcher || watchedSourceId);
+  watcher = null;
+  watchedLogPath = null;
+  watchedSourceId = null;
+  watchOptions = {};
+  scanInFlight = false;
+  scanPending = false;
+
+  if (wasActive && !shuttingDown) {
+    publishMonitorChange({
+      type: 'monitor.stopped',
+      reason,
+      monitor: getMonitorState()
+    });
+  }
+}
+
+function scheduleMonitorScan(logPath, source) {
+  if (scanInFlight) {
+    scanPending = true;
+    return;
+  }
+
+  const generation = monitorGeneration;
+  const controller = new AbortController();
+  activeMonitorScanController = controller;
+  scanInFlight = true;
+  setImmediate(async () => {
+    try {
+      if (watchedLogPath !== logPath || watchedSourceId !== source.sourceId) return;
+      const scan = await scanSource(source, {
+        ...watchOptions,
+        signal: controller.signal
+      });
+      if (
+        controller.signal.aborted
+        || generation !== monitorGeneration
+        || watchedLogPath !== logPath
+        || watchedSourceId !== source.sourceId
+      ) {
+        return;
+      }
+      publishMonitorChange({
+        type: 'monitor.scan',
+        monitor: getMonitorState(),
+        scan
+      });
+    } catch (error) {
+      if (controller.signal.aborted || generation !== monitorGeneration) return;
+      publishMonitorChange({
+        type: 'monitor.error',
+        error: fail(error).error,
+        monitor: getMonitorState()
+      });
+    } finally {
+      if (activeMonitorScanController === controller) activeMonitorScanController = null;
+      scanInFlight = false;
+      if (scanPending && watchedLogPath === logPath && watchedSourceId === source.sourceId) {
+        scanPending = false;
+        scheduleMonitorScan(logPath, source);
+      }
+    }
+  });
+}
+
+function publishMonitorChange(change) {
+  subscriptions.publish(change);
+}
+
+function getMonitorSnapshot() {
+  return {
+    monitor: getMonitorState(),
+    source: lastScanSource ? toPublicSource(lastScanSource) : null,
+    scan: lastScan && lastScanSource ? toRendererScanResult(lastScan, lastScanSource) : null,
+    subscriptions: subscriptions.getStats()
+  };
+}
+
+function getMonitorState() {
+  return {
+    active: Boolean(watcher && watchedSourceId),
+    sourceId: watchedSourceId,
+    sequence: subscriptions.getStats().sequence,
+    pendingScan: scanInFlight || scanPending
+  };
+}
+
+function queryEvents(query) {
+  const collections = {
+    shards: lastScan?.entries || [],
+    actions: lastScan?.userActivity?.actions || [],
+    sessions: lastScan?.userActivity?.sessions || []
+  };
+  const all = collections.shards
+    .map((item) => ({ kind: 'shard', item: sanitizeEvidenceCarrier(item) }))
+    .concat(collections.actions.map((item) => ({ kind: 'action', item: sanitizeEvidenceCarrier(item) })))
+    .concat(collections.sessions.map((item) => ({ kind: 'session', item: sanitizeEvidenceCarrier(item) })));
+  const rows = query.kind === 'all'
+    ? all
+    : collections[query.kind].map((item) => ({ kind: toSingularEventKind(query.kind), item: sanitizeEvidenceCarrier(item) }));
+  const page = rows.slice(query.cursor, query.cursor + query.limit);
+  return {
+    cursor: query.cursor,
+    nextCursor: query.cursor + page.length < rows.length ? query.cursor + page.length : null,
+    totalCount: rows.length,
+    items: page
+  };
+}
+
+function getEvidenceDetail(request) {
+  const collection = request.kind === 'shard'
+    ? lastScan?.entries || []
+    : request.kind === 'action'
+      ? lastScan?.userActivity?.actions || []
+      : lastScan?.userActivity?.sessions || [];
+  const item = collection.find((candidate) => candidate.id === request.id);
+  if (!item) throw createBoundaryError('evidence_not_found');
+  return {
+    kind: request.kind,
+    id: request.id,
+    sensitivity: 'local',
+    evidence: {
+      rawContext: boundTextList(item.rawContext || (item.rawLine ? [item.rawLine] : [])),
+      lineNumber: item.lineNumber || item.startLineNumber || null,
+      environmentKey: item.environmentKey || null
+    }
+  };
+}
+
+function getDiagnosticsHealth() {
+  return {
+    status: watcher ? 'monitoring' : 'idle',
+    checkedAt: new Date().toISOString(),
+    monitor: getMonitorState(),
+    activeSourceId,
+    sourceRegistryCount: sourceRegistry.size,
+    lastScan: lastScan ? {
+      scannedAt: lastScan.scannedAt,
+      modifiedAt: lastScan.modifiedAt,
+      entryCount: lastScan.entries?.length || 0,
+      actionCount: lastScan.userActivity?.actions?.length || 0,
+      sessionCount: lastScan.userActivity?.sessions?.length || 0,
+      diagnosticCount: lastScan.environmentDiagnostics?.length || 0
+    } : null
+  };
 }
 
 function toRendererScanResult(result, source) {
   const {
     logPath: _logPath,
+    entries = [],
+    userActivity = {},
     ...safeResult
   } = result;
   return {
     ...safeResult,
+    entries: entries.map(sanitizeEvidenceCarrier),
+    userActivity: {
+      ...userActivity,
+      actions: (userActivity.actions || []).map(sanitizeEvidenceCarrier),
+      sessions: (userActivity.sessions || []).map(sanitizeEvidenceCarrier)
+    },
     source: toPublicSource(source)
   };
+}
+
+function sanitizeEvidenceCarrier(item) {
+  if (!item || typeof item !== 'object') return item;
+  const {
+    rawLine: _rawLine,
+    rawContext: _rawContext,
+    ...safeItem
+  } = item;
+  return {
+    ...safeItem,
+    evidenceAvailable: Boolean(_rawLine || _rawContext?.length)
+  };
+}
+
+function boundTextList(lines) {
+  return lines
+    .filter((line) => typeof line === 'string' && line.trim())
+    .slice(0, 20)
+    .map((line) => line.length > 500 ? `${line.slice(0, 497)}...` : line);
+}
+
+function toSingularEventKind(kind) {
+  return {
+    shards: 'shard',
+    actions: 'action',
+    sessions: 'session'
+  }[kind];
 }
