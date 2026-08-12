@@ -50,13 +50,15 @@ Every `runtime-event/v1` event contains:
 | `provenance` | One of `observed`, `extracted`, `inferred`, or `enriched`. MVP runtime-log events are `observed`. |
 | `confidence` | One of `confirmed`, `high`, `medium`, `low`, or `unknown`. |
 | `correlationIds` | Named lower-camel-case IDs for sessions, requests, notifications, parties, or other correlation domains. |
-| `ordering` | Ingestion sequence and optional source sequence or source byte offset. |
+| `ordering` | Ingestion sequence and optional source sequence, source byte offset, source generation, and source chunk sequence. |
 | `traits` | Registry-owned telemetry traits: temporal utility, persistence, Station sync policy, diagnostic utility, sensitivity, subject scope, lifecycle, and volume/cost. |
 | `payload` | Event-type-specific payload validated by the registry. |
 | `evidenceReference` | Bounded pointer to retained local evidence or fixture markers. Raw log text is forbidden in the event. |
 | `extensions` | Optional object for explicitly reviewed forward-compatible metadata that does not participate in event identity. |
 
 Inferred events additionally require `derivation.reason` and `derivation.contributingEventIds`.
+
+`createRuntimeEventOrderKey(event)` and `compareRuntimeEventOrder(left, right)` define the shared total-order contract for persistence, replay, projections, and tests. The key orders by normalized source timestamp, ingestion sequence, source generation, source byte offset, and event ID. Source chunk sequence is retained as trace metadata, but it is deliberately not part of the stable order key because live tailer chunk boundaries may differ from replay chunk boundaries.
 
 ## Environment Context
 
@@ -153,6 +155,8 @@ serializedEvent
 ```
 
 Persistence implementations may add indexed columns, migrations, and encryption, but must preserve the serialized event and contract version for replay.
+
+Replay and projection queries should use the contract comparator rather than ad hoc `ORDER BY` logic. Storage implementations may map the comparator fields to indexed columns, but ties must still be broken by event ID to keep equal-timestamp and late-arrival cases deterministic.
 
 ## Versioning and Compatibility
 
