@@ -36,7 +36,7 @@ async function updateRendererSettings(settingsPath, patch, options = {}) {
 function normalizeRendererSettings(value = {}) {
   return {
     version: SETTINGS_VERSION,
-    theme: value.theme === 'light' ? 'light' : 'dark',
+    theme: 'dark',
     username: normalizeText(value.username, 64),
     userId: normalizeText(value.userId, 128),
     savedAt: typeof value.savedAt === 'string' ? value.savedAt : null

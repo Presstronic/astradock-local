@@ -212,8 +212,8 @@ function validateSettingsUpdate(value = {}) {
   assertPlainObject(value, 'settings');
   const patch = {};
   if (Object.hasOwn(value, 'theme')) {
-    if (!['dark', 'light'].includes(value.theme)) throw invalidPayload('Unsupported theme.');
-    patch.theme = value.theme;
+    if (value.theme !== 'dark') throw invalidPayload('Unsupported theme.');
+    patch.theme = 'dark';
   }
   if (Object.hasOwn(value, 'username')) {
     patch.username = optionalBoundedText(value.username, 'username', 64) || '';

@@ -203,7 +203,7 @@ export interface EvidenceDetail {
 
 export interface RendererSettings {
   version: 1;
-  theme: 'dark' | 'light';
+  theme: 'dark';
   username: string;
   userId: string;
   savedAt: string | null;
