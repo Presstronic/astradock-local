@@ -23,7 +23,7 @@ export type DrawerPlacement = 'right' | 'bottom';
 
 export interface StreamEvent {
   id: string;
-  kind: 'shard' | 'action' | 'session' | 'diagnostic';
+  kind: 'shard' | 'action' | 'session' | 'party' | 'zone' | 'runtime' | 'diagnostic';
   urgency: 'normal' | 'warning' | 'urgent' | 'critical';
   summary: string;
   context: string;
@@ -91,6 +91,7 @@ const MAX_STREAM_ROWS = 100;
 export function createRuntimeMonitorViewModel(input: {
   loading: boolean;
   fatalError: string | null;
+  actionError?: string | null;
   sources: readonly PublicRuntimeSource[];
   activeSource: PublicRuntimeSource | null;
   snapshot: MonitorSnapshot | null;
@@ -124,7 +125,7 @@ export function createRuntimeMonitorViewModel(input: {
     instruments: createInstruments(scan, source, state, input.now),
     party: createPartyPanel(scan),
     mission: createMissionPanel(),
-    alerts: createAlerts(state, scan, source)
+    alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null)
   };
 }
 
@@ -146,6 +147,7 @@ export function classifyWorkspaceState(input: {
   if (source.channelConfidence === 'unsupported' || source.validation?.status === 'unsupported_profile') {
     return 'unsupported-profile';
   }
+  if (input.scan?.parserCompatibility?.status === 'unsupported_profile') return 'unsupported-profile';
 
   const tailer = input.snapshot?.monitor.tailer;
   if (tailer?.status === 'paused' || tailer?.paused) return 'recovering';
@@ -165,17 +167,22 @@ export function createStreamEvents(scan: RendererScanResult | null, now: Date): 
 
 function createAllEvents(scan: RendererScanResult | null): Array<{ kind: StreamEvent['kind']; row: RendererEvidenceRow }> {
   if (!scan) return [];
+  const runtime = (scan.promotedRuntimeEvents || []).map((row) => ({
+    kind: runtimeEventKind(row),
+    row
+  }));
   const entries = (scan.entries || []).map((row) => ({ kind: 'shard' as const, row }));
   const actions = (scan.userActivity.actions || []).map((row) => ({ kind: 'action' as const, row }));
   const sessions = (scan.userActivity.sessions || []).map((row) => ({ kind: 'session' as const, row }));
-  return [...entries, ...actions, ...sessions];
+  return [...runtime, ...entries, ...actions, ...sessions];
 }
 
 function toStreamEvent(kind: StreamEvent['kind'], row: RendererEvidenceRow, now: Date): StreamEvent {
   const timestamp = firstString(row.lastSeen, row.timestamp, row.startedAt, row.sourceTimestamp);
-  const summary = firstString(row.eventLabel, row.shardName, row.action, row.locationId, row.shardId) || 'Runtime observation';
+  const summary = firstString(row.summary, row.eventLabel, row.shardName, row.action, row.locationId, row.shardId) || 'Runtime observation';
   const context = [
     firstString(row.shardId),
+    firstString(row.eventType),
     firstString(row.region),
     row.lineNumber ? `line ${row.lineNumber}` : null
   ].filter(Boolean).join(' / ') || 'Local runtime evidence';
@@ -206,6 +213,8 @@ function createInstruments(
   const latestSession = scan?.userActivity.sessions?.[0];
   const latestAction = scan?.userActivity.actions?.[0];
   const lifecycle = activeLifecycle(scan);
+  const location = activeLocation(scan);
+  const unsupportedProfile = scan?.parserCompatibility?.status === 'unsupported_profile';
   const sessionDuration = currentSessionDuration(lifecycle?.puSession, now);
 
   return [
@@ -278,18 +287,38 @@ function createInstruments(
     {
       id: 'jurisdiction',
       label: 'Jurisdiction',
-      value: firstString(latestAction?.jurisdiction, latestAction?.locationId) || 'Unknown',
-      state: latestAction ? 'last-confirmed' : 'unknown',
-      detail: 'Displayed only when current-state evidence supports it',
-      provenance: latestAction ? 'Observed log evidence' : 'Evidence absent'
+      value: unsupportedProfile ? 'Unsupported' : firstString(location?.jurisdiction.value) || 'Unknown',
+      state: unsupportedProfile ? 'unsupported' : locationFactState(location?.jurisdiction),
+      detail: location?.jurisdiction.observedAt
+        ? `${formatFreshness(location.jurisdiction.observedAt, now)} · Last confirmed`
+        : unsupportedProfile ? 'Parser profile does not support jurisdiction evidence' : 'No validated jurisdiction evidence observed',
+      provenance: location?.jurisdiction.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent'
+    },
+    {
+      id: 'monitored-space',
+      label: 'Monitored space',
+      value: unsupportedProfile ? 'Unsupported' : location?.monitoredSpace.value === true ? 'Entered' : 'Unknown',
+      state: unsupportedProfile ? 'unsupported' : locationFactState(location?.monitoredSpace),
+      detail: location?.monitoredSpace.observedAt
+        ? `${formatFreshness(location.monitoredSpace.observedAt, now)} · No clear evidence promoted`
+        : unsupportedProfile ? 'Parser profile does not support monitored-space evidence' : 'No validated monitored-space evidence observed',
+      provenance: location?.monitoredSpace.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent'
     },
     {
       id: 'armistice',
       label: 'Armistice',
-      value: firstString(latestAction?.armisticeState) || 'Unsupported',
-      state: latestAction?.armisticeState ? 'last-confirmed' : 'unsupported',
-      detail: 'Requires accepted zone evidence',
-      provenance: latestAction?.armisticeState ? 'Observed log evidence' : 'Evidence gate closed'
+      value: unsupportedProfile
+        ? 'Unsupported'
+        : location?.armistice.value === true
+        ? 'Inside'
+        : location?.armistice.value === false
+          ? 'Outside'
+          : 'Unknown',
+      state: unsupportedProfile ? 'unsupported' : locationFactState(location?.armistice),
+      detail: location?.armistice.observedAt
+        ? `${formatFreshness(location.armistice.observedAt, now)} · ${location.armistice.state.replaceAll('_', ' ')}`
+        : unsupportedProfile ? 'Parser profile does not support armistice evidence' : 'No validated armistice evidence observed',
+      provenance: location?.armistice.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent'
     }
   ];
 }
@@ -345,6 +374,30 @@ function activeLifecycle(scan: RendererScanResult | null) {
   return lifecycle.environments[lifecycle.activeEnvironmentKey] || null;
 }
 
+function activeParty(scan: RendererScanResult | null) {
+  const party = scan?.partySnapshot;
+  if (!party?.activeEnvironmentKey) return null;
+  return party.environments[party.activeEnvironmentKey] || null;
+}
+
+function activeLocation(scan: RendererScanResult | null) {
+  const location = scan?.locationSnapshot;
+  if (!location?.activeEnvironmentKey) return null;
+  return location.environments[location.activeEnvironmentKey] || null;
+}
+
+function runtimeEventKind(row: RendererEvidenceRow): StreamEvent['kind'] {
+  if (row.eventCategory === 'party') return 'party';
+  if (row.eventCategory === 'zone') return 'zone';
+  return 'runtime';
+}
+
+function locationFactState(fact: { state: string; value: unknown } | undefined): InstrumentState['state'] {
+  if (!fact || fact.state === 'unknown') return 'unknown';
+  if (fact.state === 'stale') return 'stale';
+  return 'last-confirmed';
+}
+
 function formatLifecycleState(state: string | undefined): string {
   return ({
     authenticating: 'Authenticating',
@@ -359,18 +412,36 @@ function formatLifecycleState(state: string | undefined): string {
 }
 
 function createPartyPanel(scan: RendererScanResult | null): PanelState {
-  const userIds = scan?.userActivity.userIds || [];
+  const party = activeParty(scan);
   if (!scan) {
     return { title: 'Party', state: 'unknown', label: 'Unknown', detail: 'Telemetry has not been collected in this session.' };
   }
-  if (userIds.length === 0) {
-    return { title: 'Party', state: 'empty', label: 'Not in a party', detail: 'No supported party roster evidence is present.' };
+  if (scan.parserCompatibility?.status === 'unsupported_profile') {
+    return { title: 'Party', state: 'unsupported', label: 'Unsupported', detail: 'Parser profile does not support party evidence.' };
+  }
+  if (!party || party.state === 'unknown') {
+    return { title: 'Party', state: 'unknown', label: 'Unknown', detail: 'No supported party lifecycle evidence observed in this environment.' };
+  }
+  if (party.state === 'not_in_party') {
+    return { title: 'Party', state: 'empty', label: 'Not in a party', detail: 'Terminal no-party evidence observed.' };
+  }
+  if (party.state === 'stale') {
+    return {
+      title: 'Party',
+      state: 'unknown',
+      label: 'Stale',
+      detail: `Last evidence ${party.lastChangedAt || 'unknown'} · ${party.limitation}`
+    };
   }
   return {
     title: 'Party',
     state: 'ready',
-    label: `${userIds.length} local identity marker${userIds.length === 1 ? '' : 's'}`,
-    detail: 'Sensitive identifiers are hidden by default.'
+    label: 'In party',
+    detail: [
+      `${party.confirmedMemberCount} confirmed`,
+      `${party.possibleMemberCount} possible`,
+      party.leader.handle ? `leader ${party.leader.handle}` : null
+    ].filter(Boolean).join(' · ')
   };
 }
 
@@ -383,10 +454,29 @@ function createMissionPanel(): PanelState {
   };
 }
 
-function createAlerts(state: WorkspaceState, scan: RendererScanResult | null, source: PublicRuntimeSource | null): AlertState[] {
+function createAlerts(
+  state: WorkspaceState,
+  scan: RendererScanResult | null,
+  source: PublicRuntimeSource | null,
+  fatalError: string | null,
+  actionError: string | null
+): AlertState[] {
   const alerts: AlertState[] = [];
   if (state === 'fatal') {
-    alerts.push({ id: 'fatal', severity: 'critical', title: 'Fatal renderer state', message: 'Runtime Monitor could not initialize safely.' });
+    alerts.push({
+      id: 'fatal',
+      severity: 'critical',
+      title: 'Runtime Monitor could not initialize',
+      message: fatalError || 'Runtime Monitor could not initialize safely.'
+    });
+  }
+  if (actionError && state !== 'fatal') {
+    alerts.push({
+      id: 'action-error',
+      severity: 'warning',
+      title: 'Action could not complete',
+      message: actionError
+    });
   }
   if (state === 'degraded' || state === 'recovering') {
     alerts.push({ id: 'degraded', severity: 'warning', title: 'Monitor recovering', message: 'Monitoring is active but health is degraded.' });

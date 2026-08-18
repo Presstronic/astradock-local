@@ -106,6 +106,7 @@ test('region mappings use only versioned shard naming conventions and preserve u
     basis: 'naming_convention',
     mappingVersion: REGION_MAPPING_VERSION
   });
+  assert.equal(mapShardRegion('pub_use1b_12326004_100').friendlyRegion, 'US');
   assert.equal(mapShardRegion('shard-Pyro-eu2a-001').friendlyRegion, 'EU');
   assert.equal(mapShardRegion('shard-Stanton-aus1-001').friendlyRegion, 'AUS');
   assert.equal(mapShardRegion('shard-Pyro-apac1-001').friendlyRegion, 'ASIA');

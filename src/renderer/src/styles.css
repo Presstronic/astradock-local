@@ -45,6 +45,8 @@
   --kind-shard: #65d6ff;
   --kind-action: #c6f56a;
   --kind-session: #d4a9ff;
+  --kind-party: #f2cc60;
+  --kind-zone: #62e6c8;
   --kind-diagnostic: #ffbd45;
   --rail-width: 320px;
   --row-compact: 22px;
@@ -650,6 +652,16 @@ input {
 .terminal-row[data-kind="session"] .kind-tag,
 .kind-dot[data-kind="session"] {
   color: var(--kind-session);
+}
+
+.terminal-row[data-kind="party"] .kind-tag,
+.kind-dot[data-kind="party"] {
+  color: var(--kind-party);
+}
+
+.terminal-row[data-kind="zone"] .kind-tag,
+.kind-dot[data-kind="zone"] {
+  color: var(--kind-zone);
 }
 
 .urgency-mark {

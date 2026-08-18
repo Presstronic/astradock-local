@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 
 const {
+  configureChromiumRuntimeFlags,
   createBrowserWindowOptions,
   getContentSecurityPolicy,
   getRendererUrl,
@@ -18,6 +19,40 @@ test('BrowserWindow options enforce renderer hardening', () => {
   assert.equal(options.webPreferences.webSecurity, true);
   assert.equal(options.webPreferences.allowRunningInsecureContent, false);
   assert.equal(options.webPreferences.devTools, false);
+});
+
+test('Linux Chromium runtime flags disable Electron Vulkan without affecting other processes', () => {
+  const appended = [];
+  const app = {
+    commandLine: {
+      getSwitchValue: (name) => name === 'disable-features' ? 'ExistingFeature' : '',
+      appendSwitch: (name, value) => appended.push({ name, value })
+    }
+  };
+
+  const applied = configureChromiumRuntimeFlags({ app, platform: 'linux' });
+
+  assert.deepEqual(appended, [{ name: 'disable-features', value: 'ExistingFeature,Vulkan' }]);
+  assert.deepEqual(applied, [{
+    name: 'disable-features',
+    value: 'ExistingFeature,Vulkan',
+    scope: 'electron_chromium_process'
+  }]);
+});
+
+test('Chromium Vulkan flag is not applied outside Linux', () => {
+  const appended = [];
+  const app = {
+    commandLine: {
+      getSwitchValue: () => '',
+      appendSwitch: (name, value) => appended.push({ name, value })
+    }
+  };
+
+  const applied = configureChromiumRuntimeFlags({ app, platform: 'win32' });
+
+  assert.deepEqual(appended, []);
+  assert.deepEqual(applied, []);
 });
 
 test('CSP blocks network connections, embedded objects, and frame navigation', () => {

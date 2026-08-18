@@ -22,6 +22,35 @@ function createBrowserWindowOptions(preloadPath, options = {}) {
   };
 }
 
+function configureChromiumRuntimeFlags({ app, platform = process.platform }) {
+  if (platform !== 'linux') return [];
+
+  const applied = [];
+  const disableFeatures = mergeSwitchValues(
+    app.commandLine?.getSwitchValue?.('disable-features'),
+    ['Vulkan']
+  );
+  app.commandLine?.appendSwitch?.('disable-features', disableFeatures);
+  applied.push({
+    name: 'disable-features',
+    value: disableFeatures,
+    scope: 'electron_chromium_process'
+  });
+
+  return applied;
+}
+
+function mergeSwitchValues(currentValue, additions) {
+  const values = new Set(
+    String(currentValue || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
+  for (const addition of additions) values.add(addition);
+  return Array.from(values).join(',');
+}
+
 function getRendererUrl(rendererIndexPath) {
   return pathToFileURL(path.resolve(rendererIndexPath)).toString();
 }
@@ -76,6 +105,7 @@ function installAppSecurityPolicy({ app, session, rendererUrl }) {
 }
 
 module.exports = {
+  configureChromiumRuntimeFlags,
   createBrowserWindowOptions,
   getContentSecurityPolicy,
   getRendererUrl,
