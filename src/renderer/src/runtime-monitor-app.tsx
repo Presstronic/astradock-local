@@ -15,7 +15,6 @@ import {
   Rows3,
   Search,
   Settings,
-  ShieldCheck,
   Square,
   Table2,
   TerminalSquare,
@@ -33,7 +32,6 @@ import {
   type Density,
   type DetailState,
   type DrawerPlacement,
-  formatSourceState,
   type InstrumentState,
   type StreamEvent,
   type StreamView
@@ -286,20 +284,16 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         <div className="product-lockup" aria-label="AstraDock Local Runtime Monitor">
           <MonitorDot aria-hidden="true" />
           <div>
-            <span className="product-name">AstraDock Local</span>
-            <span className="workspace-name">Runtime Monitor</span>
+            <span className="product-name">AstraDock</span>
+            <span className="workspace-name">Local</span>
           </div>
         </div>
-        <nav className="workspace-tabs" aria-label="Workspaces">
-          <a href="#runtime-main" aria-current="page">Runtime Monitor</a>
-          <button type="button" aria-disabled="true" title="Post-MVP workspace">Data Operations</button>
-          <button type="button" aria-disabled="true" title="Post-MVP workspace">History & Analytics</button>
-        </nav>
         <section className="source-strip" aria-label="Source health">
-          <StatusPill state={viewModel.workspaceState} label={viewModel.monitorLabel} />
           <Metric label="Environment" value={viewModel.environmentLabel.toUpperCase()} />
           <Metric label="Build" value={viewModel.buildLabel} />
-          <Metric label="Freshness" value={viewModel.freshnessLabel} title={viewModel.exactFreshness || undefined} />
+          <StatusPill state={viewModel.workspaceState} label={viewModel.monitorLabel} />
+          <Metric label="Last ingest" value={viewModel.freshnessLabel} title={viewModel.exactFreshness || undefined} />
+          <Metric label="Source" value={viewModel.source?.displayLabel || 'Awaiting source'} />
           {viewModel.warningCount > 0 ? <Metric label="Warnings" value={String(viewModel.warningCount)} /> : null}
         </section>
         <div className="global-actions" aria-label="Monitor actions">
@@ -314,16 +308,17 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         </div>
       </header>
 
+      <nav className="workspace-tabs" aria-label="Workspaces">
+        <a href="#runtime-main" aria-current="page">Runtime Monitor</a>
+        <button type="button" disabled title="Post-MVP workspace">Data Operations <span>Post-MVP</span></button>
+        <button type="button" disabled title="Post-MVP workspace">History &amp; Analytics <span>Post-MVP</span></button>
+        <button type="button">Settings</button>
+      </nav>
+
       <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
         <aside id="current-state" className="current-state" aria-label="Current runtime state">
-          <section className="source-card" aria-label="Active source">
-            <h2>Source</h2>
-            <p className="source-label">{viewModel.source?.displayLabel || 'No validated game.log selected'}</p>
-            <p className="source-detail">{viewModel.source ? formatSourceState(viewModel.source) : 'Choose a local Star Citizen source to begin.'}</p>
-          </section>
-
           <section className="instrument-list" aria-label="Current-state instruments">
-            <h2>Instruments</h2>
+            <h2><span>Instruments</span><small>{viewModel.freshnessLabel}</small></h2>
             {viewModel.instruments.map((instrument) => (
               <button
                 className="instrument"
@@ -346,10 +341,6 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
         <section id="runtime-stream" className="stream-workspace" aria-label="Runtime event stream">
           <div className="stream-toolbar">
-            <div>
-              <h1>Runtime Monitor</h1>
-              <p>Local-only telemetry from the approved renderer gateway.</p>
-            </div>
             <div className="stream-controls" aria-label="Stream controls">
               <div className="segmented" role="group" aria-label="Stream view">
                 <button type="button" aria-pressed={preferences.streamView === 'terminal'} onClick={() => updatePreference({ streamView: 'terminal' })}>
@@ -405,8 +396,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             <span className="result-count" aria-live="polite">{visibleEvents.length} shown / {viewModel.retainedCount} retained</span>
           </div>
 
-          <section className="attention-region" aria-label="Attention and warnings" aria-live="polite">
-            {viewModel.alerts.length ? viewModel.alerts.map((alert) => (
+          {viewModel.alerts.length ? <section className="attention-region" aria-label="Attention and warnings" aria-live="polite">
+            {viewModel.alerts.map((alert) => (
               <article className="alert" data-severity={alert.severity} key={alert.id}>
                 <AlertTriangle aria-hidden="true" />
                 <div>
@@ -414,21 +405,13 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
                   <p>{alert.message}</p>
                 </div>
               </article>
-            )) : (
-              <article className="alert quiet">
-                <ShieldCheck aria-hidden="true" />
-                <div>
-                  <strong>No active warnings</strong>
-                  <p>Warning count is hidden until useful.</p>
-                </div>
-              </article>
-            )}
-          </section>
+            ))}
+          </section> : null}
 
           {preferences.streamView === 'terminal' ? (
-            <TerminalStream events={visibleEvents} selectedId={selected?.id || null} onSelect={openEvidence} />
+            <TerminalStream events={visibleEvents} emptyReason={search ? 'no-matches' : 'no-telemetry'} selectedId={selected?.id || null} onSelect={openEvidence} />
           ) : (
-            <TableStream events={visibleEvents} selectedId={selected?.id || null} onSelect={openEvidence} />
+            <TableStream events={visibleEvents} emptyReason={search ? 'no-matches' : 'no-telemetry'} selectedId={selected?.id || null} onSelect={openEvidence} />
           )}
         </section>
 
@@ -471,14 +454,16 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
 function TerminalStream({
   events,
+  emptyReason,
   selectedId,
   onSelect
 }: {
   events: readonly StreamEvent[];
+  emptyReason: 'no-matches' | 'no-telemetry';
   selectedId: string | null;
   onSelect: (event: StreamEvent, trigger: HTMLElement | null) => void;
 }) {
-  if (events.length === 0) return <EmptyStream />;
+  if (events.length === 0) return <EmptyStream reason={emptyReason} />;
   return (
     <div className="terminal-stream" role="listbox" aria-label="Terminal runtime events">
       {events.map((event) => (
@@ -506,14 +491,16 @@ function TerminalStream({
 
 function TableStream({
   events,
+  emptyReason,
   selectedId,
   onSelect
 }: {
   events: readonly StreamEvent[];
+  emptyReason: 'no-matches' | 'no-telemetry';
   selectedId: string | null;
   onSelect: (event: StreamEvent, trigger: HTMLElement | null) => void;
 }) {
-  if (events.length === 0) return <EmptyStream />;
+  if (events.length === 0) return <EmptyStream reason={emptyReason} />;
   return (
     <div className="table-stream" role="region" aria-label="Table runtime events">
       <table>
@@ -590,12 +577,15 @@ function DetailDock({
   );
 }
 
-function EmptyStream() {
+function EmptyStream({ reason }: { reason: 'no-matches' | 'no-telemetry' }) {
+  const noMatches = reason === 'no-matches';
   return (
     <section className="empty-state" aria-label="Empty runtime stream">
       <CircleHelp aria-hidden="true" />
-      <h2>No telemetry in this scope</h2>
-      <p>No events have been collected yet, or current filters exclude all retained events.</p>
+      <h2>{noMatches ? 'No matching telemetry' : 'No telemetry in this scope'}</h2>
+      <p>{noMatches
+        ? 'The current literal search excludes all retained events. Reset search to restore the full stream.'
+        : 'No events have been collected for the active source and environment yet.'}</p>
     </section>
   );
 }
