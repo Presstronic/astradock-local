@@ -184,6 +184,48 @@ export interface RendererEnvironmentLifecycle {
     confidence: string;
     conflictingClaimCount: number;
   }>>;
+  shard: {
+    state: 'unknown' | 'transitioning' | 'connected' | 'disconnected' | 'stale';
+    shardLabel: string | null;
+    locationId: string | null;
+    region: {
+      friendlyRegion: 'US' | 'EU' | 'AUS' | 'ASIA' | 'UNKNOWN';
+      rawSegment: string | null;
+      confidence: 'medium' | 'unknown';
+      basis: 'naming_convention' | 'unmapped';
+      mappingVersion: string;
+    };
+    observedAt: string | null;
+    confidence: string;
+  };
+  serverConnection: {
+    state: 'unknown' | 'transitioning' | 'connected' | 'disconnected' | 'stale';
+    endpoint: string | null;
+    port: number | null;
+    nodeId: string | null;
+    gamerules: string | null;
+    connectedAt: string | null;
+    disconnectedAt: string | null;
+    lastEndpoint: string | null;
+    disconnect: {
+      cause: string;
+      reason: string;
+      origin: 'local' | 'remote';
+      observedAt: string;
+    } | null;
+    confidence: string;
+  };
+  puSession: {
+    state: 'unknown' | 'connecting' | 'in_game' | 'disconnected';
+    matchmakingRequestId: string | null;
+    matchmakingStatus: string | null;
+    requestedAt: string | null;
+    enteredAt: string | null;
+    endedAt: string | null;
+    durationSeconds: number | null;
+    durationSource: 'observed_connection_uptime' | null;
+    elapsedSeconds: number | null;
+  };
   lifecycle: {
     state: 'unknown' | 'authenticating' | 'authenticated' | 'frontend' | 'loading' | 'in_game' | 'disconnected' | 'exited';
     status: 'known' | 'unknown' | 'failure';

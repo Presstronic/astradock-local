@@ -20,6 +20,19 @@
   },
   "expectedCanonicalEvents": [
     {
+      "eventType": "MatchmakingStatusObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["matchmakingRequestId", "matchmakingStatus", "port"],
+      "payload": {
+        "matchmakingRequestId": "SYNTH_MATCHMAKING_REQUEST_A",
+        "matchmakingStatus": "Queued",
+        "port": 64090
+      },
+      "evidenceMarkers": ["{Join PU}"]
+    },
+    {
       "eventType": "PuJoinRequested",
       "contractStatus": "runtime-event/v1",
       "confidence": "high",

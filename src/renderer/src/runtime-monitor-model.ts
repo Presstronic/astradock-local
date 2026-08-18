@@ -61,6 +61,7 @@ export interface InstrumentState {
   state: 'known' | 'last-confirmed' | 'unknown' | 'transitioning' | 'stale' | 'disconnected' | 'unsupported';
   detail: string;
   provenance: string;
+  drilldown?: string | undefined;
 }
 
 export interface PanelState {
@@ -205,6 +206,7 @@ function createInstruments(
   const latestSession = scan?.userActivity.sessions?.[0];
   const latestAction = scan?.userActivity.actions?.[0];
   const lifecycle = activeLifecycle(scan);
+  const sessionDuration = currentSessionDuration(lifecycle?.puSession, now);
 
   return [
     {
@@ -234,26 +236,44 @@ function createInstruments(
     {
       id: 'shard',
       label: 'Shard and region',
-      value: firstString(latestShard?.shardId, latestShard?.shardName) || 'Unknown',
-      state: latestShard ? 'known' : 'unknown',
-      detail: firstString(latestShard?.region, latestShard?.gameBuild) || 'No shard evidence retained',
-      provenance: latestShard ? 'Observed log evidence' : 'Evidence absent'
+      value: lifecycle?.shard.shardLabel || firstString(latestShard?.shardId, latestShard?.shardName) || 'Unknown',
+      state: snapshotInstrumentState(lifecycle?.shard.state, Boolean(latestShard)),
+      detail: lifecycle?.shard.region.friendlyRegion !== 'UNKNOWN'
+        ? lifecycle?.shard.region.friendlyRegion || 'Unknown'
+        : firstString(latestShard?.region, latestShard?.gameBuild) || 'Region mapping unknown',
+      provenance: lifecycle?.shard.shardLabel ? 'Observed shard; versioned region mapping' : latestShard ? 'Observed log evidence' : 'Evidence absent',
+      drilldown: lifecycle?.shard.shardLabel
+        ? `Raw region segment: ${lifecycle.shard.region.rawSegment || 'Unknown'}; confidence: ${lifecycle.shard.region.confidence}; mapping: ${lifecycle.shard.region.mappingVersion}`
+        : undefined
     },
     {
       id: 'server',
       label: 'Server connection',
-      value: firstString(latestSession?.address) || 'Unknown',
-      state: latestSession ? 'last-confirmed' : 'unknown',
-      detail: latestSession ? formatFreshness(firstString(latestSession.startedAt), now) : 'Monitor may have started mid-state',
-      provenance: latestSession ? 'Session parser' : 'Evidence absent'
+      value: formatConnectionState(lifecycle?.serverConnection.state),
+      state: snapshotInstrumentState(lifecycle?.serverConnection.state, Boolean(latestSession)),
+      detail: lifecycle?.serverConnection.disconnect
+        ? `${lifecycle.serverConnection.disconnect.origin} · ${lifecycle.serverConnection.disconnect.reason}`
+        : lifecycle?.serverConnection.connectedAt
+          ? formatFreshness(lifecycle.serverConnection.connectedAt, now)
+          : 'Monitor may have started mid-state',
+      provenance: lifecycle && lifecycle.serverConnection.state !== 'unknown' ? 'Observed canonical event' : 'Evidence absent',
+      drilldown: lifecycle?.serverConnection.endpoint
+        ? `Endpoint: ${lifecycle.serverConnection.endpoint}:${lifecycle.serverConnection.port}`
+        : lifecycle?.serverConnection.lastEndpoint
+          ? `Last endpoint: ${lifecycle.serverConnection.lastEndpoint}`
+          : undefined
     },
     {
       id: 'pu-duration',
       label: 'PU duration',
-      value: latestSession ? formatDurationSince(firstString(latestSession.startedAt), now) : 'Unknown',
-      state: latestSession ? 'last-confirmed' : 'unknown',
-      detail: latestSession ? 'From latest Join PU window' : 'Join evidence has not been observed',
-      provenance: latestSession ? 'Observed log evidence' : 'Evidence absent'
+      value: sessionDuration !== null
+        ? formatCompactDuration(sessionDuration)
+        : latestSession ? formatDurationSince(firstString(latestSession.startedAt), now) : 'Unknown',
+      state: lifecycle?.puSession.state === 'in_game' ? 'known' : lifecycle?.puSession.state === 'connecting' ? 'transitioning' : latestSession ? 'last-confirmed' : 'unknown',
+      detail: lifecycle?.puSession.durationSource === 'observed_connection_uptime'
+        ? 'Observed connection uptime'
+        : lifecycle?.puSession.matchmakingStatus || 'Join evidence has not been observed',
+      provenance: lifecycle && lifecycle.puSession.state !== 'unknown' ? 'PU session projection' : 'Evidence absent'
     },
     {
       id: 'jurisdiction',
@@ -272,6 +292,51 @@ function createInstruments(
       provenance: latestAction?.armisticeState ? 'Observed log evidence' : 'Evidence gate closed'
     }
   ];
+}
+
+function snapshotInstrumentState(
+  state: string | undefined,
+  hasFallback: boolean
+): InstrumentState['state'] {
+  if (state === 'transitioning') return 'transitioning';
+  if (state === 'connected') return 'known';
+  if (state === 'stale') return 'stale';
+  if (state === 'disconnected') return 'disconnected';
+  return hasFallback ? 'last-confirmed' : 'unknown';
+}
+
+function formatConnectionState(state: string | undefined): string {
+  return ({
+    transitioning: 'Connecting',
+    connected: 'Connected',
+    disconnected: 'Disconnected',
+    stale: 'Stale',
+    unknown: 'Unknown'
+  } as Record<string, string>)[state || 'unknown'] || 'Unknown';
+}
+
+export function formatCompactDuration(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainingSeconds = total % 60;
+  return hours > 0
+    ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+    : `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+function currentSessionDuration(
+  session: { durationSeconds: number | null; enteredAt: string | null; requestedAt: string | null; endedAt: string | null } | undefined,
+  now: Date
+): number | null {
+  if (!session) return null;
+  if (session.durationSeconds !== null) return session.durationSeconds;
+  const startedAt = session.enteredAt || session.requestedAt;
+  if (!startedAt) return null;
+  const startedMs = Date.parse(startedAt);
+  const endedMs = session.endedAt ? Date.parse(session.endedAt) : now.getTime();
+  if (Number.isNaN(startedMs) || Number.isNaN(endedMs) || endedMs < startedMs) return null;
+  return Math.floor((endedMs - startedMs) / 1_000);
 }
 
 function activeLifecycle(scan: RendererScanResult | null) {

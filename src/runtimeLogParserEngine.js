@@ -40,6 +40,7 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'rememberCharacterIdentity',
   'identityObserved',
   'rememberMatchmakingRequest',
+  'matchmakingStatusObserved',
   'puJoinRequested',
   'rememberChannelCreated',
   'gameServerConnectionEstablished',
@@ -62,6 +63,7 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   loginStarted: 'LoginStarted',
   accountAuthenticated: 'AccountAuthenticated',
   identityObserved: 'IdentityObserved',
+  matchmakingStatusObserved: 'MatchmakingStatusObserved',
   puJoinRequested: 'PuJoinRequested',
   gameServerConnectionEstablished: 'GameServerConnectionEstablished',
   puEntered: 'PuEntered',
@@ -606,13 +608,20 @@ class RuntimeLogParserEngine {
         Object.assign(this.state.identity, payload);
         return this.createEventIfComplete('IdentityObserved', payload, extractor, profile, record);
       }
-      case 'rememberMatchmakingRequest': {
+      case 'rememberMatchmakingRequest':
+      case 'matchmakingStatusObserved': {
         const request = {
           id: pickBracketValue(record.normalizedText, 'id'),
-          port: pickBracketValue(record.normalizedText, 'port')
+          status: pickBracketValue(record.normalizedText, 'status'),
+          port: toInteger(pickBracketValue(record.normalizedText, 'port'))
         };
         if (request.port) this.state.matchmakingByPort.set(String(request.port), request);
-        return [];
+        if (extractor.kind === 'rememberMatchmakingRequest') return [];
+        return this.createEventIfComplete('MatchmakingStatusObserved', {
+          matchmakingRequestId: request.id,
+          matchmakingStatus: request.status,
+          port: request.port
+        }, extractor, profile, record);
       }
       case 'puJoinRequested': {
         const port = toInteger(pickBracketValue(record.normalizedText, 'port'));
