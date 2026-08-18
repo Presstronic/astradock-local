@@ -15,7 +15,15 @@ npm start
 npm run dist
 ```
 
-The proof-of-concept Electron Builder config currently targets Windows `nsis`/`portable` and Linux `AppImage`/`deb`; that configuration is not the production release contract. The approved v0.1.0 policy will ship a per-user Windows x64 NSIS installer and a Linux x86_64 AppImage. See [`ADR-0002`](docs/architecture/adr-0002-mvp-platform-packaging-and-update-policy.md).
+The normal distribution build targets only the approved release artifacts: a per-user Windows x64 NSIS installer and a Linux x86_64 AppImage. See [`ADR-0002`](docs/architecture/adr-0002-mvp-platform-packaging-and-update-policy.md).
+
+Maintainers who need to copy a build to another Windows x64 machine for testing can create a separate, non-release standalone artifact:
+
+```bash
+npm run dist:standalone:win
+```
+
+The command creates `dist/standalone/AstraDock-Local-<version>-standalone-test-x64.exe`, never publishes it, and does not create an installer. It is a narrowly distributed test tool, not a supported release format or automatic-update target. Build, transfer, verification, data-retention, and cleanup guidance is in [`docs/windows-standalone-testing.md`](docs/windows-standalone-testing.md).
 
 ## Current Functionality
 

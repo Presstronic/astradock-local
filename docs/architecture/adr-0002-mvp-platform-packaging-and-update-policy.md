@@ -24,6 +24,7 @@ AstraDock Local v0.1.0 will:
 - Revisit Windows 10 support if it materially restricts security updates, Electron/Chromium upgrades, application capability, packaging, or maintainability.
 - Support current 64-bit Linux distributions used or recommended by the Star Citizen Linux Users Group, through the explicit matrix in this ADR.
 - Ship one per-user Windows NSIS installer; it will not ship a Windows portable artifact.
+- Permit maintainers to create a clearly labeled, manually transferred Windows x64 standalone artifact solely for cross-machine testing; it is not a release artifact, update target, or supported distribution format.
 - Ship one Linux AppImage for the limited alpha; it will not initially ship `.deb`, RPM, AUR, Flatpak, Snap, or distribution-native packages.
 - Use GitHub Releases as the v0.1.0 release and automatic-update origin unless a later security or operational review supersedes it.
 - Check for and download eligible updates automatically, then install them silently on the next normal application restart.
@@ -89,6 +90,15 @@ The only supported Windows artifact is a 64-bit NSIS installer.
 - The installer may create approved Start menu and desktop integration without introducing file associations or background services that are not product requirements.
 - The installer and installed application must use a stable application identifier, publisher identity, install location, and application-data location across upgrades.
 - No Windows portable, MSI, MSIX/AppX, web installer, or per-machine artifact ships in v0.1.0.
+
+Maintainers may deliberately invoke the separate Windows x64 standalone test build documented in [`../windows-standalone-testing.md`](../windows-standalone-testing.md). It uses Electron Builder's `portable` target as a packaging mechanism, but it does not change the release contract above:
+
+- Normal distribution and release automation must not build, publish, attach, advertise, or generate update metadata for it.
+- Its filename includes `standalone-test`, and its output is isolated from normal distribution artifacts.
+- It is transferred manually only to known test machines and supplements, but never replaces, installer qualification.
+- It provides no installer, uninstaller, shortcut, registry, or automatic-update behavior and creates no support claim.
+- It uses AstraDock's normal per-user application-data location. Application data does not travel beside the executable and remains after the executable is deleted.
+- It may be unsigned during prerelease testing under the existing narrow unsigned-alpha allowance. That allowance does not relax release signing requirements or justify bypassing operating-system security controls.
 
 Per-user installation does not remove any currently planned MVP capability. AstraDock monitors only while the application is running, needs no service, driver, privileged file association, machine-wide integration, or all-users install. Native dialogs may grant access to non-default game locations without elevating the application.
 
@@ -256,9 +266,9 @@ Every selection requires version, license, maintenance, supply-chain, packaging,
 
 Rejected for v0.1.0. The owner has a physical Windows 10 machine for validation, current Electron supports Windows 10+, and supporting the remaining Star Citizen user base has value. The conditional review rule prevents Windows 10 from forcing obsolete or insecure dependencies later.
 
-### Windows portable plus installer
+### Windows portable release plus installer
 
-Rejected. Portable distribution adds another state, path, update, support, and verification model; it lacks the installer integration needed for the chosen automatic-update path and adds no required MVP capability.
+Rejected as a release policy. Portable distribution adds another state, path, update, support, and verification model; it lacks the installer integration needed for the chosen automatic-update path and adds no required MVP capability. A separately invoked and clearly labeled standalone artifact is permitted only as a maintainer testing tool because it reduces cross-machine validation friction without entering publication or update flows.
 
 ### Per-machine Windows installation
 
@@ -291,6 +301,7 @@ Rejected. Signed Windows artifacts and a protected update trust chain are requir
 - Users and implementers receive explicit support and artifact contracts.
 - Windows installation requires no administrator privileges.
 - One artifact per operating-system family limits alpha release complexity.
+- Maintainers can exercise supported Windows machines before installer qualification without confusing test output with a release artifact.
 - Automatic updates do not interrupt monitoring.
 - Windows 10 remains available without becoming a permanent constraint on security or runtime currency.
 - Linux support aligns with actual Star Citizen community environments rather than one package ecosystem.
@@ -302,6 +313,7 @@ Rejected. Signed Windows artifacts and a protected update trust chain are requir
 - Temporary unsigned Windows alpha builds create trust warnings until issue #50 completes.
 - GitHub Releases availability and release metadata become operational dependencies for updates.
 - Windows 10 support must be reviewed continuously because upstream and Microsoft support have changed.
+- The standalone build is a second packaging path that can drift; automated policy checks and focused smoke testing are required.
 
 ## Follow-up requirements
 
