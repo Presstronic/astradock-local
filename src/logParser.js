@@ -1,4 +1,9 @@
 const fs = require('node:fs/promises');
+const { parseRuntimeLogText } = require('./runtimeLogParserEngine');
+const {
+  projectRuntimeLifecycle,
+  toRendererLifecycleProjection
+} = require('./runtimeLifecycleProjection');
 const {
   createPartitionedIdentity,
   deriveEnvironmentContext,
@@ -628,13 +633,32 @@ async function parseLogFile(logPath, options = {}) {
   const { signal, ...parseOptions } = options;
   const text = await fs.readFile(logPath, { encoding: 'utf8', signal });
   const stat = await fs.stat(logPath);
-  return parseLogText(text, {
+  const parsed = parseLogText(text, {
     ...parseOptions,
     logPath,
     sourceLocation: logPath,
     scannedAt: new Date().toISOString(),
     modifiedAt: stat.mtime.toISOString()
   });
+  const canonical = parseRuntimeLogText(text, {
+    sourceLocation: logPath,
+    releaseChannel: parsed.environment?.releaseChannel,
+    gameBuild: parsed.environment?.buildVersion,
+    environmentName: parsed.environment?.environmentName,
+    branch: parsed.environment?.branch,
+    ingestedAt: parsed.scannedAt
+  });
+  const lifecycleProjection = projectRuntimeLifecycle(canonical.events, {
+    activeEnvironmentKey: parsed.environmentKey,
+    now: parsed.scannedAt
+  });
+  return {
+    ...parsed,
+    runtimeEvents: canonical.events,
+    parserCompatibility: canonical.parserHealth,
+    lifecycleProjection,
+    rendererLifecycle: toRendererLifecycleProjection(lifecycleProjection)
+  };
 }
 
 function parseLogText(logText, options = {}) {

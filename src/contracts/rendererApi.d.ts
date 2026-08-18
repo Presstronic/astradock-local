@@ -129,6 +129,13 @@ export interface RendererScanResult {
   environmentPartitions: readonly EnvironmentContext[];
   environmentSwitches: readonly unknown[];
   environmentDiagnostics: readonly unknown[];
+  parserCompatibility: {
+    status: 'compatible' | 'unsupported_profile' | 'suspected_drift';
+    reason: string;
+    profileId: string | null;
+    profileVersion: string | null;
+  };
+  rendererLifecycle: RendererLifecycleProjection;
   entries: readonly RendererEvidenceRow[];
   userActivity: {
     username?: string;
@@ -138,6 +145,55 @@ export interface RendererScanResult {
     sessions?: readonly RendererEvidenceRow[];
   };
   source: PublicRuntimeSource;
+}
+
+export interface RendererLifecycleProjection {
+  version: 1;
+  activeEnvironmentKey: string | null;
+  environments: Readonly<Record<string, RendererEnvironmentLifecycle>>;
+}
+
+export interface RendererEnvironmentLifecycle {
+  version: 1;
+  environmentKey: string;
+  environment: {
+    releaseChannel: string;
+    rawReleaseChannel: string;
+    environmentName: string;
+    branch: string;
+    buildVersion: string;
+    confidence: string;
+    status: 'known' | 'unknown';
+  };
+  build: {
+    status: 'known' | 'unknown';
+    fileVersion: string | null;
+    productVersion: string | null;
+    branch: string | null;
+    changelist: string | null;
+    gameVersion: string | null;
+    dataCoreVersion: string | null;
+    archetypeVersion: string | null;
+    componentVersion: string | null;
+    config: string | null;
+  };
+  identity: Readonly<Record<string, {
+    status: 'known' | 'unknown' | 'conflicting';
+    value: string | null;
+    observedAt: string | null;
+    confidence: string;
+    conflictingClaimCount: number;
+  }>>;
+  lifecycle: {
+    state: 'unknown' | 'authenticating' | 'authenticated' | 'frontend' | 'loading' | 'in_game' | 'disconnected' | 'exited';
+    status: 'known' | 'unknown' | 'failure';
+    lastChangedAt: string | null;
+    durationStartedAt: string | null;
+    reason: string;
+    cleanExit: boolean | null;
+  };
+  lastChangedAt: string | null;
+  freshness: 'current' | 'stale' | 'unknown';
 }
 
 export interface RendererEvidenceRow {
