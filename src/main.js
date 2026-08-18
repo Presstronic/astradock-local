@@ -495,6 +495,8 @@ function sanitizeTailerHealth(health) {
 function toRendererScanResult(result, source) {
   const {
     logPath: _logPath,
+    runtimeEvents: _runtimeEvents,
+    lifecycleProjection: _lifecycleProjection,
     entries = [],
     userActivity = {},
     ...safeResult

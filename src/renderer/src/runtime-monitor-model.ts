@@ -101,6 +101,7 @@ export function createRuntimeMonitorViewModel(input: {
   const source = input.activeSource || input.snapshot?.source || scan?.source || null;
   const streamEvents = createStreamEvents(scan, input.now).slice(0, MAX_STREAM_ROWS);
   const environment = scan?.environment;
+  const lifecycle = activeLifecycle(scan);
   const monitor = input.snapshot?.monitor ?? null;
   const lastObservedAt = monitor?.tailer?.lastObservedAt || scan?.scannedAt || null;
   const warningCount = countWarnings(state, scan);
@@ -111,10 +112,10 @@ export function createRuntimeMonitorViewModel(input: {
     monitorLabel: formatMonitorLabel(state, monitor?.active ?? false),
     freshnessLabel: formatFreshness(lastObservedAt, input.now),
     exactFreshness: lastObservedAt,
-    environmentLabel: formatEnvironment(scan),
-    buildLabel: environment?.buildVersion && environment.buildVersion !== 'UNKNOWN_BUILD'
+    environmentLabel: lifecycle?.environment.releaseChannel || formatEnvironment(scan),
+    buildLabel: lifecycle?.build.productVersion || lifecycle?.build.fileVersion || (environment?.buildVersion && environment.buildVersion !== 'UNKNOWN_BUILD'
       ? environment.buildVersion
-      : source?.buildVersion || 'Unknown',
+      : source?.buildVersion || 'Unknown'),
     warningCount,
     streamEvents,
     retainedCount: createAllEvents(scan).length,
@@ -203,8 +204,25 @@ function createInstruments(
   const latestShard = scan?.entries?.[0];
   const latestSession = scan?.userActivity.sessions?.[0];
   const latestAction = scan?.userActivity.actions?.[0];
+  const lifecycle = activeLifecycle(scan);
 
   return [
+    {
+      id: 'game-lifecycle',
+      label: 'Game lifecycle',
+      value: formatLifecycleState(lifecycle?.lifecycle.state),
+      state: lifecycle?.lifecycle.status === 'failure'
+        ? 'disconnected'
+        : lifecycle?.freshness === 'stale'
+          ? 'stale'
+          : lifecycle?.lifecycle.status === 'known'
+            ? 'known'
+            : 'unknown',
+      detail: lifecycle?.lifecycle.lastChangedAt
+        ? `${formatFreshness(lifecycle.lifecycle.lastChangedAt, now)} · ${lifecycle.lifecycle.reason}`
+        : 'Monitor may have started mid-state',
+      provenance: lifecycle?.lifecycle.status === 'known' ? 'Observed canonical event' : 'Evidence absent'
+    },
     {
       id: 'source-health',
       label: 'Source health',
@@ -254,6 +272,25 @@ function createInstruments(
       provenance: latestAction?.armisticeState ? 'Observed log evidence' : 'Evidence gate closed'
     }
   ];
+}
+
+function activeLifecycle(scan: RendererScanResult | null) {
+  const lifecycle = scan?.rendererLifecycle;
+  if (!lifecycle?.activeEnvironmentKey) return null;
+  return lifecycle.environments[lifecycle.activeEnvironmentKey] || null;
+}
+
+function formatLifecycleState(state: string | undefined): string {
+  return ({
+    authenticating: 'Authenticating',
+    authenticated: 'Authenticated',
+    frontend: 'Frontend',
+    loading: 'Loading',
+    in_game: 'In game',
+    disconnected: 'Disconnected',
+    exited: 'Exited',
+    unknown: 'Unknown'
+  } as Record<string, string>)[state || 'unknown'] || 'Unknown';
 }
 
 function createPartyPanel(scan: RendererScanResult | null): PanelState {
