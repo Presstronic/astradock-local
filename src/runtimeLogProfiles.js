@@ -16,6 +16,7 @@ const SC_49_FIELD_ALIASES = Object.freeze({
   gamerules: ['gamerules', 'rules'],
   handle: ['handle', 'nickname'],
   locationId: ['locationId'],
+  matchmakingStatus: ['status'],
   loginSessionId: ['LoginSessionId'],
   message: ['Message'],
   nodeId: ['node_id'],
@@ -133,8 +134,12 @@ const SC_49_EXTRACTORS = Object.freeze([
   },
   {
     id: 'pu.matchmaking-request',
-    kind: 'rememberMatchmakingRequest',
+    kind: 'matchmakingStatusObserved',
+    eventType: 'MatchmakingStatusObserved',
     literals: ['{Join PU}'],
+    requiredFields: ['matchmakingRequestId', 'matchmakingStatus', 'port'],
+    confidence: 'high',
+    sensitivity: 'local',
     evidenceMarkers: ['{Join PU}']
   },
   {

@@ -346,6 +346,23 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       clientSession: 'SYNTH_CLIENT_SESSION_A'
     }
   },
+  MatchmakingStatusObserved: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'A PU matchmaking request status was observed.',
+    traits: traits({ subjectScopes: ['local_player', 'session'] }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/spine/pu-join-shard-server.observed',
+    payload: {
+      matchmakingRequestId: field(STRING),
+      matchmakingStatus: field(STRING),
+      port: field(INTEGER, { min: 1, max: 65535 })
+    },
+    examplePayload: {
+      matchmakingRequestId: 'SYNTH_MATCHMAKING_REQUEST_A',
+      matchmakingStatus: 'Queued',
+      port: 64090
+    }
+  },
   PuJoinRequested: {
     owner: 'runtime-contracts',
     status: 'mvp',

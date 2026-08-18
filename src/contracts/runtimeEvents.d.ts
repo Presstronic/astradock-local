@@ -100,6 +100,11 @@ export interface RuntimeEventPayloadMap {
     nodeId: string;
     clientSession: string;
   };
+  MatchmakingStatusObserved: {
+    matchmakingRequestId: string;
+    matchmakingStatus: string;
+    port: number;
+  };
   PuJoinRequested: {
     matchmakingRequestId: string;
     shard: string;

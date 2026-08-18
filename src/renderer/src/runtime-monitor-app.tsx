@@ -34,6 +34,7 @@ import {
   type DetailState,
   type DrawerPlacement,
   formatSourceState,
+  type InstrumentState,
   type StreamEvent,
   type StreamView
 } from './runtime-monitor-model';
@@ -60,8 +61,9 @@ const DEFAULT_PREFERENCES: LocalPreferences = {
 };
 
 const preferenceKey = 'astradock.runtimeMonitor.preferences.v1';
+const systemClock = () => new Date();
 
-export function RuntimeMonitorApp({ client, clock = () => new Date() }: RuntimeMonitorAppProps) {
+export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonitorAppProps) {
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [sources, setSources] = useState<PublicRuntimeSource[]>([]);
@@ -69,6 +71,7 @@ export function RuntimeMonitorApp({ client, clock = () => new Date() }: RuntimeM
   const [snapshot, setSnapshot] = useState<MonitorSnapshot | null>(null);
   const [scan, setScan] = useState<RendererScanResult | null>(null);
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
+  const [now, setNow] = useState<Date>(() => clock());
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<StreamEvent | null>(null);
   const [detail, setDetail] = useState<DetailState>({
@@ -129,6 +132,11 @@ export function RuntimeMonitorApp({ client, clock = () => new Date() }: RuntimeM
     window.localStorage.setItem(preferenceKey, JSON.stringify(preferences));
   }, [preferences]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(clock()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [clock]);
+
   const viewModel = useMemo(() => createRuntimeMonitorViewModel({
     loading,
     fatalError,
@@ -136,8 +144,8 @@ export function RuntimeMonitorApp({ client, clock = () => new Date() }: RuntimeM
     activeSource,
     snapshot,
     scan,
-    now: clock()
-  }), [activeSource, clock, fatalError, loading, scan, snapshot, sources]);
+    now
+  }), [activeSource, fatalError, loading, now, scan, snapshot, sources]);
 
   const visibleEvents = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -316,7 +324,7 @@ export function RuntimeMonitorApp({ client, clock = () => new Date() }: RuntimeM
                 type="button"
                 key={instrument.id}
                 data-state={instrument.state}
-                onClick={(event) => openSyntheticDetail(instrument.label, instrument.value, event.currentTarget)}
+                onClick={(event) => openSyntheticDetail(instrument, event.currentTarget)}
               >
                 <span>{instrument.label}</span>
                 <strong>{instrument.value}</strong>
@@ -438,13 +446,18 @@ export function RuntimeMonitorApp({ client, clock = () => new Date() }: RuntimeM
     </div>
   );
 
-  function openSyntheticDetail(label: string, value: string, trigger: HTMLElement) {
+  function openSyntheticDetail(instrument: InstrumentState, trigger: HTMLElement) {
     lastSelectionTrigger.current = trigger;
     setDetail({
-      status: value === 'Unsupported' ? 'unsupported' : 'ready',
+      status: instrument.value === 'Unsupported' ? 'unsupported' : 'ready',
       selected: null,
       detail: null,
-      message: `${label}: ${value}`
+      message: [
+        `${instrument.label}: ${instrument.value}`,
+        instrument.detail,
+        instrument.provenance,
+        instrument.drilldown
+      ].filter(Boolean).join(' · ')
     });
     window.requestAnimationFrame(() => detailHeadingRef.current?.focus());
   }

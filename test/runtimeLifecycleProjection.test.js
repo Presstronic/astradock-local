@@ -7,9 +7,11 @@ const { parseRuntimeLogText } = require('../src/runtimeLogParserEngine');
 const {
   DEFAULT_STALE_AFTER_MS,
   projectRuntimeLifecycle,
+  redactEndpoint,
   redactStableIdentifier,
   toRendererLifecycleProjection
 } = require('../src/runtimeLifecycleProjection');
+const { REGION_MAPPING_VERSION, mapShardRegion } = require('../src/runtimeRegionMappings');
 
 const SPINE_ROOT = path.join(__dirname, 'fixtures', 'runtime-log', 'live', '4.9-pub', 'sc-4.9-live', 'spine');
 const PARSER_OPTIONS = {
@@ -49,6 +51,15 @@ test('fixture-backed lifecycle projection reaches clean exit without inventing u
   assert.equal(current.lifecycle.cleanExit, true);
   assert.equal(current.lifecycle.status, 'known');
   assert.equal(current.freshness, 'current');
+  assert.equal(current.shard.shardLabel, 'SYNTH_SHARD_STANTON_US_EAST_A');
+  assert.equal(current.shard.region.friendlyRegion, 'US');
+  assert.equal(current.shard.state, 'disconnected');
+  assert.equal(current.serverConnection.state, 'disconnected');
+  assert.equal(current.serverConnection.endpoint, null);
+  assert.equal(current.serverConnection.lastEndpoint, 'game-server-alpha.example.invalid');
+  assert.equal(current.serverConnection.disconnect.origin, 'remote');
+  assert.equal(current.puSession.durationSeconds, 3900);
+  assert.equal(current.puSession.durationSource, 'observed_connection_uptime');
 });
 
 test('identity evidence remains additive and exposes conflicts without collapsing identifiers', () => {
@@ -82,6 +93,50 @@ test('renderer DTO redacts stable identifiers and retains permitted display name
   assert.equal(JSON.stringify(dto).includes('SYNTH_ACCOUNT_LOCAL'), false);
   assert.equal(JSON.stringify(dto).includes('SYNTH_PLAYER_GEID_LOCAL'), false);
   assert.equal(JSON.stringify(dto).includes('SYNTH_LOGIN_SESSION_LOCAL'), false);
+  assert.equal(JSON.stringify(dto).includes('game-server-alpha.example.invalid'), false);
+  assert.equal(identity.accountId.value, 'SY…AL');
+  assert.equal(dto.environments[dto.activeEnvironmentKey].serverConnection.lastEndpoint, 'ga…ha.example.invalid');
+});
+
+test('region mappings use only versioned shard naming conventions and preserve unknowns', () => {
+  assert.deepEqual(mapShardRegion('shard-Stanton-use1b-008'), {
+    friendlyRegion: 'US',
+    rawSegment: 'use1b',
+    confidence: 'medium',
+    basis: 'naming_convention',
+    mappingVersion: REGION_MAPPING_VERSION
+  });
+  assert.equal(mapShardRegion('shard-Pyro-eu2a-001').friendlyRegion, 'EU');
+  assert.equal(mapShardRegion('shard-Stanton-aus1-001').friendlyRegion, 'AUS');
+  assert.equal(mapShardRegion('shard-Pyro-apac1-001').friendlyRegion, 'ASIA');
+  assert.deepEqual(mapShardRegion('SYNTH_SHARD_FUTURE_X1'), {
+    friendlyRegion: 'UNKNOWN',
+    rawSegment: null,
+    confidence: 'unknown',
+    basis: 'unmapped',
+    mappingVersion: REGION_MAPPING_VERSION
+  });
+});
+
+test('renderer endpoint redaction handles IP addresses, hostnames, and absent values', () => {
+  assert.equal(redactEndpoint('203.0.113.45'), '203.0.*.*');
+  assert.equal(redactEndpoint('game-server-alpha.example.invalid'), 'ga…ha.example.invalid');
+  assert.equal(redactEndpoint(null), null);
+});
+
+test('incomplete joins remain transitioning and do not claim successful entry', () => {
+  const parsed = parseRuntimeLogText([
+    '<2026-08-09T19:05:00.000Z> {Join PU} id[SYNTH_MATCHMAKING_INCOMPLETE] status[Queued] port[64090]',
+    '<2026-08-09T19:05:01.000Z> <Join PU> address[incomplete.example.invalid] port[64090] shard[SYNTH_SHARD_STANTON_EU_1] locationId[SYNTH_LOCATION_INCOMPLETE]'
+  ].join('\n') + '\n', PARSER_OPTIONS);
+  const projected = projectRuntimeLifecycle(parsed.events, { now: '2026-08-09T19:05:02.000Z' });
+  const current = projected.environments[projected.activeEnvironmentKey];
+
+  assert.equal(current.shard.state, 'transitioning');
+  assert.equal(current.serverConnection.state, 'transitioning');
+  assert.equal(current.puSession.state, 'connecting');
+  assert.equal(current.puSession.matchmakingStatus, 'Queued');
+  assert.equal(current.puSession.enteredAt, null);
 });
 
 test('missing evidence stays unknown and freshness becomes stale at the approved health boundary', () => {

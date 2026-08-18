@@ -1,4 +1,5 @@
 const { compareRuntimeEventOrder } = require('./contracts/runtimeEvents');
+const { mapShardRegion } = require('./runtimeRegionMappings');
 
 const PROJECTION_VERSION = 1;
 const DEFAULT_STALE_AFTER_MS = 15_000;
@@ -40,6 +41,10 @@ function projectRuntimeLifecycle(events, options = {}) {
   const staleAfterMs = positiveInteger(options.staleAfterMs) || DEFAULT_STALE_AFTER_MS;
   for (const projection of projections.values()) {
     projection.freshness = classifyFreshness(projection.lastChangedAt, nowMs, staleAfterMs);
+    if (projection.freshness === 'stale') {
+      if (projection.shard.state === 'connected') projection.shard.state = 'stale';
+      if (projection.serverConnection.state === 'connected') projection.serverConnection.state = 'stale';
+    }
   }
 
   return {
@@ -75,6 +80,36 @@ function createProjection(event) {
       config: null
     },
     identity: Object.fromEntries(IDENTITY_FIELDS.map((field) => [field, createIdentityField()])),
+    shard: {
+      state: 'unknown',
+      shardLabel: null,
+      locationId: null,
+      region: mapShardRegion(null),
+      observedAt: null,
+      confidence: 'unknown'
+    },
+    serverConnection: {
+      state: 'unknown',
+      endpoint: null,
+      port: null,
+      nodeId: null,
+      gamerules: null,
+      connectedAt: null,
+      disconnectedAt: null,
+      lastEndpoint: null,
+      disconnect: null,
+      confidence: 'unknown'
+    },
+    puSession: {
+      state: 'unknown',
+      matchmakingRequestId: null,
+      matchmakingStatus: null,
+      requestedAt: null,
+      enteredAt: null,
+      endedAt: null,
+      durationSeconds: null,
+      durationSource: null
+    },
     lifecycle: {
       state: 'unknown',
       status: 'unknown',
@@ -123,6 +158,8 @@ function applyEvent(projection, event) {
     }
   }
 
+  applyPuSessionEvent(projection, event);
+
   const nextState = LIFECYCLE_TRANSITIONS[event.eventType];
   if (!nextState) return;
   projection.lifecycle = {
@@ -137,6 +174,103 @@ function applyEvent(projection, event) {
     reason: lifecycleReason(event),
     cleanExit: event.eventType === 'ApplicationExited' ? event.payload.clean : null
   };
+}
+
+function applyPuSessionEvent(projection, event) {
+  if (event.eventType === 'MatchmakingStatusObserved') {
+    projection.puSession = {
+      state: 'connecting',
+      matchmakingRequestId: event.payload.matchmakingRequestId,
+      matchmakingStatus: event.payload.matchmakingStatus,
+      requestedAt: event.sourceTimestamp,
+      enteredAt: null,
+      endedAt: null,
+      durationSeconds: null,
+      durationSource: null
+    };
+    return;
+  }
+
+  if (event.eventType === 'PuJoinRequested') {
+    projection.shard = {
+      state: 'transitioning',
+      shardLabel: event.payload.shard,
+      locationId: event.payload.locationId,
+      region: mapShardRegion(event.payload.shard),
+      observedAt: event.sourceTimestamp,
+      confidence: event.confidence
+    };
+    projection.serverConnection = {
+      ...projection.serverConnection,
+      state: 'transitioning',
+      endpoint: event.payload.endpoint,
+      port: event.payload.port,
+      connectedAt: null,
+      disconnectedAt: null,
+      disconnect: null,
+      confidence: event.confidence
+    };
+    projection.puSession = {
+      state: 'connecting',
+      matchmakingRequestId: event.payload.matchmakingRequestId,
+      matchmakingStatus: projection.puSession.matchmakingStatus,
+      requestedAt: projection.puSession.requestedAt || event.sourceTimestamp,
+      enteredAt: null,
+      endedAt: null,
+      durationSeconds: null,
+      durationSource: null
+    };
+    return;
+  }
+
+  if (event.eventType === 'GameServerConnectionEstablished') {
+    projection.serverConnection = {
+      ...projection.serverConnection,
+      state: 'connected',
+      endpoint: event.payload.endpoint,
+      port: event.payload.port,
+      nodeId: event.payload.nodeId,
+      gamerules: event.payload.gamerules,
+      connectedAt: event.sourceTimestamp,
+      disconnectedAt: null,
+      disconnect: null,
+      confidence: event.confidence
+    };
+    return;
+  }
+
+  if (event.eventType === 'PuEntered') {
+    projection.shard.state = projection.shard.shardLabel ? 'connected' : 'unknown';
+    projection.puSession.state = 'in_game';
+    projection.puSession.enteredAt = event.sourceTimestamp;
+    return;
+  }
+
+  if (event.eventType === 'PuDisconnected') {
+    const lastEndpoint = projection.serverConnection.endpoint || event.payload.endpoint;
+    projection.serverConnection = {
+      ...projection.serverConnection,
+      state: 'disconnected',
+      endpoint: null,
+      port: null,
+      nodeId: null,
+      connectedAt: null,
+      disconnectedAt: event.sourceTimestamp,
+      lastEndpoint,
+      disconnect: {
+        cause: event.payload.cause,
+        reason: event.payload.reason,
+        origin: event.payload.isRemote ? 'remote' : 'local',
+        observedAt: event.sourceTimestamp
+      },
+      confidence: event.confidence
+    };
+    projection.shard.state = 'disconnected';
+    projection.puSession.state = 'disconnected';
+    projection.puSession.endedAt = event.sourceTimestamp;
+    projection.puSession.durationSeconds = event.payload.uptimeSeconds;
+    projection.puSession.durationSource = 'observed_connection_uptime';
+  }
 }
 
 function observeIdentity(projection, field, value, event) {
@@ -176,12 +310,47 @@ function toRendererLifecycleProjection(result, options = {}) {
           conflictingClaimCount: fact.status === 'conflicting' ? fact.claims.length : 0
         }];
       })),
+      shard: { ...projection.shard, region: { ...projection.shard.region } },
+      serverConnection: {
+        ...projection.serverConnection,
+        endpoint: redactEndpoint(projection.serverConnection.endpoint),
+        lastEndpoint: redactEndpoint(projection.serverConnection.lastEndpoint),
+        disconnect: projection.serverConnection.disconnect ? { ...projection.serverConnection.disconnect } : null
+      },
+      puSession: {
+        ...projection.puSession,
+        matchmakingRequestId: projection.puSession.matchmakingRequestId
+          ? redactStableIdentifier(projection.puSession.matchmakingRequestId)
+          : null,
+        elapsedSeconds: sessionElapsedSeconds(projection.puSession, options.now)
+      },
       lifecycle: { ...projection.lifecycle },
       lastChangedAt: projection.lastChangedAt,
       freshness: projection.freshness
     };
   }
   return { version: PROJECTION_VERSION, activeEnvironmentKey: result.activeEnvironmentKey, environments };
+}
+
+function redactEndpoint(value) {
+  if (!value) return null;
+  const text = String(value);
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(text)) {
+    const parts = text.split('.');
+    return `${parts[0]}.${parts[1]}.*.*`;
+  }
+  const labels = text.split('.');
+  const host = labels.shift() || '';
+  const redactedHost = host.length <= 4 ? '•'.repeat(host.length) : `${host.slice(0, 2)}…${host.slice(-2)}`;
+  return [redactedHost, ...labels].join('.');
+}
+
+function sessionElapsedSeconds(session, now) {
+  if (Number.isFinite(session.durationSeconds)) return session.durationSeconds;
+  const started = toTime(session.enteredAt || session.requestedAt);
+  const ended = toTime(session.endedAt) ?? toTime(now) ?? Date.now();
+  if (started === null || ended < started) return null;
+  return Math.floor((ended - started) / 1000);
 }
 
 function redactStableIdentifier(value) {
@@ -226,5 +395,6 @@ module.exports = {
   PROJECTION_VERSION,
   projectRuntimeLifecycle,
   redactStableIdentifier,
+  redactEndpoint,
   toRendererLifecycleProjection
 };
