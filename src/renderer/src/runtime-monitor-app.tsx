@@ -68,6 +68,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [sources, setSources] = useState<PublicRuntimeSource[]>([]);
   const [activeSource, setActiveSource] = useState<PublicRuntimeSource | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<MonitorSnapshot | null>(null);
   const [scan, setScan] = useState<RendererScanResult | null>(null);
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
@@ -110,6 +111,10 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             if (change.type === 'monitor.scan') {
               setScan(change.scan);
               setActiveSource(change.scan.source);
+              setActionError(null);
+            }
+            if (change.type === 'monitor.error') {
+              setActionError(change.error.message);
             }
           }
         });
@@ -140,12 +145,13 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const viewModel = useMemo(() => createRuntimeMonitorViewModel({
     loading,
     fatalError,
+    actionError,
     sources,
     activeSource,
     snapshot,
     scan,
     now
-  }), [activeSource, fatalError, loading, now, scan, snapshot, sources]);
+  }), [actionError, activeSource, fatalError, loading, now, scan, snapshot, sources]);
 
   const visibleEvents = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -165,7 +171,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
   async function chooseSource() {
     try {
-      setFatalError(null);
+      setActionError(null);
       const result = await client.source.choose();
       if (!result?.source) return;
       setActiveSource(result.saved ? result.source : null);
@@ -174,53 +180,53 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         const nextScan = await client.monitor.scan({ sourceId: result.source.sourceId, options: {} });
         setScan(nextScan);
       } else {
-        setFatalError(result.source.validation.message);
+        setActionError(result.source.validation.message);
       }
     } catch (error) {
-      setFatalError(error instanceof Error ? error.message : 'Source selection failed.');
+      setActionError(error instanceof Error ? error.message : 'Source selection failed.');
     }
   }
 
   async function scanSource() {
     if (!viewModel.source) {
-      setFatalError('Choose a local game.log source first.');
+      setActionError('Choose a local game.log source first.');
       return;
     }
     try {
-      setFatalError(null);
+      setActionError(null);
       const nextScan = await client.monitor.scan({ sourceId: viewModel.source.sourceId, options: {} });
       setScan(nextScan);
       setActiveSource(nextScan.source);
     } catch (error) {
-      setFatalError(error instanceof Error ? error.message : 'Source scan failed.');
+      setActionError(error instanceof Error ? error.message : 'Source scan failed.');
     }
   }
 
   async function startMonitor() {
     if (!viewModel.source) {
-      setFatalError('Choose a local game.log source first.');
+      setActionError('Choose a local game.log source first.');
       return;
     }
     try {
-      setFatalError(null);
+      setActionError(null);
       const result = await client.monitor.start({ sourceId: viewModel.source.sourceId, options: { startMode: 'from_current_end' } });
       setSnapshot((current) => ({ ...(current || createEmptySnapshot()), monitor: result.monitor, scan: result.scan, source: result.scan.source }));
       setScan(result.scan);
       setActiveSource(result.scan.source);
     } catch (error) {
-      setFatalError(error instanceof Error ? error.message : 'Monitor start failed.');
+      setActionError(error instanceof Error ? error.message : 'Monitor start failed.');
     }
   }
 
   async function stopMonitor() {
     try {
-      setFatalError(null);
+      setActionError(null);
       const monitor = await client.monitor.stop();
       if (isMonitorStatePayload(monitor)) {
         setSnapshot((current) => ({ ...(current || createEmptySnapshot()), monitor }));
       }
     } catch (error) {
-      setFatalError(error instanceof Error ? error.message : 'Monitor stop failed.');
+      setActionError(error instanceof Error ? error.message : 'Monitor stop failed.');
     }
   }
 
@@ -625,8 +631,9 @@ function Metric({ label, value, title }: { label: string; value: string; title?:
   );
 }
 
-function toEvidenceKind(kind: StreamEvent['kind']): 'shard' | 'action' | 'session' {
+function toEvidenceKind(kind: StreamEvent['kind']): 'shard' | 'action' | 'session' | 'runtime' {
   if (kind === 'action' || kind === 'session') return kind;
+  if (kind === 'party' || kind === 'zone' || kind === 'runtime') return 'runtime';
   return 'shard';
 }
 

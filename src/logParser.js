@@ -5,6 +5,14 @@ const {
   toRendererLifecycleProjection
 } = require('./runtimeLifecycleProjection');
 const {
+  LOCATION_EVENT_TYPES,
+  PARTY_EVENT_TYPES,
+  projectRuntimeLocation,
+  projectRuntimeParty,
+  toRendererLocationSnapshot,
+  toRendererPartySnapshot
+} = require('./runtimeStateProjections');
+const {
   createPartitionedIdentity,
   deriveEnvironmentContext,
   deriveSourceInstallationId
@@ -365,6 +373,31 @@ function isServerLeaveLine(line) {
   return /\b(disconnect|disconnected|connection lost|leaving server|leave pu|session ended|logout|quit)\b/i.test(line);
 }
 
+function extractServerLeaveFromLine(line) {
+  if (!isServerLeaveLine(line)) return null;
+
+  const cause = pickValue(line, [/\bcause\b\s*[=:]\s*(?<value>[A-Za-z0-9_.:-]+)/i]);
+  const reason = pickValue(line, [
+    /\breason\b\s*[=:]\s*"(?<value>[^"]+)"/i,
+    /\breason\b\s*[=:]\s*(?<value>[A-Za-z0-9_.:-]+)/i
+  ]);
+  const remoteFlag = pickValue(line, [/\bisRemote\b\s*[=:]\s*(?<value>[01]|true|false)/i]);
+  const endpoint = pickValue(line, [/\bremoteAddr\b\s*[=:]\s*(?<value>[A-Za-z0-9_.:-]+:\d+)/i]);
+
+  return {
+    eventType: 'server_leave',
+    eventLabel: 'Server Leave',
+    cause,
+    reason,
+    origin: remoteFlag === '1' || remoteFlag === 'true'
+      ? 'remote'
+      : remoteFlag === '0' || remoteFlag === 'false'
+        ? 'local'
+        : 'unknown',
+    endpoint
+  };
+}
+
 function extractUserInfoFromLine(line, targetUsername = '') {
   const username = pickValue(line, [
     /\b(?:username|user_name|accountName|account_name|displayName|display_name|nickname|handle|playerName|player_name)\b\s*[:=]\s*(?<value>[A-Za-z0-9_.-]+)/i,
@@ -396,6 +429,14 @@ function summarizeAction(line) {
     .trim();
 
   return cleaned.length > 140 ? `${cleaned.slice(0, 137)}...` : cleaned || 'Log entry';
+}
+
+function formatServerLeaveAction(session, serverLeave) {
+  const target = session.shardId || session.address || 'current server';
+  const reason = serverLeave.reason || serverLeave.cause;
+  return reason
+    ? `Left ${target}: ${reason}`
+    : `Left ${target}`;
 }
 
 function parseUserActions(logText, options = {}) {
@@ -489,9 +530,34 @@ function parseUserActions(logText, options = {}) {
       return;
     }
 
-    if (currentSession && isServerLeaveLine(line)) {
+    const serverLeave = currentSession ? extractServerLeaveFromLine(line) : null;
+    if (currentSession && serverLeave) {
       currentSession.endedAt = timestamp || lastTimestamp;
       currentSession.endLineNumber = index + 1;
+      currentSession.actionCount += 1;
+      actions.push({
+        id: createPartitionedIdentity(environmentKey, 'action', [index, 'server_leave', currentSession.id]),
+        eventType: serverLeave.eventType,
+        eventLabel: serverLeave.eventLabel,
+        sessionId: currentSession.id,
+        environmentKey,
+        environment,
+        gameChannel: environment.releaseChannel,
+        gameBuild: environment.buildVersion,
+        lineNumber: index + 1,
+        timestamp: timestamp || lastTimestamp,
+        username: username || null,
+        userId: knownUserIds.values().next().value || null,
+        shardId: currentSession.shardId,
+        address: currentSession.address,
+        port: currentSession.port,
+        cause: serverLeave.cause,
+        reason: serverLeave.reason,
+        origin: serverLeave.origin,
+        endpoint: serverLeave.endpoint,
+        action: formatServerLeaveAction(currentSession, serverLeave),
+        rawLine: line.trim()
+      });
       currentSession = null;
     }
 
@@ -652,12 +718,29 @@ async function parseLogFile(logPath, options = {}) {
     activeEnvironmentKey: parsed.environmentKey,
     now: parsed.scannedAt
   });
+  const partyProjection = projectRuntimeParty(canonical.events, {
+    activeEnvironmentKey: parsed.environmentKey,
+    now: parsed.scannedAt,
+    staleAfterMs: options.snapshotStaleAfterMs
+  });
+  const locationProjection = projectRuntimeLocation(canonical.events, {
+    activeEnvironmentKey: parsed.environmentKey,
+    now: parsed.scannedAt,
+    staleAfterMs: options.snapshotStaleAfterMs
+  });
   return {
     ...parsed,
     runtimeEvents: canonical.events,
+    promotedRuntimeEvents: canonical.events.filter((event) => (
+      PARTY_EVENT_TYPES.includes(event.eventType) || LOCATION_EVENT_TYPES.includes(event.eventType)
+    )),
     parserCompatibility: canonical.parserHealth,
     lifecycleProjection,
-    rendererLifecycle: toRendererLifecycleProjection(lifecycleProjection)
+    partyProjection,
+    locationProjection,
+    rendererLifecycle: toRendererLifecycleProjection(lifecycleProjection),
+    partySnapshot: toRendererPartySnapshot(partyProjection),
+    locationSnapshot: toRendererLocationSnapshot(locationProjection)
   };
 }
 

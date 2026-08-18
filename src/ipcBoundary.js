@@ -199,7 +199,7 @@ function validateEventQuery(value = {}) {
 function validateEvidenceRequest(value = {}) {
   assertPlainObject(value, 'request');
   const kind = value.kind;
-  if (!['shard', 'action', 'session'].includes(kind)) {
+  if (!['shard', 'action', 'session', 'runtime'].includes(kind)) {
     throw invalidPayload('Unsupported evidence kind.');
   }
   return {

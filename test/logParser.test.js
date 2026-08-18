@@ -10,6 +10,12 @@ const {
 } = require('../src/logParser');
 
 const FIXTURE_ROOT = path.join(__dirname, 'fixtures', 'runtime-log');
+const LIVE_PROFILE_OPTIONS = {
+  sourceProfileId: 'sc-4.9-live',
+  sourceProfileVersion: 'draft-2026-08-12',
+  gameBuild: '4.9.0-LIVE.9000000-SYNTH',
+  snapshotStaleAfterMs: 365 * 24 * 60 * 60 * 1000
+};
 
 test('parses shard id and name on one line', () => {
   const entries = parseShardEntries(`
@@ -133,6 +139,26 @@ test('build changes inside one channel create a new partition and stale the prio
   assert.notEqual(result.userActivity.sessions[0].environmentKey, result.userActivity.sessions[1].environmentKey);
 });
 
+test('promotes accepted PU disconnect evidence to a visible server leave action', () => {
+  const result = parseLogText(`
+<2026-08-09T19:00:00.000Z> <Init> Environment[PUB] Tag[LIVE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log]
+<2026-08-09T19:00:01.000Z> <Game Version> version[4.9.0-LIVE.9000000-SYNTH] environment[LIVE]
+<2026-08-09T19:05:01.000Z> <Join PU> address[game-server-alpha.example.invalid] port[64090] shard[pub_use1b_12326004_100] locationId[SYNTH_LOCATION_STANTON_A]
+<2026-08-09T20:10:00.000Z> <Channel Disconnected> cause=SYNTH_CAUSE_REMOTE_IDLE reason="SYNTH_REASON_REMOTE_TIMEOUT" isRemote=1 viewState=eCVS_InGame remoteAddr=game-server-alpha.example.invalid:64090
+`);
+
+  assert.equal(result.userActivity.sessions.length, 1);
+  assert.equal(result.userActivity.sessions[0].endLineNumber, 5);
+  assert.equal(result.userActivity.sessions[0].endedAt, '2026-08-09 20:10:00');
+  assert.deepEqual(
+    result.userActivity.actions.map((action) => action.eventLabel),
+    ['Server Leave', 'Server Join']
+  );
+  assert.equal(result.userActivity.actions[0].origin, 'remote');
+  assert.equal(result.userActivity.actions[0].reason, 'SYNTH_REASON_REMOTE_TIMEOUT');
+  assert.match(result.userActivity.actions[0].action, /Left pub_use1b_12326004_100/);
+});
+
 test('unknown source evidence derives UNKNOWN release channel instead of LIVE', () => {
   const result = parseLogText(`
 <2026-08-09T19:00:00.000Z> <Init> Environment[TECH-PREVIEW] Tag[TECH-PREVIEW] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/TECH-PREVIEW/game.log]
@@ -170,4 +196,34 @@ test('parseLogFile supports abortable reads for monitor cancellation', async () 
       name: 'AbortError'
     }
   );
+});
+
+test('parseLogFile returns renderer party and location snapshots for promoted events', async () => {
+  const party = await parseLogFile(path.join(
+    FIXTURE_ROOT,
+    'live',
+    '4.9-pub',
+    'sc-4.9-live',
+    'party',
+    'party-create-launch-member-connected.observed.log'
+  ), LIVE_PROFILE_OPTIONS);
+  const zone = await parseLogFile(path.join(
+    FIXTURE_ROOT,
+    'live',
+    '4.9-pub',
+    'sc-4.9-live',
+    'zone',
+    'jurisdiction-monitored-armistice.observed.log'
+  ), LIVE_PROFILE_OPTIONS);
+  const partyEnvironment = party.partySnapshot.environments[party.partySnapshot.activeEnvironmentKey];
+  const locationEnvironment = zone.locationSnapshot.environments[zone.locationSnapshot.activeEnvironmentKey];
+
+  assert.equal(party.promotedRuntimeEvents.length, 3);
+  assert.equal(partyEnvironment.state, 'in_party');
+  assert.equal(partyEnvironment.confirmedMemberCount, 1);
+  assert.equal(partyEnvironment.possibleMemberCount, 1);
+  assert.equal(zone.promotedRuntimeEvents.length, 4);
+  assert.equal(locationEnvironment.jurisdiction.value, 'SYNTH_JURISDICTION_A');
+  assert.equal(locationEnvironment.monitoredSpace.value, true);
+  assert.equal(locationEnvironment.armistice.value, false);
 });

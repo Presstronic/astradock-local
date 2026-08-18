@@ -56,6 +56,22 @@ The shell opens directly to Runtime Monitor and includes:
 - Shared detail dock for stream rows, instruments, Party, Mission, and alerts. The current implementation supports right and bottom push placements and preserves the stored placement preference separately for Terminal and Table.
 - Status bar with monitor state, local-only indicator, bounded stream statement, search/filter state, alert state, and local view preference state.
 
+## Monitor Controls
+
+Source discovery is automatic on renderer startup. `Choose source` opens the native file picker for an explicit `game.log` override and saves it only after validation succeeds. `Scan` reads and parses the selected source once, which is useful for backfill, diagnosis, and manual refresh. `Start` begins live monitoring of future writes to the selected source and publishes parsed scan updates after appended bytes are observed, so the stream should update without a manual `Scan` while monitoring is active.
+
+The current-state rail shows only the active privacy-safe source summary. Automatic discovery candidates, missing default paths, and rejected validations remain internal diagnostics unless a dedicated source-management design is approved.
+
+## Party And Location Snapshots
+
+The scan DTO now carries `partySnapshot` and `locationSnapshot` alongside the lifecycle projection. Both snapshots are partitioned by `environmentKey` and preserve confidence, provenance, source timestamp, freshness, and evidence event references.
+
+Party state is intentionally conservative. The supported profile projects only `PartyCreated`, `PartyLaunchInitiated`, and `PartyMemberConnected`; marker-only records do not add members, remove members, change leader, disband, or change party size. `PartyCreated` confirms the local leader/member. A named connection notification marks the other handle as possible membership with connected state, not a proven join. Session boundaries and stale windows stale known party facts rather than inventing `not_in_party`.
+
+Location state is an evidence-backed set of independent facts. `JurisdictionEntered` updates latest confirmed jurisdiction, `MonitoredSpaceEntered` sets monitored-space entered without inventing a false clear state, and `ArmisticeStateChanged` supports both entered and left. Exact location, destination, and travel remain unsupported for this profile; object-container, place-name, and route noise must not mutate location state.
+
+Promoted party and zone runtime events are exposed as sanitized stream rows. Detail requests for these rows return local-only event summary, confidence, evidence markers, and payload rather than raw log lines.
+
 ## State Semantics
 
 The renderer model exposes the issue #33 system states:

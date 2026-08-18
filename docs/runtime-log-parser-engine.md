@@ -109,6 +109,17 @@ Promoted event-family policies are:
 
 Duplicate suppression never crosses `environmentKey`. A repeated action with the same payload after its bounded dedupe window emits a distinct event; the source timestamp and evidence reference keep the event ID distinct.
 
+## Runtime State Projections
+
+`parseLogFile` now projects promoted runtime events into renderer-safe current-state DTOs:
+
+- `rendererLifecycle` for game lifecycle, shard, server connection, and PU session.
+- `partySnapshot` for environment-scoped party state from `PartyCreated`, `PartyLaunchInitiated`, and `PartyMemberConnected`.
+- `locationSnapshot` for independently fresh jurisdiction, monitored-space, and armistice facts from validated HUD notification events.
+- `promotedRuntimeEvents` for sanitized party and zone stream rows backed by canonical runtime event IDs.
+
+Party and location snapshots are conservative by contract. Party-marker records, object-container paths, route subsystem records, nearby place-name noise, missing terminal lines, and unsupported lifecycle candidates do not mutate current state. Session boundaries and stale windows mark existing facts stale or unknown instead of inventing clear, false, disband, leave, or not-in-party state.
+
 ## Authoring, Review, and Versioning
 
 Profile changes require accepted positive or negative fixtures before an extractor can emit a new canonical event. Additions must update `sourceProfileVersion`, document known limitations, and keep compatibility scoped to explicit release-channel and game-build evidence. The loader validates profile schema version, unique profile and extractor IDs, compatibility metadata, field aliases, dispatch literals, event mappings, required fields, and known limitations before any profile can run.
