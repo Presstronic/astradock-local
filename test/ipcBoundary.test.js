@@ -105,14 +105,19 @@ test('IPC errors are structured and do not echo paths or raw sensitive details',
 
 test('settings updates allow only supported local renderer preferences', () => {
   assert.deepEqual(validatePayload(CHANNELS.settingsUpdate, {
-    theme: 'light',
+    theme: 'dark',
     username: ' Pilot ',
     userId: ''
   }), {
-    theme: 'light',
+    theme: 'dark',
     username: 'Pilot',
     userId: ''
   });
+
+  assert.throws(
+    () => validatePayload(CHANNELS.settingsUpdate, { theme: 'light' }),
+    /request payload/i
+  );
 
   assert.throws(
     () => validatePayload(CHANNELS.settingsUpdate, { apiTemplate: 'https://example.invalid/{shardId}' }),

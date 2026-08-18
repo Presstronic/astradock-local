@@ -9,6 +9,23 @@ function readSource(relativePath) {
   return fs.readFileSync(path.join(SRC_ROOT, relativePath), 'utf8');
 }
 
+function readRendererSources() {
+  const rendererRoot = path.join(SRC_ROOT, 'renderer');
+  const files = [];
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const fullPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(fullPath);
+      } else if (/\.(html|js|ts|tsx|css)$/.test(entry.name)) {
+        files.push(fs.readFileSync(fullPath, 'utf8'));
+      }
+    }
+  };
+  visit(rendererRoot);
+  return files.join('\n');
+}
+
 test('preload exposes the namespaced capability API without legacy generic operations', () => {
   const preload = readSource('preload.js');
 
@@ -21,12 +38,11 @@ test('preload exposes the namespaced capability API without legacy generic opera
 });
 
 test('renderer and main no longer expose third-party enrichment fetch controls', () => {
-  const renderer = readSource('renderer/renderer.js');
-  const html = readSource('renderer/index.html');
+  const renderer = readRendererSources();
   const main = readSource('main.js');
 
   assert.doesNotMatch(renderer, /fetchJson|apiTemplate|https:\/\/api\.example/);
-  assert.doesNotMatch(html, /apiTemplate|Enrichment URL|api\.example/);
+  assert.doesNotMatch(renderer, /Enrichment URL|api\.example/);
   assert.doesNotMatch(main, /api:fetchJson|fetch\(url/);
 });
 

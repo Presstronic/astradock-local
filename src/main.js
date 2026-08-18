@@ -29,7 +29,7 @@ const {
 } = require('./sourceDiscovery');
 const { RuntimeLogTailer } = require('./runtimeLogTailer');
 
-const rendererIndexPath = path.join(__dirname, 'renderer', 'index.html');
+const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
 
 let mainWindow;

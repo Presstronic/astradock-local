@@ -44,7 +44,7 @@ monitor.subscribe(listener, { resumeAfter })
 events.query({ kind, cursor, limit })
 events.getEvidenceDetail({ kind, id })
 settings.get()
-settings.update({ theme, username, userId })
+settings.update({ theme: "dark", username, userId })
 diagnostics.getHealth()
 ```
 
@@ -68,7 +68,7 @@ Legacy prototype operations are intentionally removed:
 - Monitor filters to short username/user ID strings.
 - Event queries to known kinds, numeric cursor bounds, and page limits no larger than 200.
 - Evidence requests to known local evidence kinds and bounded IDs.
-- Settings updates to `theme`, `username`, and `userId`.
+- Settings updates to the dark-only MVP `theme` value, `username`, and `userId`.
 - Subscription resume cursors and unsubscribe identifiers.
 
 Malformed payloads return structured safe errors. Error details are allowlisted and filtered to avoid raw evidence, paths, secrets, tokens, passwords, and other sensitive values.
