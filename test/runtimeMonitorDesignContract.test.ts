@@ -28,6 +28,7 @@ describe('Runtime Monitor design-system conformance', () => {
     ['--tabs-height', '34px'],
     ['--toolbar-height', '38px'],
     ['--statusbar-height', '24px'],
+    ['--rail-width', '262px'],
     ['--radius', '0'],
     ['--tick-length', '11px']
   ])('keeps the authoritative %s geometry', (name, value) => {
@@ -42,6 +43,24 @@ describe('Runtime Monitor design-system conformance', () => {
   it('implements the bracketed 6a panel chrome', () => {
     expect(css).toContain('height: var(--strip-height);');
     expect(css).toContain('width: var(--tick-length);');
-    expect(css).toContain('border-bottom: 1px dotted var(--nontext-200);');
+    expect(css).toContain('border-bottom: 1px dotted #1e2836;');
+  });
+
+  it.each([
+    ['.product-name', 'font-size: 14px'],
+    ['.workspace-name', 'font-size: 9px'],
+    ['.workspace-tabs a,', 'font-size: 10.5px'],
+    ['.instrument-heading span,', 'font-size: 9px'],
+    ['.instrument strong,', 'font-size: 13px'],
+    ['.stream-mode span:first-child', 'font-size: 10px'],
+    ['.terminal-row strong', 'font-size: 11.5px'],
+    ['.table-row > span:nth-child(3)', 'font-size: 12.5px'],
+    ['.dock-kicker', 'font-size: 9.5px'],
+    ['.status-bar', 'font-size: 10px']
+  ])('locks the specimen typography for %s', (selector, declaration) => {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const blocks = [...css.matchAll(new RegExp(`${escaped}[^{}]*\\{([^}]*)\\}`, 'g'))].map((match) => match[1]);
+    expect(blocks.length).toBeGreaterThan(0);
+    expect(blocks.some((block) => block?.includes(declaration))).toBe(true);
   });
 });

@@ -1,24 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   AlertTriangle,
-  ArrowDownToLine,
-  ArrowRightToLine,
-  Bell,
   CircleHelp,
-  DatabaseZap,
-  Gauge,
-  ListFilter,
-  MonitorDot,
-  Pause,
-  Play,
-  RotateCcw,
-  Rows3,
-  Search,
-  Settings,
-  Square,
   Table2,
-  TerminalSquare,
-  X
+  TerminalSquare
 } from 'lucide-react';
 import type {
   EvidenceDetail,
@@ -276,13 +261,13 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   }
 
   return (
-    <div className="runtime-shell" data-density={currentDensity} data-detail-placement={effectivePlacement}>
+    <div className="runtime-shell" data-density={currentDensity} data-detail-placement={effectivePlacement} data-has-detail={detail.status !== 'empty'}>
       <a className="skip-link" href="#runtime-stream">Skip to stream</a>
       <a className="skip-link" href="#current-state">Skip to current state</a>
 
       <header className="runtime-header" aria-label="Runtime Monitor source and health">
         <div className="product-lockup" aria-label="AstraDock Local Runtime Monitor">
-          <MonitorDot aria-hidden="true" />
+          <span className="brand-mark" aria-hidden="true" />
           <div>
             <span className="product-name">AstraDock</span>
             <span className="workspace-name">Local</span>
@@ -297,14 +282,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           {viewModel.warningCount > 0 ? <Metric label="Warnings" value={String(viewModel.warningCount)} /> : null}
         </section>
         <div className="global-actions" aria-label="Monitor actions">
-          <button type="button" className="button secondary" onClick={() => void chooseSource()}>Choose source</button>
-          <button type="button" className="button secondary" onClick={() => void scanSource()}>Scan</button>
-          <button type="button" className="button primary" onClick={() => void startMonitor()} disabled={snapshot?.monitor.active === true}>
-            <Play aria-hidden="true" /> Start
+          <button type="button" className="button secondary" onClick={() => void (viewModel.source ? scanSource() : chooseSource())}>
+            {viewModel.source ? 'Re-scan source' : 'Choose source'}
           </button>
-          <button type="button" className="button danger" onClick={() => void stopMonitor()} disabled={snapshot?.monitor.active !== true}>
-            <Pause aria-hidden="true" /> Stop
-          </button>
+          {snapshot?.monitor.active ? (
+            <button type="button" className="button secondary follow-active" onClick={() => void stopMonitor()}>Pause follow</button>
+          ) : (
+            <button type="button" className="button secondary" onClick={() => void startMonitor()} disabled={!viewModel.source}>Start follow</button>
+          )}
         </div>
       </header>
 
@@ -327,10 +312,9 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
                 data-state={instrument.state}
                 onClick={(event) => openSyntheticDetail(instrument, event.currentTarget)}
               >
-                <span>{instrument.label}</span>
+                <span className="instrument-heading"><span>{instrument.label}</span><em>{formatInstrumentState(instrument.state)}</em></span>
                 <strong>{instrument.value}</strong>
                 <small>{instrument.detail}</small>
-                <em>{instrument.provenance}</em>
               </button>
             ))}
           </section>
@@ -350,50 +334,35 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
                   <Table2 aria-hidden="true" /> Table
                 </button>
               </div>
-              <label className="select-control">
-                <span>Density</span>
-                <select
-                  value={currentDensity}
-                  onChange={(event) => updatePreference(preferences.streamView === 'terminal'
-                    ? { terminalDensity: event.currentTarget.value as Density }
-                    : { tableDensity: event.currentTarget.value as Density })}
-                >
-                  <option value="compact">Compact 22px</option>
-                  <option value="default">Default 31px</option>
-                  <option value="relaxed">Relaxed 38px</option>
-                </select>
+              <label className="search-control">
+                <span>Search</span>
+                <input value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="literal match" />
               </label>
-              <div className="segmented icon-only" role="group" aria-label="Detail dock placement">
+              <span className="toolbar-spacer" />
+              <div className="control-cluster"><span>Rows</span><div className="segmented" role="group" aria-label="Row density">
+                {(['compact', 'default', 'relaxed'] as const).map((density) => (
+                  <button key={density} type="button" aria-pressed={currentDensity === density} onClick={() => updatePreference(preferences.streamView === 'terminal'
+                    ? { terminalDensity: density }
+                    : { tableDensity: density })}>{density === 'compact' ? '22' : density === 'default' ? '31' : '38'}</button>
+                ))}
+              </div></div>
+              <div className="control-cluster"><span>Dock</span><div className="segmented" role="group" aria-label="Detail dock placement">
                 <button
                   type="button"
-                  title="Right detail dock"
                   aria-pressed={storedPlacement === 'right'}
                   onClick={() => updatePreference(preferences.streamView === 'terminal' ? { terminalDrawer: 'right' } : { tableDrawer: 'right' })}
                 >
-                  <ArrowRightToLine aria-hidden="true" />
+                  Right
                 </button>
                 <button
                   type="button"
-                  title="Bottom detail dock"
                   aria-pressed={storedPlacement === 'bottom'}
                   onClick={() => updatePreference(preferences.streamView === 'terminal' ? { terminalDrawer: 'bottom' } : { tableDrawer: 'bottom' })}
                 >
-                  <ArrowDownToLine aria-hidden="true" />
+                  Bottom
                 </button>
-              </div>
+              </div></div>
             </div>
-          </div>
-
-          <div className="filter-row" aria-label="Stream filters">
-            <label className="search-control">
-              <Search aria-hidden="true" />
-              <span className="sr-only">Search runtime events</span>
-              <input value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="Search event kind, summary, context, confidence" />
-            </label>
-            <button type="button" className="button secondary" onClick={() => setSearch('')} disabled={!search}>
-              <RotateCcw aria-hidden="true" /> Reset
-            </button>
-            <span className="result-count" aria-live="polite">{visibleEvents.length} shown / {viewModel.retainedCount} retained</span>
           </div>
 
           {viewModel.alerts.length ? <section className="attention-region" aria-label="Attention and warnings" aria-live="polite">
@@ -408,30 +377,36 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             ))}
           </section> : null}
 
+          <div className="stream-mode" aria-live="polite">
+            <span><i data-state={viewModel.workspaceState} />{snapshot?.monitor.active ? 'Live' : viewModel.monitorLabel}</span>
+            <span>{visibleEvents.length} shown · {viewModel.retainedCount} retained</span>
+          </div>
+
           {preferences.streamView === 'terminal' ? (
             <TerminalStream events={visibleEvents} emptyReason={search ? 'no-matches' : 'no-telemetry'} selectedId={selected?.id || null} onSelect={openEvidence} />
           ) : (
             <TableStream events={visibleEvents} emptyReason={search ? 'no-matches' : 'no-telemetry'} selectedId={selected?.id || null} onSelect={openEvidence} />
           )}
+
+          <footer className="status-bar" aria-label="Runtime Monitor status">
+            <span>{viewModel.monitorLabel}</span>
+            <span>{viewModel.environmentLabel.toUpperCase()}</span>
+            <span>Local only</span>
+            <span>Retention 100 rows</span>
+            <i />
+            <span><b>Backlog</b> 0</span>
+            <span><b>Parser</b> {scan?.parserCompatibility?.profileId || 'Unknown'}</span>
+          </footer>
         </section>
 
-        <DetailDock
+        {detail.status !== 'empty' ? <DetailDock
           detail={detail}
           placement={effectivePlacement}
           storedPlacement={storedPlacement}
           headingRef={detailHeadingRef}
           onClose={closeDetail}
-        />
+        /> : null}
       </main>
-
-      <footer className="status-bar" aria-label="Runtime Monitor status">
-        <span><Gauge aria-hidden="true" /> {viewModel.monitorLabel}</span>
-        <span><DatabaseZap aria-hidden="true" /> Local only</span>
-        <span><Rows3 aria-hidden="true" /> Bounded stream: 100 visible rows</span>
-        <span><ListFilter aria-hidden="true" /> Search literal, local presentation state</span>
-        <span><Bell aria-hidden="true" /> Alerts deduplicated by source state</span>
-        <span><Settings aria-hidden="true" /> View preferences stored locally per view</span>
-      </footer>
     </div>
   );
 
@@ -477,9 +452,9 @@ function TerminalStream({
           key={event.id}
           onClick={(domEvent) => void onSelect(event, domEvent.currentTarget)}
         >
-          <span className="mono time">{event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : 'UNKNOWN'}</span>
+          <span className="mono time">{formatAbsoluteTime(event.timestamp)}</span>
           <span className="kind-tag">{event.kind}</span>
-          <span className="urgency-mark" aria-label={`Urgency ${event.urgency}`}><Square aria-hidden="true" /></span>
+          <span className="urgency-mark" aria-label={`Urgency ${event.urgency}`}>{event.urgency === 'normal' ? '·' : event.urgency === 'warning' ? '▲' : '■'}</span>
           <strong>{event.summary}</strong>
           <span>{event.context}</span>
           <span className="confidence">{event.confidence}</span>
@@ -502,36 +477,18 @@ function TableStream({
 }) {
   if (events.length === 0) return <EmptyStream reason={emptyReason} />;
   return (
-    <div className="table-stream" role="region" aria-label="Table runtime events">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Kind</th>
-            <th scope="col">Severity</th>
-            <th scope="col">Summary</th>
-            <th scope="col">Environment</th>
-            <th scope="col">Age</th>
-            <th scope="col">Confidence</th>
-          </tr>
-        </thead>
-        <tbody>
-          {events.map((event) => (
-            <tr key={event.id} aria-selected={event.id === selectedId}>
-              <td><span className="kind-dot" data-kind={event.kind} />{event.kind}</td>
-              <td>{event.urgency}</td>
-              <td>
-                <button type="button" className="row-link" onClick={(domEvent) => void onSelect(event, domEvent.currentTarget)}>
-                  {event.summary}
-                </button>
-                <small>{event.context}</small>
-              </td>
-              <td>{event.environment}</td>
-              <td>{event.ageLabel}</td>
-              <td>{event.confidence}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="table-stream" role="grid" aria-label="Table runtime events">
+      <div className="table-head" role="row"><span>Kind</span><span>Severity</span><span>Summary</span><span>Attributes</span><span>Shard</span><span>Age</span></div>
+      {events.map((event) => (
+        <button type="button" role="row" className="table-row" key={event.id} aria-selected={event.id === selectedId} data-kind={event.kind} data-urgency={event.urgency} onClick={(domEvent) => void onSelect(event, domEvent.currentTarget)}>
+          <span><i className="kind-dot" data-kind={event.kind} /><b className="kind-tag">{event.kind}</b></span>
+          <span><b className="severity-chip">{event.urgency === 'normal' ? '· Routine' : event.urgency === 'warning' ? '▲ Notice' : `■ ${event.urgency}`}</b></span>
+          <span>{event.summary}</span>
+          <span><b className="attribute-chip">Conf {event.confidence}</b></span>
+          <span>{event.context}</span>
+          <span>{event.ageLabel}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -553,11 +510,11 @@ function DetailDock({
     <aside className="detail-dock" data-placement={placement} aria-label="Shared drilldown detail">
       <div className="dock-heading">
         <div>
-          <p className="dock-kicker">Shared drilldown</p>
+          <p className="dock-kicker">Event detail</p>
           <h2 ref={headingRef} tabIndex={-1}>{detail.selected?.summary || 'Detail host'}</h2>
         </div>
         <button type="button" className="icon-button" title="Close detail" onClick={onClose}>
-          <X aria-hidden="true" />
+          ESC
         </button>
       </div>
       {placement !== storedPlacement ? <p className="placement-note">Temporary responsive placement. Stored preference is preserved.</p> : null}
@@ -601,15 +558,25 @@ function StateMessage({ status, message }: { status: DetailState['status']; mess
 function SemanticPanel({ title, state, label, detail }: { title: string; state: string; label: string; detail: string }) {
   return (
     <section className="semantic-panel" data-state={state} aria-label={title}>
-      <h2>{title}</h2>
-      <strong>{label}</strong>
-      <p>{detail}</p>
+      <h2><span>{title}</span></h2>
+      <div className="semantic-empty"><strong>{label}</strong><p>{detail}</p></div>
     </section>
   );
 }
 
+function formatInstrumentState(state: InstrumentState['state']): string {
+  return state.replace('-', ' ');
+}
+
+function formatAbsoluteTime(timestamp: string | null): string {
+  if (!timestamp) return 'UNKNOWN';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'UNKNOWN';
+  return [date.getHours(), date.getMinutes(), date.getSeconds()].map((value) => String(value).padStart(2, '0')).join(':');
+}
+
 function StatusPill({ state, label }: { state: string; label: string }) {
-  return <span className="status-pill" data-state={state}>{label}</span>;
+  return <span className="status-pill" data-state={state}><i aria-hidden="true" /><span><small>Monitor</small><strong>{label}</strong></span></span>;
 }
 
 function Metric({ label, value, title }: { label: string; value: string; title?: string | undefined }) {
