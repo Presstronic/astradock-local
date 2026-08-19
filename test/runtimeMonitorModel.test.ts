@@ -115,6 +115,29 @@ describe('vehicle live telemetry', () => {
   });
 });
 
+describe('canonical storage health', () => {
+  it('surfaces encrypted durability and fail-closed storage errors independently from source health', () => {
+    const source = { validation: { isValid: true }, channelConfidence: 'confirmed' } as never;
+    const base = {
+      loading: false, fatalError: null, sources: [], activeSource: source, scan: null,
+      now: new Date('2026-08-19T12:00:00.000Z')
+    };
+    const ready = createRuntimeMonitorViewModel({
+      ...base,
+      snapshot: { monitor: { active: false, tailer: null, storage: { status: 'ready', errorCode: null, encrypted: true, eventCount: 42 } } } as never
+    });
+    expect(ready.storageLabel).toBe('42 events · Encrypted');
+    expect(ready.alerts.find((alert) => alert.id === 'storage-error')).toBeUndefined();
+
+    const failed = createRuntimeMonitorViewModel({
+      ...base,
+      snapshot: { monitor: { active: false, tailer: null, storage: { status: 'error', errorCode: 'secure_storage_unprotected', recoverable: false } } } as never
+    });
+    expect(failed.storageLabel).toBe('Unavailable');
+    expect(failed.alerts).toContainEqual(expect.objectContaining({ id: 'storage-error', severity: 'critical' }));
+  });
+});
+
 describe('Runtime Monitor action errors', () => {
   it('shows source command failures without classifying the workspace as fatal', () => {
     const viewModel = createRuntimeMonitorViewModel({

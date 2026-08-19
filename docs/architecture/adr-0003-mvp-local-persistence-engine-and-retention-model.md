@@ -290,6 +290,10 @@ Negative consequences:
 - Keychain integration adds platform-specific failure modes.
 - Retention, compaction, and deletion behavior need focused tests instead of ad hoc file cleanup.
 
+## Implementation selection
+
+Issue #28 selects `better-sqlite3-multiple-ciphers` 13.0.3 (MIT) with SQLite3MultipleCiphers and Electron `safeStorage` key wrapping. The repository and operational contract are documented in [`../canonical-event-store.md`](../canonical-event-store.md). This selection satisfies encrypted embedded SQLite without exposing SQL or key material outside the main-process persistence boundary. Native Windows/Linux packaging remains subject to issue #45 release qualification.
+
 ## Follow-Up Issues
 
 Follow-on implementation issues should reference this ADR and cover:

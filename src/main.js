@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, session, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, session, shell } = require('electron');
 const path = require('node:path');
 const { parseLogFile } = require('./logParser');
 const {
@@ -30,6 +30,8 @@ const {
 } = require('./sourceDiscovery');
 const { RuntimeLogTailer } = require('./runtimeLogTailer');
 const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
+const { CanonicalEventStore } = require('./persistence/canonicalEventStore');
+const { createElectronStorageKeyProvider } = require('./persistence/storageKeyProvider');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -54,6 +56,8 @@ let liveScanSourceId = null;
 let liveScanOptions = {};
 const sourceRegistry = new Map();
 let activeSourceId = null;
+let eventStore = null;
+let eventStoreHealth = { status: 'initializing', errorCode: null, recoverable: true };
 const subscriptions = new SubscriptionHub({ channel: CHANNELS.subscriptionEvent, maxSubscribers: 8 });
 
 installAppSecurityPolicy({ app, session, rendererUrl });
@@ -75,7 +79,10 @@ function createWindow() {
   mainWindow.loadFile(rendererIndexPath);
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await initializeEventStore();
+  createWindow();
+});
 
 app.on('window-all-closed', async () => {
   await stopMonitor('application_shutdown');
@@ -85,6 +92,8 @@ app.on('window-all-closed', async () => {
 app.on('before-quit', async () => {
   shuttingDown = true;
   await stopMonitor('application_shutdown');
+  eventStore?.close();
+  eventStore = null;
 });
 
 app.on('activate', () => {
@@ -288,6 +297,7 @@ async function getApprovedSource(sourceId) {
 
 async function scanSource(source, options = {}) {
   const result = await parseLogFile(source.private.canonicalPath, options);
+  persistCanonicalEvents(result.runtimeEvents || []);
   lastScan = result;
   lastScanSource = source;
   return toRendererScanResult(result, source);
@@ -389,8 +399,52 @@ function getMonitorState() {
     sequence: subscriptions.getStats().sequence,
     pendingScan: Boolean(liveScanTimer || liveScanInFlight || liveScanQueued),
     tailer: tailerHealth ? sanitizeTailerHealth(tailerHealth) : null,
-    checkpoint: lastTailerCheckpoint
+    checkpoint: lastTailerCheckpoint,
+    storage: eventStoreHealth
   };
+}
+
+async function initializeEventStore() {
+  const storageDirectory = path.join(app.getPath('userData'), 'telemetry');
+  try {
+    const keyProvider = createElectronStorageKeyProvider({
+      safeStorage,
+      keyFilePath: path.join(storageDirectory, 'database-key.json')
+    });
+    const encryptionKey = await keyProvider.getOrCreateKey();
+    try {
+      eventStore = new CanonicalEventStore({
+        filePath: path.join(storageDirectory, 'canonical-events.db'),
+        encryptionKey
+      });
+    } finally {
+      encryptionKey.fill(0);
+    }
+    eventStore.applyRetention();
+    eventStoreHealth = eventStore.getHealth();
+  } catch (error) {
+    eventStore = null;
+    eventStoreHealth = {
+      status: 'error',
+      errorCode: error?.code || 'storage_initialization_failed',
+      recoverable: error?.recoverable !== false
+    };
+  }
+}
+
+function persistCanonicalEvents(events) {
+  if (!eventStore) return;
+  try {
+    const append = eventStore.append(events);
+    eventStoreHealth = { ...eventStore.getHealth(), lastAppend: append };
+  } catch (error) {
+    eventStoreHealth = {
+      ...eventStoreHealth,
+      status: 'error',
+      errorCode: error?.code || 'storage_append_failed',
+      recoverable: error?.recoverable !== false
+    };
+  }
 }
 
 function requestLiveScan(source, options = {}) {
