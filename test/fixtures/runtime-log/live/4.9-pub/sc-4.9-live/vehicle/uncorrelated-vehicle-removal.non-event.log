@@ -1,0 +1,2 @@
+<2026-08-19T08:00:00.000Z> [Notice] <Vehicle Control Flow> CVehicleMovementBase::ClearDriver: Remote client node [SYNTH_REMOTE_PLAYER] releasing control token for 'AEGS_Avenger_SYNTH' [SYNTH_REMOTE_VEHICLE]
+<2026-08-19T08:01:00.000Z> [Notice] <CEntity::OnOwnerRemoved - entity attachment> Force detaching ENTITY ATTACHMENT id = SYNTH_MARKER name = RemoteVehicleMarker_SYNTH to unblock removal of parent id = SYNTH_REMOTE_VEHICLE name = AEGS_Avenger_SYNTH

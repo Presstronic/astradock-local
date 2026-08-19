@@ -602,7 +602,7 @@ function Metric({ label, value, title }: { label: string; value: string; title?:
 
 function toEvidenceKind(kind: StreamEvent['kind']): 'shard' | 'action' | 'session' | 'runtime' {
   if (kind === 'action' || kind === 'session') return kind;
-  if (kind === 'party' || kind === 'zone' || kind === 'runtime') return 'runtime';
+  if (kind === 'party' || kind === 'zone' || kind === 'vehicle' || kind === 'navigation' || kind === 'runtime') return 'runtime';
   return 'shard';
 }
 

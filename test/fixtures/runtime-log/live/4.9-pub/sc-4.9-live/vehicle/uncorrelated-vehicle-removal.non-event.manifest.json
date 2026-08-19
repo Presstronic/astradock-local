@@ -1,0 +1,25 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/vehicle/uncorrelated-vehicle-removal.non-event",
+  "title": "Uncorrelated vehicle release and removal",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "2026-08-19.5",
+  "domain": "vehicle",
+  "action": "unrelated vehicle records appear without a local hangar anchor",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/vehicle-lifecycle-evidence-matrix.md",
+  "logFile": "uncorrelated-vehicle-removal.non-event.log",
+  "privacyClassification": ["sanitized"],
+  "sensitivityHandling": {"redactedFields":["vehicleEntityId","playerEntityId"],"syntheticPlaceholderPrefix":"SYNTH_","notes":"All identifiers are synthetic."},
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {"eventType":"VehicleControlReleased","reason":"No local hangar correlation exists."},
+    {"eventType":"VehicleStored","reason":"No correlated local vehicle exists."}
+  ],
+  "correlation": {"dedupeKey":"none","sequence":[],"notes":"Temporal proximity alone cannot select a local vehicle."},
+  "knownLimitations": ["This fixture intentionally omits identity and retrieval evidence."],
+  "verificationNotes": "No vehicle lifecycle event may be emitted."
+}

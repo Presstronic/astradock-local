@@ -183,6 +183,10 @@ export interface RuntimeEventPayloadMap {
     notificationId: string;
     state: 'entered' | 'left';
   };
+  VehicleRetrieved: VehicleLifecyclePayload;
+  VehicleControlAcquired: VehicleLifecyclePayload;
+  VehicleControlReleased: VehicleLifecyclePayload;
+  VehicleStored: VehicleLifecyclePayload;
   QuantumTargetSelected: {
     vehicleEntityId: string;
     vehicleClassName: string;
@@ -199,6 +203,14 @@ export interface RuntimeEventPayloadMap {
     vehicleClassName: string;
     targetObservedId: string;
   };
+}
+
+export interface VehicleLifecyclePayload {
+  vehicleEntityId: string;
+  vehicleClassName: string;
+  vehicleDisplayName: string;
+  relationship: 'hangar' | 'controlled';
+  outcome: 'retrieved' | 'acquired' | 'released' | 'stored';
 }
 
 export type RuntimeEventType = keyof RuntimeEventPayloadMap;

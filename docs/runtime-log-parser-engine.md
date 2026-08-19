@@ -142,7 +142,7 @@ Profile changes require accepted positive or negative fixtures before an extract
 
 Breaking profile changes require a new profile version. Breaking changes include changing event mappings, required fields, dedupe identity, compatibility scope, or the meaning of an alias. Future profile versions should preserve old versions for replay until the persistence layer has a migration/quarantine policy.
 
-The immutable `sc-4.9-live` profile version `2026-08-19.4` shares logic across exact tested 4.9.0 fixture builds and observed LIVE build `4.9.188.23497`. Compatibility still requires the 4.9 family, LIVE channel, PU universe, an allowed branch, and an exact tested build. A matching untested patch is `unverified_build`; numerically adjacent minors and PTU 4.10 remain unsupported until separately captured and reviewed.
+The immutable `sc-4.9-live` profile version `2026-08-19.5` shares logic across exact tested 4.9.0 fixture builds and observed LIVE build `4.9.188.23497`. Compatibility still requires the 4.9 family, LIVE channel, PU universe, an allowed branch, and an exact tested build. A matching untested patch is `unverified_build`; numerically adjacent minors and PTU 4.10 remain unsupported until separately captured and reviewed.
 
 ## Failure Handling
 

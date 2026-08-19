@@ -8,9 +8,11 @@ const {
   projectRuntimeDestination,
   projectRuntimeLocation,
   projectRuntimeParty,
+  projectRuntimeVehicle,
   toRendererDestinationSnapshot,
   toRendererLocationSnapshot,
-  toRendererPartySnapshot
+  toRendererPartySnapshot,
+  toRendererVehicleSnapshot
 } = require('../src/runtimeStateProjections');
 
 const FIXTURE_ROOT = path.join(__dirname, 'fixtures', 'runtime-log');
@@ -173,7 +175,7 @@ test('destination snapshot projects target replacement and final arrival without
   const destination = snapshot.environments[snapshot.activeEnvironmentKey];
 
   assert.deepEqual(result.events.map((event) => event.eventType), [
-    'QuantumTargetSelected', 'QuantumTargetChanged', 'QuantumTravelArrived'
+    'VehicleRetrieved', 'VehicleControlAcquired', 'QuantumTargetSelected', 'QuantumTargetChanged', 'QuantumTravelArrived'
   ]);
   assert.equal(destination.state, 'arrived');
   assert.equal(destination.currentTarget, null);
@@ -191,6 +193,23 @@ test('unanchored quantum records cannot create destination state', () => {
   assert.equal(result.events.length, 0);
   assert.equal(snapshot.activeEnvironmentKey, null);
   assert.deepEqual(snapshot.environments, {});
+});
+
+test('vehicle snapshot keeps hangar, control, aboard, and ownership semantics independent', () => {
+  const result = parseRuntimeLogText(
+    readFixture('vehicle', 'vehicle-retrieve-control-store.observed.log'),
+    { ...LIVE_PROFILE_OPTIONS, sourceProfileVersion: '2026-08-19.5', gameBuild: '4.9.188.23497' }
+  );
+  const snapshot = toRendererVehicleSnapshot(projectRuntimeVehicle(result.events, {
+    activeEnvironmentKey: result.events.at(-1).environmentKey
+  }));
+  const vehicle = snapshot.environments[snapshot.activeEnvironmentKey];
+  assert.equal(vehicle.hangarVehicle.state, 'stored');
+  assert.equal(vehicle.controlledVehicle.state, 'stored');
+  assert.equal(vehicle.hangarVehicle.vehicleDisplayName, 'RSI Meteor');
+  assert.notEqual(vehicle.hangarVehicle.vehicleEntityId, 'SYNTH_VEHICLE_ENTITY_LOCAL');
+  assert.equal(vehicle.aboardVehicle.state, 'unsupported');
+  assert.equal(vehicle.ownership.state, 'not_determined');
 });
 
 function parseFixture(domain, fixtureName) {

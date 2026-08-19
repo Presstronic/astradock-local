@@ -4,8 +4,8 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Provisional promotion decision; implementation issue [#89](https://github.com/Presstronic/astradock-local/issues/89) |
-| Applies to | `sc-4.9-live` profile family, subject to fixture acceptance |
+| Status | Implemented evidence boundary; implementation issue [#89](https://github.com/Presstronic/astradock-local/issues/89) |
+| Applies to | `sc-4.9-live@2026-08-19.5` profile family |
 | Evidence ledger | [`runtime-capture-findings-2026-08-19.md`](runtime-capture-findings-2026-08-19.md) |
 
 This matrix defines the minimum honest vehicle model for the Runtime Monitor. It deliberately separates the vehicle retrieved into a hangar, the vehicle the local player is aboard, the vehicle the local player controls, and vehicle ownership. Those facts can differ and must not collapse into a single `currentShip` field.
@@ -14,10 +14,10 @@ This matrix defines the minimum honest vehicle model for the Runtime Monitor. It
 
 | Action or state | Candidate event/projection | Decision | Evidence boundary |
 | --- | --- | --- | --- |
-| Vehicle retrieved into hangar | `VehicleRetrieved` / `hangarVehicle` | Promote after sanitized fixture | ASOP spawning information and a named entity are correlated to the later local control/travel sequence |
-| Local control acquired | `VehicleControlAcquired` / `controlledVehicle` | Promote after sanitized fixture | Direct local-client control-token evidence identifies the vehicle |
-| Local control released | `VehicleControlReleased` | Promote after sanitized fixture | Direct local-client release names the same vehicle |
-| Vehicle stored | `VehicleStored`; clear matching hangar/control state | Promote after sanitized fixture | Owner-annotated ASOP Store action correlates with ship-elevator and entity-removal sequence |
+| Vehicle retrieved into hangar | `VehicleRetrieved` / `hangarVehicle` | Promoted | ASOP spawning information and a named entity are correlated to the later direct local action |
+| Local control acquired | `VehicleControlAcquired` / `controlledVehicle` | Promoted as inferred | No acquisition record exists; the first direct local quantum action on the retrieved entity establishes control with explicit inferred provenance |
+| Local control released | `VehicleControlReleased` | Promoted as observed | Direct local-client control-token release names the same vehicle |
+| Vehicle stored | `VehicleStored`; terminalize matching hangar/control state | Promoted as inferred | Same-session release plus the owner-annotated ASOP Store/elevator/entity-removal sequence |
 | Local player boarded | `VehicleBoarded` / `aboardVehicle` | Defer | No direct boarding record was isolated |
 | Local player exited | `VehicleExited` | Defer | No direct exit record was isolated |
 | Vehicle requested at terminal | `VehicleRetrievalRequested` | Defer | Current sequence proves a result, not a distinct request event and outcome contract |
@@ -69,6 +69,8 @@ The Runtime Monitor must expose vehicle facts in both live telemetry and the sha
 ## Correlation and false-positive guards
 
 Promotion requires a bounded chain within one environment and PU session. A ship class mention, nearby entity, object-container load, quantum record for an unknown entity, party member vehicle, or ASOP catalog result cannot set the local vehicle alone. Correlation must use the same vehicle entity/class across a local terminal outcome, local control record, or another fixture-approved local-player anchor.
+
+The accepted fixture is `vehicle/vehicle-retrieve-control-store.observed`. Storage requires a known local hangar vehicle, an explicit control release, and correlated entity removal within fifteen minutes. The negative fixture `vehicle/uncorrelated-vehicle-removal.non-event` proves that remote or unanchored release and removal traffic cannot change local state. The current evidence has no direct control-acquisition signature; `VehicleControlAcquired` is therefore high-confidence inferred evidence derived from the first fixture-approved direct local action and carries its contributing event reference.
 
 Conflicting candidates produce `unknown` or a conflict diagnostic; recency alone does not select a vehicle. Entity identifiers never correlate across environment or PU-session boundaries.
 

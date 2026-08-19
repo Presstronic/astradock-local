@@ -13,6 +13,8 @@ This document defines how AstraDock Local stores sanitized Star Citizen `game.lo
 
 The current snippets are small synthetic/sanitized excerpts derived from the reviewed 4.9 LIVE/PUB evidence in [`game-log-pattern-analysis-2026-08-09.md`](game-log-pattern-analysis-2026-08-09.md). They intentionally preserve sequence, marker, and correlation structure while replacing sensitive values.
 
+The LIVE 4.9 vehicle corpus includes a sanitized retrieve → direct local action → explicit control release → correlated storage sequence and an uncorrelated negative guard. Vehicle entity IDs and player identifiers are synthetic; raw owner logs remain excluded.
+
 ## Directory and Naming Contract
 
 Fixtures live under:

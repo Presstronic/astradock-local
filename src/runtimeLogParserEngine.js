@@ -64,6 +64,8 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'monitoredSpaceExited',
   'armisticeStateChanged',
   'rememberLocalHangarVehicle',
+  'vehicleControlReleased',
+  'vehicleStored',
   'quantumTargetSelected',
   'quantumTargetChanged',
   'quantumTravelArrived'
@@ -93,6 +95,8 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   monitoredSpaceEntered: 'MonitoredSpaceEntered',
   monitoredSpaceExited: 'MonitoredSpaceExited',
   armisticeStateChanged: 'ArmisticeStateChanged',
+  vehicleControlReleased: 'VehicleControlReleased',
+  vehicleStored: 'VehicleStored',
   quantumTargetSelected: 'QuantumTargetSelected',
   quantumTargetChanged: 'QuantumTargetChanged',
   quantumTravelArrived: 'QuantumTravelArrived'
@@ -366,6 +370,8 @@ class RuntimeLogParserEngine {
       universeHierarchyStart: null,
       puReadyCandidate: null,
       localHangarVehicleIds: new Set(),
+      localVehiclesById: new Map(),
+      releasedVehicleAt: new Map(),
       quantumTargetByVehicle: new Map()
     };
     this.environment = this.buildEnvironment(new Date(0).toISOString(), ['parser-engine:initial']);
@@ -466,6 +472,8 @@ class RuntimeLogParserEngine {
     this.state.universeHierarchyStart = null;
     this.state.puReadyCandidate = null;
     this.state.localHangarVehicleIds.clear();
+    this.state.localVehiclesById.clear();
+    this.state.releasedVehicleAt.clear();
     this.state.quantumTargetByVehicle.clear();
     this.driftedEventFamilies.clear();
     this.activatedEventFamilies.clear();
@@ -715,6 +723,8 @@ class RuntimeLogParserEngine {
         const events = this.createEventIfComplete('PuJoinRequested', payload, extractor, profile, record);
         if (events.length === 0) return events;
         this.state.localHangarVehicleIds.clear();
+        this.state.localVehiclesById.clear();
+        this.state.releasedVehicleAt.clear();
         this.state.quantumTargetByVehicle.clear();
         const joinedAt = parseSourceTimestamp(record.normalizedText);
         this.state.puReadyCandidate = {
@@ -851,6 +861,8 @@ class RuntimeLogParserEngine {
         if (!this.state.puReadyCandidate || this.state.puReadyCandidate.endpoint === disconnect.endpoint) {
           this.state.puReadyCandidate = null;
           this.state.localHangarVehicleIds.clear();
+          this.state.localVehiclesById.clear();
+          this.state.releasedVehicleAt.clear();
           this.state.quantumTargetByVehicle.clear();
         }
         return events;
@@ -866,6 +878,8 @@ class RuntimeLogParserEngine {
         }, extractor, profile, record);
         this.state.puReadyCandidate = null;
         this.state.localHangarVehicleIds.clear();
+        this.state.localVehiclesById.clear();
+        this.state.releasedVehicleAt.clear();
         this.state.quantumTargetByVehicle.clear();
         return events;
       }
@@ -878,6 +892,8 @@ class RuntimeLogParserEngine {
         }, extractor, profile, record);
         this.state.puReadyCandidate = null;
         this.state.localHangarVehicleIds.clear();
+        this.state.localVehiclesById.clear();
+        this.state.releasedVehicleAt.clear();
         this.state.quantumTargetByVehicle.clear();
         return events;
       }
@@ -944,6 +960,36 @@ class RuntimeLogParserEngine {
         }
         return [];
       }
+      case 'vehicleControlReleased': {
+        const vehicle = parseVehicleControlRelease(record.normalizedText);
+        if (!vehicle || !this.state.localHangarVehicleIds.has(vehicle.vehicleEntityId)) return [];
+        const known = this.state.localVehiclesById.get(vehicle.vehicleEntityId) || vehicle;
+        this.state.localVehiclesById.set(vehicle.vehicleEntityId, known);
+        const events = this.createEventIfComplete('VehicleControlReleased', vehicleLifecyclePayload(known, 'controlled', 'released'), extractor, profile, record);
+        if (events.length) this.state.releasedVehicleAt.set(vehicle.vehicleEntityId, {
+          timestamp: parseSourceTimestamp(record.normalizedText),
+          eventId: events[0].event.eventId
+        });
+        return events;
+      }
+      case 'vehicleStored': {
+        const vehicle = parseStoredVehicle(record.normalizedText);
+        const known = vehicle && this.state.localVehiclesById.get(vehicle.vehicleEntityId);
+        const release = vehicle && this.state.releasedVehicleAt.get(vehicle.vehicleEntityId);
+        const observedAt = parseSourceTimestamp(record.normalizedText);
+        if (!known || !isOrderedWithin(release?.timestamp, observedAt, 15 * 60 * 1000)) return [];
+        const events = this.createEventIfComplete('VehicleStored', vehicleLifecyclePayload(known, 'hangar', 'stored'), extractor, profile, record, undefined, {
+          provenance: 'inferred',
+          derivation: { reason: 'A same-session local control release was followed by removal of the correlated hangar vehicle.', contributingEventIds: [release.eventId] }
+        });
+        if (events.length) {
+          this.state.localHangarVehicleIds.delete(vehicle.vehicleEntityId);
+          this.state.localVehiclesById.delete(vehicle.vehicleEntityId);
+          this.state.releasedVehicleAt.delete(vehicle.vehicleEntityId);
+          this.state.quantumTargetByVehicle.delete(vehicle.vehicleEntityId);
+        }
+        return events;
+      }
       case 'quantumTargetSelected':
       case 'quantumTargetChanged': {
         const navigation = parseQuantumNavigation(record.normalizedText);
@@ -958,6 +1004,8 @@ class RuntimeLogParserEngine {
           ...(previous ? { previousTargetObservedId: previous.targetObservedId } : {}),
           targetObservedId: navigation.targetObservedId
         };
+        const firstLocalAction = !this.state.localVehiclesById.has(navigation.vehicleEntityId);
+        const lifecycleEvents = [];
         const events = this.createEventIfComplete(eventType, payload, extractor, profile, record, undefined, previous ? {
           provenance: 'inferred',
           derivation: {
@@ -965,13 +1013,32 @@ class RuntimeLogParserEngine {
             contributingEventIds: [previous.eventId]
           }
         } : undefined);
+        if (firstLocalAction && events.length) {
+          this.state.localVehiclesById.set(navigation.vehicleEntityId, navigation);
+          const lifecycleExtractor = {
+            ...extractor,
+            confidence: 'high',
+            sensitivity: 'personal',
+            dedupeFields: ['vehicleEntityId', 'outcome'],
+            evidenceMarkers: ['SetVehicleSpawningInformations', 'Player Selected Quantum Target - Local']
+          };
+          const requiredFields = ['vehicleEntityId', 'vehicleClassName', 'vehicleDisplayName', 'relationship', 'outcome'];
+          lifecycleEvents.push(...this.createEventIfComplete('VehicleRetrieved', vehicleLifecyclePayload(navigation, 'hangar', 'retrieved'), lifecycleExtractor, profile, record, requiredFields, {
+            provenance: 'inferred',
+            derivation: { reason: 'A direct local vehicle action identified the same vehicle previously retrieved into the local hangar.', contributingEventIds: [events[0].event.eventId] }
+          }));
+          lifecycleEvents.push(...this.createEventIfComplete('VehicleControlAcquired', vehicleLifecyclePayload(navigation, 'controlled', 'acquired'), lifecycleExtractor, profile, record, requiredFields, {
+            provenance: 'inferred',
+            derivation: { reason: 'The first direct local quantum action established active control of the correlated vehicle.', contributingEventIds: [events[0].event.eventId] }
+          }));
+        }
         if (events.length > 0) {
           this.state.quantumTargetByVehicle.set(navigation.vehicleEntityId, {
             targetObservedId: navigation.targetObservedId,
             eventId: events[0].event.eventId
           });
         }
-        return events;
+        return [...lifecycleEvents, ...events];
       }
       case 'quantumTravelArrived': {
         const navigation = parseQuantumNavigation(record.normalizedText);
@@ -1683,6 +1750,41 @@ function parseQuantumNavigation(text) {
     vehicleEntityId: cleanValue(vehicle.groups.vehicleEntityId),
     targetObservedId: target ? cleanValue(target.groups.targetObservedId) : null
   };
+}
+
+function parseVehicleControlRelease(text) {
+  const match = String(text).match(/releasing control token for\s+'(?<vehicleClassName>[A-Za-z0-9_]+)'\s+\[(?<vehicleEntityId>[^\]]+)\]/);
+  return match ? {
+    vehicleClassName: cleanValue(match.groups.vehicleClassName).replace(new RegExp(`_${escapeRegExp(cleanValue(match.groups.vehicleEntityId))}$`), ''),
+    vehicleEntityId: cleanValue(match.groups.vehicleEntityId)
+  } : null;
+}
+
+function parseStoredVehicle(text) {
+  const match = String(text).match(/removal of parent id\s*=\s*(?<vehicleEntityId>\S+)\s+name\s*=\s*(?<vehicleClassName>[A-Za-z0-9_]+)/);
+  return match ? {
+    vehicleEntityId: cleanValue(match.groups.vehicleEntityId),
+    vehicleClassName: cleanValue(match.groups.vehicleClassName).replace(new RegExp(`_${escapeRegExp(cleanValue(match.groups.vehicleEntityId))}$`), '')
+  } : null;
+}
+
+function vehicleLifecyclePayload(vehicle, relationship, outcome) {
+  return {
+    vehicleEntityId: vehicle.vehicleEntityId,
+    vehicleClassName: vehicle.vehicleClassName,
+    vehicleDisplayName: formatVehicleDisplayName(vehicle.vehicleClassName),
+    relationship,
+    outcome
+  };
+}
+
+function formatVehicleDisplayName(className) {
+  return String(className || '')
+    .replace(/_SYNTH$/i, '')
+    .replace(/_\d+$/, '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function pickBracketValue(text, key) {

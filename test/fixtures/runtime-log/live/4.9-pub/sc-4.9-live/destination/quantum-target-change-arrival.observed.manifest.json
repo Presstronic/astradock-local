@@ -19,6 +19,8 @@
     "notes": "The fixture preserves only the minimal same-session identity, local hangar anchor, and quantum records."
   },
   "expectedCanonicalEvents": [
+    {"eventType":"VehicleRetrieved","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","vehicleDisplayName","relationship","outcome"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","vehicleDisplayName":"RSI Meteor","relationship":"hangar","outcome":"retrieved"},"evidenceMarkers":["SetVehicleSpawningInformations","Player Selected Quantum Target - Local"]},
+    {"eventType":"VehicleControlAcquired","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","vehicleDisplayName","relationship","outcome"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","vehicleDisplayName":"RSI Meteor","relationship":"controlled","outcome":"acquired"},"evidenceMarkers":["Player Selected Quantum Target - Local"]},
     {"eventType":"QuantumTargetSelected","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["vehicleEntityId","vehicleClassName","targetObservedId"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","targetObservedId":"SYNTH_TARGET_AREA18"},"evidenceMarkers":["Player Selected Quantum Target - Local"]},
     {"eventType":"QuantumTargetChanged","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","previousTargetObservedId","targetObservedId"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","previousTargetObservedId":"SYNTH_TARGET_AREA18","targetObservedId":"SYNTH_TARGET_ORISON"},"evidenceMarkers":["Player Selected Quantum Target - Local"]},
     {"eventType":"QuantumTravelArrived","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","targetObservedId"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","targetObservedId":"SYNTH_TARGET_ORISON"},"evidenceMarkers":["Arrived at Final Destination"]}
@@ -30,7 +32,7 @@
   ],
   "correlation": {
     "dedupeKey": "environment+session+vehicleEntityId+targetObservedId",
-    "sequence": ["QuantumTargetSelected", "QuantumTargetChanged", "QuantumTravelArrived"],
+    "sequence": ["VehicleRetrieved", "VehicleControlAcquired", "QuantumTargetSelected", "QuantumTargetChanged", "QuantumTravelArrived"],
     "notes": "Target change and arrival depend on prior same-session local vehicle and target evidence."
   },
   "knownLimitations": ["Arrival identifies the selected target, not exact coordinates.", "No start, cancellation, or failure inference is made."],

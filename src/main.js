@@ -29,6 +29,7 @@ const {
   validateLogSource
 } = require('./sourceDiscovery');
 const { RuntimeLogTailer } = require('./runtimeLogTailer');
+const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -592,6 +593,7 @@ function toRendererScanResult(result, source) {
     partyProjection: _partyProjection,
     locationProjection: _locationProjection,
     destinationProjection: _destinationProjection,
+    vehicleProjection: _vehicleProjection,
     entries = [],
     userActivity = {},
     ...safeResult
@@ -630,6 +632,10 @@ function toRendererRuntimeEventRow(event) {
     targetObservedId: event.payload?.targetObservedId || null,
     previousTargetObservedId: event.payload?.previousTargetObservedId || null,
     vehicleClassName: event.payload?.vehicleClassName || null,
+    vehicleDisplayName: event.payload?.vehicleDisplayName || null,
+    vehicleEntityId: event.payload?.vehicleEntityId ? redactStableIdentifier(event.payload.vehicleEntityId) : null,
+    vehicleRelationship: event.payload?.relationship || null,
+    vehicleOutcome: event.payload?.outcome || null,
     evidenceAvailable: true
   };
 }
@@ -638,6 +644,7 @@ function runtimeEventCategory(eventType) {
   if (String(eventType).startsWith('Party')) return 'party';
   if (['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged'].includes(eventType)) return 'zone';
   if (String(eventType).startsWith('Quantum')) return 'navigation';
+  if (String(eventType).startsWith('Vehicle')) return 'vehicle';
   return 'runtime';
 }
 
@@ -651,6 +658,10 @@ function formatRuntimeEventLabel(event) {
     MonitoredSpaceEntered: 'Monitored Space',
     MonitoredSpaceExited: 'Monitored Space',
     ArmisticeStateChanged: 'Armistice',
+    VehicleRetrieved: 'Vehicle Retrieved',
+    VehicleControlAcquired: 'Vehicle Control Acquired',
+    VehicleControlReleased: 'Vehicle Control Released',
+    VehicleStored: 'Vehicle Stored',
     QuantumTargetSelected: 'Quantum Target Selected',
     QuantumTargetChanged: 'Quantum Target Changed',
     QuantumTravelArrived: 'Quantum Travel Arrived'
@@ -675,6 +686,14 @@ function formatRuntimeEventSummary(event) {
       return 'Exited monitored space';
     case 'ArmisticeStateChanged':
       return event.payload.state === 'entered' ? 'Entered armistice zone' : 'Left armistice zone';
+    case 'VehicleRetrieved':
+      return `Retrieved ${event.payload.vehicleDisplayName}`;
+    case 'VehicleControlAcquired':
+      return `Controlling ${event.payload.vehicleDisplayName}`;
+    case 'VehicleControlReleased':
+      return `Released control of ${event.payload.vehicleDisplayName}`;
+    case 'VehicleStored':
+      return `Stored ${event.payload.vehicleDisplayName}`;
     case 'QuantumTargetSelected':
       return `Selected quantum target ${event.payload.targetObservedId}`;
     case 'QuantumTargetChanged':

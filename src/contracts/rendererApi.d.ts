@@ -149,6 +149,7 @@ export interface RendererScanResult {
   partySnapshot: RendererPartySnapshot;
   locationSnapshot: RendererLocationSnapshot;
   destinationSnapshot: RendererDestinationSnapshot;
+  vehicleSnapshot: RendererVehicleSnapshot;
   promotedRuntimeEvents: readonly RendererEvidenceRow[];
   entries: readonly RendererEvidenceRow[];
   userActivity: {
@@ -376,6 +377,37 @@ export interface RendererDestinationFact {
   confidence: string;
   provenance: string;
   evidenceEventId: string;
+}
+
+export interface RendererVehicleSnapshot {
+  version: 1;
+  activeEnvironmentKey: string | null;
+  environments: Readonly<Record<string, RendererVehicleEnvironment>>;
+}
+
+export interface RendererVehicleEnvironment {
+  version: 1;
+  environmentKey: string;
+  environment: EnvironmentContext;
+  hangarVehicle: RendererVehicleFact | null;
+  controlledVehicle: RendererVehicleFact | null;
+  aboardVehicle: { state: 'unsupported'; reason: string };
+  ownership: { state: 'not_determined' };
+  lastChangedAt: string | null;
+}
+
+export interface RendererVehicleFact {
+  state: 'known' | 'released' | 'stored' | 'disconnected';
+  relationship: 'hangar' | 'controlled';
+  outcome: 'retrieved' | 'acquired' | 'released' | 'stored';
+  vehicleClassName: string | null;
+  vehicleDisplayName: string | null;
+  vehicleEntityId: string;
+  observedAt: string;
+  confidence: string;
+  provenance: string;
+  evidenceEventId: string;
+  puSessionId: string | null;
 }
 
 export interface MonitorSnapshot {

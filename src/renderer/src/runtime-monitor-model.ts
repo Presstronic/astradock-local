@@ -25,7 +25,7 @@ export type DrawerPlacement = 'right' | 'bottom';
 
 export interface StreamEvent {
   id: string;
-  kind: 'shard' | 'action' | 'session' | 'party' | 'zone' | 'navigation' | 'runtime' | 'diagnostic';
+  kind: 'shard' | 'action' | 'session' | 'party' | 'zone' | 'vehicle' | 'navigation' | 'runtime' | 'diagnostic';
   urgency: 'normal' | 'warning' | 'urgent' | 'critical';
   summary: string;
   context: string;
@@ -223,6 +223,7 @@ function toStreamEvent(kind: StreamEvent['kind'], row: RendererEvidenceRow, now:
   const context = [
     firstString(row.shardId),
     firstString(row.eventType),
+    firstString(row.vehicleDisplayName, row.vehicleRelationship, row.vehicleOutcome),
     firstString(row.region),
     row.lineNumber ? `line ${row.lineNumber}` : null
   ].filter(Boolean).join(' / ') || 'Local runtime evidence';
@@ -253,6 +254,7 @@ function createInstruments(
   const lifecycle = activeLifecycle(scan);
   const location = activeLocation(scan);
   const destination = activeDestination(scan);
+  const vehicle = activeVehicle(scan);
   const unsupportedProfile = ['unsupported_profile', 'unverified_build'].includes(scan?.parserCompatibility?.status || '');
   const sessionDuration = currentSessionDuration(lifecycle?.puSession, now);
 
@@ -326,6 +328,22 @@ function createInstruments(
         ? `${formatFreshness(location.monitoredSpace.observedAt, now)} · No clear evidence promoted`
         : unsupportedProfile ? 'Parser profile does not support monitored-space evidence' : 'No validated monitored-space evidence observed',
       provenance: location?.monitoredSpace.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent'
+    },
+    {
+      id: 'vehicle',
+      label: vehicle?.controlledVehicle?.state === 'known' ? 'Controlled vehicle' : 'Hangar vehicle',
+      value: unsupportedProfile ? 'Unsupported'
+        : vehicle?.controlledVehicle?.state === 'known' ? vehicle.controlledVehicle.vehicleDisplayName || 'Unknown vehicle'
+          : vehicle?.hangarVehicle?.state === 'known' ? vehicle.hangarVehicle.vehicleDisplayName || 'Unknown vehicle' : 'Unknown',
+      state: unsupportedProfile ? 'unsupported'
+        : vehicle?.controlledVehicle?.state === 'known' || vehicle?.hangarVehicle?.state === 'known' ? 'known'
+          : vehicle?.controlledVehicle?.state === 'disconnected' || vehicle?.hangarVehicle?.state === 'disconnected' ? 'disconnected'
+            : vehicle?.controlledVehicle || vehicle?.hangarVehicle ? 'last-confirmed' : 'unknown',
+      detail: vehicle?.controlledVehicle?.state === 'known' ? 'Local vehicle control established'
+        : vehicle?.hangarVehicle?.state === 'known' ? 'Retrieved into local hangar'
+          : unsupportedProfile ? 'Parser profile does not support vehicle evidence' : 'Aboard vehicle unsupported · ownership not determined',
+      provenance: vehicle?.controlledVehicle?.provenance || vehicle?.hangarVehicle?.provenance || 'Evidence absent',
+      drilldown: vehicle ? `Aboard: unsupported; ownership: not determined; entity: ${vehicle.controlledVehicle?.vehicleEntityId || vehicle.hangarVehicle?.vehicleEntityId || 'unknown'}` : undefined
     },
     {
       id: 'destination',
@@ -434,10 +452,17 @@ function activeDestination(scan: RendererScanResult | null) {
   return destination.environments[destination.activeEnvironmentKey] || null;
 }
 
+function activeVehicle(scan: RendererScanResult | null) {
+  const vehicle = scan?.vehicleSnapshot;
+  if (!vehicle?.activeEnvironmentKey) return null;
+  return vehicle.environments[vehicle.activeEnvironmentKey] || null;
+}
+
 function runtimeEventKind(row: RendererEvidenceRow): StreamEvent['kind'] {
   if (row.eventCategory === 'party') return 'party';
   if (row.eventCategory === 'zone') return 'zone';
   if (row.eventCategory === 'navigation') return 'navigation';
+  if (row.eventCategory === 'vehicle') return 'vehicle';
   return 'runtime';
 }
 
