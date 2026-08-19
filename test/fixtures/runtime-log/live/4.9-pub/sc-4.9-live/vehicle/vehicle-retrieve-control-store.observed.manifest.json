@@ -1,0 +1,31 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/vehicle/vehicle-retrieve-control-store.observed",
+  "title": "Correlated local vehicle retrieve, control, release, and storage",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "2026-08-19.5",
+  "domain": "vehicle",
+  "action": "retrieve, locally operate, release control, and store one correlated vehicle",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/runtime-capture-findings-2026-08-19.md",
+  "logFile": "vehicle-retrieve-control-store.observed.log",
+  "privacyClassification": ["personal", "sanitized"],
+  "sensitivityHandling": {"redactedFields":["characterName","vehicleEntityId","playerEntityId"],"syntheticPlaceholderPrefix":"SYNTH_","notes":"Minimal correlated records only; all identifiers are synthetic."},
+  "expectedCanonicalEvents": [
+    {"eventType":"VehicleRetrieved","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","vehicleDisplayName","relationship","outcome"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","vehicleDisplayName":"RSI Meteor","relationship":"hangar","outcome":"retrieved"},"evidenceMarkers":["SetVehicleSpawningInformations","Player Selected Quantum Target - Local"]},
+    {"eventType":"VehicleControlAcquired","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","vehicleDisplayName","relationship","outcome"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","vehicleDisplayName":"RSI Meteor","relationship":"controlled","outcome":"acquired"},"evidenceMarkers":["Player Selected Quantum Target - Local"]},
+    {"eventType":"QuantumTargetSelected","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["vehicleEntityId","vehicleClassName","targetObservedId"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","targetObservedId":"SYNTH_TARGET_ORISON"},"evidenceMarkers":["Player Selected Quantum Target - Local"]},
+    {"eventType":"VehicleControlReleased","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["vehicleEntityId","vehicleClassName","vehicleDisplayName","relationship","outcome"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","vehicleDisplayName":"RSI Meteor","relationship":"controlled","outcome":"released"},"evidenceMarkers":["releasing control token"]},
+    {"eventType":"VehicleStored","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","vehicleDisplayName","relationship","outcome"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","vehicleDisplayName":"RSI Meteor","relationship":"hangar","outcome":"stored"},"evidenceMarkers":["OnOwnerRemoved","UnattendedVehicleMarker"]}
+  ],
+  "expectedNonEvents": [
+    {"eventType":"VehicleBoarded","reason":"No direct boarding evidence exists."},
+    {"eventType":"VehicleOwned","reason":"Use and retrieval do not prove ownership."}
+  ],
+  "correlation": {"dedupeKey":"environment+session+vehicleEntityId+outcome","sequence":["VehicleRetrieved","VehicleControlAcquired","QuantumTargetSelected","VehicleControlReleased","VehicleStored"],"notes":"Acquisition is inferred from the first direct local action; release is directly observed; storage requires same-session release plus correlated removal."},
+  "knownLimitations": ["Aboard state and ownership remain unsupported.", "No direct control-acquisition log record was present."],
+  "verificationNotes": "Replay whole and chunked; unrelated removal or control records must not alter local state."
+}

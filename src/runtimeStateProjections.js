@@ -5,6 +5,7 @@ const SNAPSHOT_VERSION = 1;
 const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected', 'PartyLeft']);
 const LOCATION_EVENT_TYPES = Object.freeze(['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged']);
 const QUANTUM_EVENT_TYPES = Object.freeze(['QuantumTargetSelected', 'QuantumTargetChanged', 'QuantumTravelArrived']);
+const VEHICLE_EVENT_TYPES = Object.freeze(['VehicleRetrieved', 'VehicleControlAcquired', 'VehicleControlReleased', 'VehicleStored']);
 const SESSION_BOUNDARY_EVENT_TYPES = Object.freeze(['PuDisconnected', 'ReturnedToFrontend', 'ApplicationExited']);
 
 function projectRuntimeParty(events, options = {}) {
@@ -103,6 +104,60 @@ function projectRuntimeDestination(events, options = {}) {
     projection.freshness = projection.state === 'stale' ? 'stale' : projection.lastChangedAt ? 'current' : 'unknown';
   }
   return toProjectionCollection(projections, options.activeEnvironmentKey, orderedEvents);
+}
+
+function projectRuntimeVehicle(events, options = {}) {
+  const projections = new Map();
+  const orderedEvents = [...(events || [])].sort(compareRuntimeEventOrder);
+  for (const event of orderedEvents) {
+    if (!event?.environmentKey || !event.environment) continue;
+    const projection = getOrCreateProjection(projections, event, createVehicleProjection);
+    if (event.eventType === 'VehicleRetrieved') projection.hangarVehicle = vehicleFact(event, 'known');
+    else if (event.eventType === 'VehicleControlAcquired') projection.controlledVehicle = vehicleFact(event, 'known');
+    else if (event.eventType === 'VehicleControlReleased') {
+      if (projection.controlledVehicle?.vehicleEntityId === event.payload.vehicleEntityId) projection.controlledVehicle = vehicleFact(event, 'released');
+    } else if (event.eventType === 'VehicleStored') {
+      if (projection.hangarVehicle?.vehicleEntityId === event.payload.vehicleEntityId) projection.hangarVehicle = vehicleFact(event, 'stored');
+      if (projection.controlledVehicle?.vehicleEntityId === event.payload.vehicleEntityId) projection.controlledVehicle = vehicleFact(event, 'stored');
+    } else if (SESSION_BOUNDARY_EVENT_TYPES.includes(event.eventType)) {
+      for (const key of ['hangarVehicle', 'controlledVehicle']) {
+        if (projection[key]) projection[key] = { ...projection[key], state: 'disconnected' };
+      }
+    }
+    if (VEHICLE_EVENT_TYPES.includes(event.eventType) || SESSION_BOUNDARY_EVENT_TYPES.includes(event.eventType)) {
+      projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
+    }
+  }
+  return toProjectionCollection(projections, options.activeEnvironmentKey, orderedEvents);
+}
+
+function createVehicleProjection(event) {
+  return {
+    version: SNAPSHOT_VERSION,
+    environmentKey: event.environmentKey,
+    environment: event.environment,
+    hangarVehicle: null,
+    aboardVehicle: { state: 'unsupported', reason: 'No direct boarding or exit evidence is promoted.' },
+    controlledVehicle: null,
+    ownership: { state: 'not_determined' },
+    lastChangedAt: null
+  };
+}
+
+function vehicleFact(event, state) {
+  return {
+    state,
+    relationship: event.payload.relationship,
+    outcome: event.payload.outcome,
+    vehicleClassName: sanitizeDisplayText(event.payload.vehicleClassName),
+    vehicleDisplayName: sanitizeDisplayText(event.payload.vehicleDisplayName),
+    vehicleEntityId: event.payload.vehicleEntityId,
+    observedAt: event.sourceTimestamp,
+    confidence: event.confidence,
+    provenance: event.provenance,
+    evidenceEventId: event.eventId,
+    puSessionId: event.correlationIds?.puSessionId || null
+  };
 }
 
 function createDestinationProjection(event) {
@@ -407,6 +462,23 @@ function toRendererDestinationSnapshot(result) {
   return { version: SNAPSHOT_VERSION, activeEnvironmentKey: result.activeEnvironmentKey, environments };
 }
 
+function toRendererVehicleSnapshot(result) {
+  if (!result) return null;
+  const environments = {};
+  for (const [environmentKey, projection] of Object.entries(result.environments || {})) {
+    const redactVehicle = (vehicle) => vehicle?.vehicleEntityId ? { ...vehicle, vehicleEntityId: redactStableIdentifier(vehicle.vehicleEntityId) } : vehicle;
+    environments[environmentKey] = {
+      ...projection,
+      environment: { ...projection.environment },
+      hangarVehicle: redactVehicle(projection.hangarVehicle),
+      controlledVehicle: redactVehicle(projection.controlledVehicle),
+      aboardVehicle: { ...projection.aboardVehicle },
+      ownership: { ...projection.ownership }
+    };
+  }
+  return { version: SNAPSHOT_VERSION, activeEnvironmentKey: result.activeEnvironmentKey, environments };
+}
+
 function compareMembers(left, right) {
   return Number(right.isLeader) - Number(left.isLeader)
     || Number(right.isLocalPlayer) - Number(left.isLocalPlayer)
@@ -436,11 +508,14 @@ module.exports = {
   LOCATION_EVENT_TYPES,
   PARTY_EVENT_TYPES,
   QUANTUM_EVENT_TYPES,
+  VEHICLE_EVENT_TYPES,
   SNAPSHOT_VERSION,
   projectRuntimeLocation,
   projectRuntimeDestination,
   projectRuntimeParty,
+  projectRuntimeVehicle,
   toRendererLocationSnapshot,
   toRendererDestinationSnapshot,
-  toRendererPartySnapshot
+  toRendererPartySnapshot,
+  toRendererVehicleSnapshot
 };

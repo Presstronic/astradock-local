@@ -74,6 +74,47 @@ describe('PU session duration formatting', () => {
   });
 });
 
+describe('vehicle live telemetry', () => {
+  it('labels the controlled vehicle without claiming aboard state or ownership', () => {
+    const environmentKey = 'LIVE::PU::4.9.188.23497::UNKNOWN::SOURCE';
+    const scan = {
+      parserCompatibility: { status: 'compatible' },
+      promotedRuntimeEvents: [{
+        id: 'vehicle_acquired', eventType: 'VehicleControlAcquired', eventCategory: 'vehicle',
+        summary: 'Controlling RSI Meteor', vehicleDisplayName: 'RSI Meteor',
+        vehicleRelationship: 'controlled', vehicleOutcome: 'acquired',
+        timestamp: '2026-08-19T07:02:00.000Z', confidence: 'high', evidenceAvailable: true
+      }],
+      entries: [], userActivity: { actions: [], sessions: [] }, environmentDiagnostics: [],
+      rendererLifecycle: null, partySnapshot: null, locationSnapshot: null, destinationSnapshot: null,
+      vehicleSnapshot: {
+        version: 1, activeEnvironmentKey: environmentKey, environments: {
+          [environmentKey]: {
+            version: 1, environmentKey, environment: {}, hangarVehicle: null,
+            controlledVehicle: {
+              state: 'known', relationship: 'controlled', outcome: 'acquired',
+              vehicleClassName: 'RSI_Meteor_SYNTH', vehicleDisplayName: 'RSI Meteor',
+              vehicleEntityId: 'SY...AL', observedAt: '2026-08-19T07:02:00.000Z',
+              confidence: 'high', provenance: 'inferred', evidenceEventId: 'vehicle_acquired', puSessionId: null
+            },
+            aboardVehicle: { state: 'unsupported', reason: 'No boarding evidence.' },
+            ownership: { state: 'not_determined' }, lastChangedAt: '2026-08-19T07:02:00.000Z'
+          }
+        }
+      }
+    } as never;
+    const model = createRuntimeMonitorViewModel({
+      loading: false, fatalError: null, sources: [], activeSource: { validation: { isValid: true } } as never,
+      snapshot: null, scan, now: new Date('2026-08-19T07:02:05.000Z')
+    });
+    expect(model.instruments).toContainEqual(expect.objectContaining({
+      id: 'vehicle', label: 'Controlled vehicle', value: 'RSI Meteor', state: 'known'
+    }));
+    expect(model.streamEvents[0]).toEqual(expect.objectContaining({ kind: 'vehicle', summary: 'Controlling RSI Meteor' }));
+    expect(model.instruments.find((instrument) => instrument.id === 'vehicle')?.drilldown).toContain('ownership: not determined');
+  });
+});
+
 describe('Runtime Monitor action errors', () => {
   it('shows source command failures without classifying the workspace as fatal', () => {
     const viewModel = createRuntimeMonitorViewModel({

@@ -46,6 +46,30 @@ function field(type, options = {}) {
   return Object.freeze({ type, required: true, ...options });
 }
 
+function vehicleLifecycleDefinition({ summary, relationship, outcome }) {
+  return {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary,
+    traits: traits({ subjectScopes: ['local_player', 'session'], sensitivity: 'personal' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/vehicle/vehicle-retrieve-control-store.observed',
+    payload: {
+      vehicleEntityId: field(STRING),
+      vehicleClassName: field(STRING),
+      vehicleDisplayName: field(STRING),
+      relationship: field(STRING, { enum: ['hangar', 'controlled'] }),
+      outcome: field(STRING, { enum: ['retrieved', 'acquired', 'released', 'stored'] })
+    },
+    examplePayload: {
+      vehicleEntityId: 'SYNTH_VEHICLE_ENTITY_LOCAL',
+      vehicleClassName: 'RSI_Meteor_SYNTH',
+      vehicleDisplayName: 'RSI Meteor',
+      relationship,
+      outcome
+    }
+  };
+}
+
 const STRING = 'string';
 const BOOLEAN = 'boolean';
 const INTEGER = 'integer';
@@ -631,6 +655,22 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       state: 'entered'
     }
   },
+  VehicleRetrieved: vehicleLifecycleDefinition({
+    summary: 'A vehicle was retrieved into the local player hangar.',
+    relationship: 'hangar', outcome: 'retrieved'
+  }),
+  VehicleControlAcquired: vehicleLifecycleDefinition({
+    summary: 'A direct local vehicle action established current vehicle control.',
+    relationship: 'controlled', outcome: 'acquired'
+  }),
+  VehicleControlReleased: vehicleLifecycleDefinition({
+    summary: 'The local client explicitly released vehicle control.',
+    relationship: 'controlled', outcome: 'released'
+  }),
+  VehicleStored: vehicleLifecycleDefinition({
+    summary: 'A correlated hangar sequence stored the local vehicle.',
+    relationship: 'hangar', outcome: 'stored'
+  }),
   QuantumTargetSelected: {
     owner: 'runtime-contracts',
     status: 'mvp',

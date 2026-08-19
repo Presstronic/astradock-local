@@ -8,12 +8,15 @@ const {
   LOCATION_EVENT_TYPES,
   PARTY_EVENT_TYPES,
   QUANTUM_EVENT_TYPES,
+  VEHICLE_EVENT_TYPES,
   projectRuntimeDestination,
   projectRuntimeLocation,
   projectRuntimeParty,
+  projectRuntimeVehicle,
   toRendererLocationSnapshot,
   toRendererDestinationSnapshot,
-  toRendererPartySnapshot
+  toRendererPartySnapshot,
+  toRendererVehicleSnapshot
 } = require('./runtimeStateProjections');
 const {
   createPartitionedIdentity,
@@ -764,22 +767,28 @@ async function parseLogFile(logPath, options = {}) {
     activeEnvironmentKey: parsed.environmentKey,
     now: parsed.scannedAt
   });
+  const vehicleProjection = projectRuntimeVehicle(canonical.events, {
+    activeEnvironmentKey: parsed.environmentKey,
+    now: parsed.scannedAt
+  });
   return {
     ...parsed,
     runtimeEvents: canonical.events,
     promotedRuntimeEvents: canonical.events.filter((event) => (
       PARTY_EVENT_TYPES.includes(event.eventType) || LOCATION_EVENT_TYPES.includes(event.eventType)
-        || QUANTUM_EVENT_TYPES.includes(event.eventType)
+        || QUANTUM_EVENT_TYPES.includes(event.eventType) || VEHICLE_EVENT_TYPES.includes(event.eventType)
     )),
     parserCompatibility: canonical.parserHealth,
     lifecycleProjection,
     partyProjection,
     locationProjection,
     destinationProjection,
+    vehicleProjection,
     rendererLifecycle: toRendererLifecycleProjection(lifecycleProjection),
     partySnapshot: toRendererPartySnapshot(partyProjection),
     locationSnapshot: toRendererLocationSnapshot(locationProjection),
-    destinationSnapshot: toRendererDestinationSnapshot(destinationProjection)
+    destinationSnapshot: toRendererDestinationSnapshot(destinationProjection),
+    vehicleSnapshot: toRendererVehicleSnapshot(vehicleProjection)
   };
 }
 

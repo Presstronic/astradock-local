@@ -1,5 +1,5 @@
 const PROFILE_SCHEMA_VERSION = 2;
-const SC_49_PROFILE_VERSION = '2026-08-19.4';
+const SC_49_PROFILE_VERSION = '2026-08-19.5';
 
 const SC_49_EVENT_FAMILIES = Object.freeze([
   { id: 'build', requiredAnchors: ['FileVersion:', 'ProductVersion:', 'Branch:', 'Changelist:'] },
@@ -13,6 +13,7 @@ const SC_49_EVENT_FAMILIES = Object.freeze([
   { id: 'application', requiredAnchors: ['<SystemQuit>'] },
   { id: 'party', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
   { id: 'zone', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
+  { id: 'vehicle', requiredAnchors: ['<CEntityComponentShipListProvider::SetVehicleSpawningInformations>', '<Vehicle Control Flow>'] },
   { id: 'quantum', requiredAnchors: ['<Player Selected Quantum Target - Local>'] }
 ]);
 
@@ -392,6 +393,26 @@ const SC_49_EXTRACTORS = Object.freeze([
     kind: 'rememberLocalHangarVehicle',
     literals: ['<CEntityComponentShipListProvider::SetVehicleSpawningInformations>', 'VehicleEntityId:', 'LandingArea:'],
     evidenceMarkers: ['SetVehicleSpawningInformations', 'VehicleEntityId', 'LandingArea']
+  },
+  {
+    id: 'vehicle.control-released',
+    kind: 'vehicleControlReleased',
+    eventType: 'VehicleControlReleased',
+    literals: ['<Vehicle Control Flow>', 'Local client node', 'releasing control token'],
+    requiredFields: ['vehicleEntityId', 'vehicleClassName', 'vehicleDisplayName', 'relationship', 'outcome'],
+    confidence: 'high', sensitivity: 'personal',
+    evidenceMarkers: ['Vehicle Control Flow', 'Local client node', 'releasing control token'],
+    dedupeFields: ['vehicleEntityId', 'outcome']
+  },
+  {
+    id: 'vehicle.stored-correlated-removal',
+    kind: 'vehicleStored',
+    eventType: 'VehicleStored',
+    literals: ['<CEntity::OnOwnerRemoved - entity attachment>', 'UnattendedVehicleMarker_', 'removal of parent'],
+    requiredFields: ['vehicleEntityId', 'vehicleClassName', 'vehicleDisplayName', 'relationship', 'outcome'],
+    confidence: 'high', sensitivity: 'personal',
+    evidenceMarkers: ['OnOwnerRemoved', 'UnattendedVehicleMarker', 'removal of parent'],
+    dedupeFields: ['vehicleEntityId', 'outcome']
   },
   {
     id: 'quantum.target-selected-local',

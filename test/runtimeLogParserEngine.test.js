@@ -477,7 +477,7 @@ test('reviewed LIVE executable version selects the 4.9 profile without widening 
   );
 
   assert.equal(reviewedLive.selectedProfile.id, 'sc-4.9-live');
-  assert.equal(reviewedLive.selectedProfile.version, '2026-08-19.4');
+  assert.equal(reviewedLive.selectedProfile.version, '2026-08-19.5');
   assert.equal(reviewedLive.parserHealth.status, 'compatible');
   assert.deepEqual(reviewedLive.events.map((event) => event.eventType), ['PuJoinRequested']);
   assert.ok(reviewedLive.events.every((event) => validateRuntimeEvent(event).ok));
@@ -554,7 +554,7 @@ test('replay preserves an explicitly stored immutable profile version', () => {
     '<2026-08-19T06:00:00.000Z> <Join PU> address[replay.example.invalid] port[64332] shard[SYNTH_SHARD_REPLAY] locationId[SYNTH_LOCATION_REPLAY]\n',
     { ...LIVE_PROFILE_OPTIONS, sourceProfileVersion: '2026-08-11.immutable' }
   );
-  assert.equal(result.selectedProfile.version, '2026-08-19.4');
+  assert.equal(result.selectedProfile.version, '2026-08-19.5');
   assert.equal(result.events[0].sourceProfileVersion, '2026-08-11.immutable');
 });
 
