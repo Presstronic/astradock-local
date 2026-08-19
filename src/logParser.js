@@ -383,7 +383,10 @@ function extractServerLeaveFromLine(line) {
   ]);
   const remoteFlag = pickValue(line, [/\bisRemote\b\s*[=:]\s*(?<value>[01]|true|false)/i]);
   const endpoint = pickValue(line, [/\bremoteAddr\b\s*[=:]\s*(?<value>[A-Za-z0-9_.:-]+:\d+)/i]);
-
+  const gamerules = pickValue(line, [
+    /\bgamerules\b\s*[=:]\s*"(?<value>[^"]+)"/i,
+    /\bgamerules\b\s*[=:]\s*(?<value>[A-Za-z0-9_.:-]+)/i
+  ]);
   return {
     eventType: 'server_leave',
     eventLabel: 'Server Leave',
@@ -394,7 +397,9 @@ function extractServerLeaveFromLine(line) {
       : remoteFlag === '0' || remoteFlag === 'false'
         ? 'local'
         : 'unknown',
-    endpoint
+    endpoint,
+    gamerules,
+    channelRole: String(gamerules || '').toLowerCase() === 'sc_frontend' ? 'frontend' : 'unknown'
   };
 }
 
@@ -439,6 +444,17 @@ function formatServerLeaveAction(session, serverLeave) {
     : `Left ${target}`;
 }
 
+function correlateServerLeaveSession(serverLeave, currentSession, recentSessions, environmentKey) {
+  const candidates = [currentSession, ...recentSessions]
+    .filter((session) => session?.environmentKey === environmentKey);
+  if (serverLeave.endpoint) {
+    const endpointMatches = candidates.filter((session) => `${session.address}:${session.port}` === serverLeave.endpoint);
+    if (endpointMatches.length === 1) return endpointMatches[0];
+    if (endpointMatches.length > 1) return null;
+  }
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
 function parseUserActions(logText, options = {}) {
   const username = String(options.username || '').trim();
   const seedUserIds = new Set(
@@ -453,6 +469,7 @@ function parseUserActions(logText, options = {}) {
   const actions = [];
   const sessions = [];
   let currentSession = null;
+  const recentSessions = [];
   let lastTimestamp = null;
 
   function userIdsForEnvironment(environmentKey) {
@@ -481,6 +498,9 @@ function parseUserActions(logText, options = {}) {
       if (currentSession) {
         currentSession.endedAt = timestamp || lastTimestamp;
         currentSession.endLineNumber = index;
+        currentSession.staleReason = 'superseded_by_join';
+        recentSessions.unshift(currentSession);
+        if (recentSessions.length > 8) recentSessions.pop();
       }
 
       currentSession = {
@@ -530,16 +550,21 @@ function parseUserActions(logText, options = {}) {
       return;
     }
 
-    const serverLeave = currentSession ? extractServerLeaveFromLine(line) : null;
-    if (currentSession && serverLeave) {
-      currentSession.endedAt = timestamp || lastTimestamp;
-      currentSession.endLineNumber = index + 1;
-      currentSession.actionCount += 1;
+    const serverLeave = extractServerLeaveFromLine(line);
+    if (serverLeave?.channelRole === 'frontend') return;
+    if (serverLeave) {
+      const correlatedSession = correlateServerLeaveSession(serverLeave, currentSession, recentSessions, environmentKey);
+      if (correlatedSession) {
+        correlatedSession.endedAt = timestamp || lastTimestamp;
+        correlatedSession.endLineNumber = index + 1;
+        correlatedSession.staleReason = null;
+        correlatedSession.actionCount += 1;
+      }
       actions.push({
-        id: createPartitionedIdentity(environmentKey, 'action', [index, 'server_leave', currentSession.id]),
+        id: createPartitionedIdentity(environmentKey, 'action', [index, 'server_leave', correlatedSession?.id || serverLeave.endpoint || 'unattributed']),
         eventType: serverLeave.eventType,
-        eventLabel: serverLeave.eventLabel,
-        sessionId: currentSession.id,
+        eventLabel: correlatedSession ? serverLeave.eventLabel : 'Server Disconnect (Unattributed)',
+        sessionId: correlatedSession?.id || null,
         environmentKey,
         environment,
         gameChannel: environment.releaseChannel,
@@ -548,17 +573,23 @@ function parseUserActions(logText, options = {}) {
         timestamp: timestamp || lastTimestamp,
         username: username || null,
         userId: knownUserIds.values().next().value || null,
-        shardId: currentSession.shardId,
-        address: currentSession.address,
-        port: currentSession.port,
+        shardId: correlatedSession?.shardId || null,
+        address: correlatedSession?.address || null,
+        port: correlatedSession?.port || null,
         cause: serverLeave.cause,
         reason: serverLeave.reason,
         origin: serverLeave.origin,
         endpoint: serverLeave.endpoint,
-        action: formatServerLeaveAction(currentSession, serverLeave),
+        action: correlatedSession
+          ? formatServerLeaveAction(correlatedSession, serverLeave)
+          : 'Disconnected from an unattributed server connection',
         rawLine: line.trim()
       });
-      currentSession = null;
+      if (correlatedSession === currentSession) currentSession = null;
+      else if (correlatedSession) {
+        const recentIndex = recentSessions.indexOf(correlatedSession);
+        if (recentIndex !== -1) recentSessions.splice(recentIndex, 1);
+      }
     }
 
     const userInfo = extractUserInfoFromLine(line, username);

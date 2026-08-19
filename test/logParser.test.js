@@ -159,6 +159,42 @@ test('promotes accepted PU disconnect evidence to a visible server leave action'
   assert.match(result.userActivity.actions[0].action, /Left pub_use1b_12326004_100/);
 });
 
+test('rejects frontend-channel disconnects and correlates delayed PU disconnects to the prior shard', () => {
+  const result = parseLogText(`
+<2026-08-19T00:00:00.000Z> <Init> Environment[PUB] Tag[LIVE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log]
+<2026-08-19T00:00:01.000Z> <Game Version> version[4.9.0-LIVE.9000000-SYNTH] environment[LIVE]
+<2026-08-19T00:01:00.000Z> <Join PU> address[us-game.example.invalid] port[64090] shard[SYNTH_SHARD_US_A] locationId[SYNTH_LOCATION_US]
+<2026-08-19T00:01:02.000Z> <Channel Disconnected> cause=30010 reason="SYNTH_FRONTEND_TRANSITION" isRemote=0 viewState=eCVS_InGame map="megamap" gamerules="SC_Frontend" remoteAddr=local.invalid:12300 node_id=SYNTH_FRONTEND_NODE session=SYNTH_CLIENT_SESSION uptime_secs=4
+<2026-08-19T00:10:00.000Z> <Join PU> address[eu-game.example.invalid] port[64091] shard[SYNTH_SHARD_EU_B] locationId[SYNTH_LOCATION_EU]
+<2026-08-19T00:10:02.000Z> <Channel Disconnected> cause=30010 reason="SYNTH_FRONTEND_TRANSITION" isRemote=0 viewState=eCVS_InGame map="megamap" gamerules="SC_Frontend" remoteAddr=local.invalid:12300 node_id=SYNTH_FRONTEND_NODE session=SYNTH_CLIENT_SESSION uptime_secs=3
+<2026-08-19T00:10:03.000Z> <Channel Disconnected> cause=SYNTH_CAUSE reason="SYNTH_DELAYED_US_DISCONNECT" isRemote=1 viewState=eCVS_InGame map="SYNTH_PU_MAP" gamerules="SC_Default" remoteAddr=us-game.example.invalid:64090 node_id=SYNTH_US_NODE session=SYNTH_CLIENT_SESSION uptime_secs=543
+`);
+
+  const leaves = result.userActivity.actions.filter((action) => action.eventType === 'server_leave');
+  assert.equal(leaves.length, 1);
+  assert.equal(leaves[0].eventLabel, 'Server Leave');
+  assert.equal(leaves[0].shardId, 'SYNTH_SHARD_US_A');
+  assert.equal(leaves[0].address, 'us-game.example.invalid');
+  assert.match(leaves[0].action, /Left SYNTH_SHARD_US_A/);
+  assert.equal(result.userActivity.sessions.find((session) => session.shardId === 'SYNTH_SHARD_US_A').endLineNumber, 8);
+  assert.equal(result.userActivity.sessions.find((session) => session.shardId === 'SYNTH_SHARD_EU_B').endedAt, null);
+});
+
+test('keeps ambiguous disconnect evidence unattributed instead of borrowing the newest shard', () => {
+  const result = parseLogText(`
+<2026-08-19T00:00:00.000Z> <Init> Environment[PUB] Tag[LIVE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log]
+<2026-08-19T00:01:00.000Z> <Join PU> address[us-game.example.invalid] port[64090] shard[SYNTH_SHARD_US_A] locationId[SYNTH_LOCATION_US]
+<2026-08-19T00:10:00.000Z> <Join PU> address[eu-game.example.invalid] port[64091] shard[SYNTH_SHARD_EU_B] locationId[SYNTH_LOCATION_EU]
+<2026-08-19T00:10:03.000Z> <Channel Disconnected> cause=SYNTH_CAUSE reason="SYNTH_AMBIGUOUS" isRemote=1 viewState=eCVS_InGame gamerules="SC_Default" remoteAddr=unknown-game.example.invalid:64092 uptime_secs=3
+`);
+
+  const leave = result.userActivity.actions.find((action) => action.eventType === 'server_leave');
+  assert.equal(leave.eventLabel, 'Server Disconnect (Unattributed)');
+  assert.equal(leave.sessionId, null);
+  assert.equal(leave.shardId, null);
+  assert.match(leave.action, /unattributed/);
+});
+
 test('unknown source evidence derives UNKNOWN release channel instead of LIVE', () => {
   const result = parseLogText(`
 <2026-08-09T19:00:00.000Z> <Init> Environment[TECH-PREVIEW] Tag[TECH-PREVIEW] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/TECH-PREVIEW/game.log]

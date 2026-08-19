@@ -88,6 +88,7 @@ Before approving a fixture PR, verify:
 | Build/environment | `spine/client-build-environment.observed` |
 | Local identity/login | `spine/local-identity-login.observed` |
 | PU join/shard/server | `spine/pu-join-shard-server.observed` |
+| Frontend disconnect rejection and delayed prior-PU correlation | `spine/delayed-pu-disconnect-correlation.observed` |
 | Party creation/launch/member connection | `party/party-create-launch-member-connected.observed` |
 | Party marker-only membership guard | `party/party-marker-only-membership.non-event` |
 | Party lifecycle gaps | `party/party-lifecycle-transitions.unavailable`; see [`party-lifecycle-evidence-matrix.md`](party-lifecycle-evidence-matrix.md) |
