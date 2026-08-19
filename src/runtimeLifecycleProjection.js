@@ -1,8 +1,7 @@
 const { compareRuntimeEventOrder } = require('./contracts/runtimeEvents');
 const { mapShardRegion } = require('./runtimeRegionMappings');
 
-const PROJECTION_VERSION = 2;
-const DEFAULT_STALE_AFTER_MS = 15_000;
+const PROJECTION_VERSION = 3;
 const IDENTITY_FIELDS = Object.freeze([
   'handle',
   'characterName',
@@ -35,16 +34,6 @@ function projectRuntimeLifecycle(events, options = {}) {
     const projection = projections.get(event.environmentKey) || createProjection(event);
     applyEvent(projection, event);
     projections.set(event.environmentKey, projection);
-  }
-
-  const nowMs = toTime(options.now) ?? Date.now();
-  const staleAfterMs = positiveInteger(options.staleAfterMs) || DEFAULT_STALE_AFTER_MS;
-  for (const projection of projections.values()) {
-    projection.freshness = classifyFreshness(projection.lastChangedAt, nowMs, staleAfterMs);
-    if (projection.freshness === 'stale') {
-      if (projection.shard.state === 'connected') projection.shard.state = 'stale';
-      if (projection.replicationConnection.state === 'connected') projection.replicationConnection.state = 'stale';
-    }
   }
 
   return {
@@ -120,7 +109,7 @@ function createProjection(event) {
       cleanExit: null
     },
     lastChangedAt: null,
-    freshness: 'unknown'
+    observation: { lastDomainEventAt: null, state: 'none' }
   };
 }
 
@@ -130,6 +119,7 @@ function createIdentityField() {
 
 function applyEvent(projection, event) {
   projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
+  projection.observation = { lastDomainEventAt: projection.lastChangedAt, state: 'observed' };
   projection.environment = {
     releaseChannel: event.environment.releaseChannel,
     rawReleaseChannel: event.environment.rawEnvironmentTag,
@@ -336,7 +326,7 @@ function toRendererLifecycleProjection(result, options = {}) {
       },
       lifecycle: { ...projection.lifecycle },
       lastChangedAt: projection.lastChangedAt,
-      freshness: projection.freshness
+      observation: { ...projection.observation }
     };
   }
   return { version: PROJECTION_VERSION, activeEnvironmentKey: result.activeEnvironmentKey, environments };
@@ -376,12 +366,6 @@ function lifecycleReason(event) {
   return event.eventType;
 }
 
-function classifyFreshness(timestamp, nowMs, staleAfterMs) {
-  const observedMs = toTime(timestamp);
-  if (observedMs === null) return 'unknown';
-  return nowMs - observedMs > staleAfterMs ? 'stale' : 'current';
-}
-
 function laterTimestamp(left, right) {
   if (!left) return right || null;
   if (!right) return left;
@@ -395,12 +379,7 @@ function toTime(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-function positiveInteger(value) {
-  return Number.isSafeInteger(value) && value > 0 ? value : null;
-}
-
 module.exports = {
-  DEFAULT_STALE_AFTER_MS,
   IDENTITY_FIELDS,
   PROJECTION_VERSION,
   projectRuntimeLifecycle,

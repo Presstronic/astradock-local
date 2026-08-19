@@ -65,7 +65,7 @@ Token names refer to `tokens/astradock.css`; implementation may expose equivalen
 | Last confirmed | Terminal evidence missing, but prior value is still useful | Value must be qualified as `Last confirmed` with age |
 | Unknown | Evidence absent or monitoring began mid-state | Render `Unknown`; do not infer negative truth |
 | Transitioning | A state change is in progress and terminal evidence is pending | Render action/state label plus freshness; do not treat as final |
-| Stale | Previously known value has exceeded freshness threshold or source health is questionable | Preserve last confirmed value only with stale qualification |
+| Stale | A genuine session/source boundary or observable monitor-health fault makes a previously known value historical | Preserve last confirmed value only with stale qualification; quiet activity alone is neutral |
 | Disconnected | Source/runtime/game connection unavailable or ended | Explicit disconnected label and recovery path |
 | Unsupported | Current profile/build cannot support this fact | Explicit unsupported label and optional evidence/support detail |
 | Loading | User or runtime request is in progress | Named loading label; skeletons/spinners cannot be the only cue |

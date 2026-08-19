@@ -277,7 +277,9 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           <Metric label="Environment" value={viewModel.environmentLabel.toUpperCase()} />
           <Metric label="Build" value={viewModel.buildLabel} />
           <StatusPill state={viewModel.workspaceState} label={viewModel.monitorLabel} />
-          <Metric label="Last ingest" value={viewModel.freshnessLabel} title={viewModel.exactFreshness || undefined} />
+          <Metric label="Source health" value={viewModel.sourceHealth} />
+          <Metric label="Last activity" value={viewModel.freshnessLabel} title={viewModel.exactFreshness || undefined} />
+          <Metric label="Parser" value={viewModel.compatibilityState.replaceAll('_', ' ')} />
           <Metric label="Source" value={viewModel.source?.displayLabel || 'Awaiting source'} />
           {viewModel.warningCount > 0 ? <Metric label="Warnings" value={String(viewModel.warningCount)} /> : null}
         </section>

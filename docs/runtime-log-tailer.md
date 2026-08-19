@@ -12,6 +12,12 @@
 
 The runtime log tailer is the byte-oriented source reader for approved Star Citizen `game.log` files. It replaces the prototype watch-triggered whole-file rescan path for live monitoring. The tailer owns file identity, offsets, generations, lifecycle records, checkpoints, health, and slow-consumer backpressure. It does not parse lines or gameplay semantics.
 
+## Health versus activity
+
+Tailer health is authoritative for monitor availability and must not be inferred from log silence. `monitoring` plus an available source and no error/backlog is healthy even when `lastObservedAt` is old; the renderer labels that age as neutral `quiet` activity. `paused`, consumer failure, permission loss, missing source, and unread backlog map to their corresponding paused/degraded/missing states immediately after the tailer observes them. Clean stop is `stopped`, not disconnected. Atomic truncation or replacement increments the source generation, clears parser correlation through the generation boundary, and may remain healthy when recovery completes in the same check; a non-atomic replacement enters missing/recovering behavior until the source reappears.
+
+Parser compatibility is derived from parsed vocabulary and remains independent of tailer health. Suspected drift can therefore warn while the source remains healthy, and source failure must not rewrite a latched gameplay lifecycle into a fabricated disconnect.
+
 ## Technology and Libraries
 
 None.

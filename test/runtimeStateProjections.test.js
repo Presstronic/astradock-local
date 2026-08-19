@@ -26,8 +26,7 @@ test('party snapshot projects only promoted party evidence without inventing mar
   const events = parseFixture('party', 'party-create-launch-member-connected.observed.log').events;
   const snapshot = toRendererPartySnapshot(projectRuntimeParty(events, {
     activeEnvironmentKey: events.at(-1).environmentKey,
-    now: '2026-08-09T19:06:05.000Z',
-    staleAfterMs: 60 * 60 * 1000
+    now: '2026-08-09T19:06:05.000Z'
   }));
   const party = snapshot.environments[snapshot.activeEnvironmentKey];
 
@@ -66,8 +65,7 @@ test('explicit local party leave clears party state while marker removal does no
   const result = parseRuntimeLogText(`${created}\n${leaving}`, LIVE_PROFILE_OPTIONS);
   const snapshot = toRendererPartySnapshot(projectRuntimeParty(result.events, {
     activeEnvironmentKey: result.events.at(-1).environmentKey,
-    now: '2026-08-19T03:33:09.000Z',
-    staleAfterMs: 60 * 60 * 1000
+    now: '2026-08-19T03:33:09.000Z'
   }));
   const party = snapshot.environments[snapshot.activeEnvironmentKey];
 
@@ -98,8 +96,7 @@ test('location snapshot projects independent jurisdiction, monitored-space, and 
   const events = parseFixture('zone', 'jurisdiction-monitored-armistice.observed.log').events;
   const snapshot = toRendererLocationSnapshot(projectRuntimeLocation(events, {
     activeEnvironmentKey: events.at(-1).environmentKey,
-    now: '2026-08-09T19:20:01.000Z',
-    staleAfterMs: 60 * 60 * 1000
+    now: '2026-08-09T19:20:01.000Z'
   }));
   const location = snapshot.environments[snapshot.activeEnvironmentKey];
 
@@ -113,6 +110,24 @@ test('location snapshot projects independent jurisdiction, monitored-space, and 
   assert.equal(location.exactLocation.state, 'unsupported');
 });
 
+test('quiet time does not stale latched party, location, or destination facts', () => {
+  const partyEvents = parseFixture('party', 'party-create-launch-member-connected.observed.log').events;
+  const locationEvents = parseFixture('zone', 'jurisdiction-monitored-armistice.observed.log').events;
+  const destinationEvents = parseRuntimeLogText(
+    readFixture('destination', 'quantum-target-change-arrival.observed.log'),
+    { ...LIVE_PROFILE_OPTIONS, sourceProfileVersion: 'draft-2026-08-19.3', gameBuild: '4.9.188.23497' }
+  ).events;
+  const now = '2026-08-20T19:20:01.000Z';
+
+  const partySnapshot = toRendererPartySnapshot(projectRuntimeParty(partyEvents, { now }));
+  const locationSnapshot = toRendererLocationSnapshot(projectRuntimeLocation(locationEvents, { now }));
+  const destinationSnapshot = toRendererDestinationSnapshot(projectRuntimeDestination(destinationEvents, { now }));
+
+  expectProjectionState(partySnapshot, 'in_party');
+  expectProjectionState(locationSnapshot, 'known');
+  expectProjectionState(destinationSnapshot, 'arrived');
+});
+
 test('current notification vocabulary projects monitored-space exit independently', () => {
   const result = parseRuntimeLogText(
     readFixture('zone', 'live-4-9-188-zone-notifications.observed.log'),
@@ -120,8 +135,7 @@ test('current notification vocabulary projects monitored-space exit independentl
   );
   const snapshot = toRendererLocationSnapshot(projectRuntimeLocation(result.events, {
     activeEnvironmentKey: result.events.at(-1).environmentKey,
-    now: '2026-08-19T07:12:55.000Z',
-    staleAfterMs: 60 * 60 * 1000
+    now: '2026-08-19T07:12:55.000Z'
   }));
   const location = snapshot.environments[snapshot.activeEnvironmentKey];
 
@@ -154,8 +168,7 @@ test('destination snapshot projects target replacement and final arrival without
   );
   const snapshot = toRendererDestinationSnapshot(projectRuntimeDestination(result.events, {
     activeEnvironmentKey: result.events.at(-1).environmentKey,
-    now: '2026-08-19T07:04:01.000Z',
-    staleAfterMs: 60 * 60 * 1000
+    now: '2026-08-19T07:04:01.000Z'
   }));
   const destination = snapshot.environments[snapshot.activeEnvironmentKey];
 
@@ -193,4 +206,10 @@ function readFixture(domain, fixtureName) {
     domain,
     fixtureName
   ), 'utf8');
+}
+
+function expectProjectionState(snapshot, expectedState) {
+  const projection = snapshot.environments[snapshot.activeEnvironmentKey];
+  assert.equal(projection.state, expectedState);
+  assert.equal(projection.freshness, 'current');
 }

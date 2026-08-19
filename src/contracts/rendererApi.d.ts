@@ -152,13 +152,13 @@ export interface RendererScanResult {
 }
 
 export interface RendererLifecycleProjection {
-  version: 2;
+  version: 3;
   activeEnvironmentKey: string | null;
   environments: Readonly<Record<string, RendererEnvironmentLifecycle>>;
 }
 
 export interface RendererEnvironmentLifecycle {
-  version: 2;
+  version: 3;
   environmentKey: string;
   environment: {
     releaseChannel: string;
@@ -189,7 +189,7 @@ export interface RendererEnvironmentLifecycle {
     conflictingClaimCount: number;
   }>>;
   shard: {
-    state: 'unknown' | 'transitioning' | 'connected' | 'disconnected' | 'stale';
+    state: 'unknown' | 'transitioning' | 'connected' | 'disconnected';
     shardLabel: string | null;
     locationId: string | null;
     region: {
@@ -203,7 +203,7 @@ export interface RendererEnvironmentLifecycle {
     confidence: string;
   };
   replicationConnection: {
-    state: 'unknown' | 'transitioning' | 'connected' | 'disconnected' | 'stale';
+    state: 'unknown' | 'transitioning' | 'connected' | 'disconnected';
     endpoint: string | null;
     port: number | null;
     observedNodeId: string | null;
@@ -240,7 +240,10 @@ export interface RendererEnvironmentLifecycle {
     cleanExit: boolean | null;
   };
   lastChangedAt: string | null;
-  freshness: 'current' | 'stale' | 'unknown';
+  observation: {
+    lastDomainEventAt: string | null;
+    state: 'none' | 'observed';
+  };
 }
 
 export interface RendererEvidenceRow {

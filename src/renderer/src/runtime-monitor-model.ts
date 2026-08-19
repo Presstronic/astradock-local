@@ -10,6 +10,7 @@ export type WorkspaceState =
   | 'loading'
   | 'no-source'
   | 'recovering'
+  | 'paused'
   | 'ready'
   | 'stale'
   | 'disconnected'
@@ -42,6 +43,9 @@ export interface RuntimeMonitorViewModel {
   monitorLabel: string;
   freshnessLabel: string;
   exactFreshness: string | null;
+  sourceHealth: SourceHealthState;
+  activityState: ActivityState;
+  compatibilityState: CompatibilityState;
   environmentLabel: string;
   buildLabel: string;
   warningCount: number;
@@ -53,6 +57,10 @@ export interface RuntimeMonitorViewModel {
   mission: PanelState;
   alerts: readonly AlertState[];
 }
+
+export type SourceHealthState = 'unknown' | 'healthy' | 'recovering' | 'paused' | 'degraded' | 'missing' | 'stopped' | 'error';
+export type ActivityState = 'none' | 'recent' | 'quiet';
+export type CompatibilityState = 'unknown' | 'compatible' | 'unverified_build' | 'unsupported_profile' | 'suspected_drift';
 
 export interface InstrumentState {
   id: string;
@@ -85,7 +93,7 @@ export interface DetailState {
   message: string;
 }
 
-const STALE_AFTER_MS = 60_000;
+const QUIET_AFTER_MS = 60_000;
 const MAX_STREAM_ROWS = 100;
 
 export function createRuntimeMonitorViewModel(input: {
@@ -106,14 +114,19 @@ export function createRuntimeMonitorViewModel(input: {
   const lifecycle = activeLifecycle(scan);
   const monitor = input.snapshot?.monitor ?? null;
   const lastObservedAt = monitor?.tailer?.lastObservedAt || scan?.scannedAt || null;
+  const sourceHealth = classifySourceHealth(input.snapshot, source);
+  const activityState = classifyActivity(lastObservedAt, input.now);
   const warningCount = countWarnings(state, scan);
 
   return {
     workspaceState: state,
     source,
-    monitorLabel: formatMonitorLabel(state, monitor?.active ?? false),
+    monitorLabel: formatMonitorLabel(state, monitor?.active ?? false, activityState),
     freshnessLabel: formatFreshness(lastObservedAt, input.now),
     exactFreshness: lastObservedAt,
+    sourceHealth,
+    activityState,
+    compatibilityState: (scan?.parserCompatibility?.status || 'unknown') as CompatibilityState,
     environmentLabel: lifecycle?.environment.releaseChannel || formatEnvironment(scan),
     buildLabel: lifecycle?.build.productVersion || lifecycle?.build.fileVersion || (environment?.buildVersion && environment.buildVersion !== 'UNKNOWN_BUILD'
       ? environment.buildVersion
@@ -150,13 +163,38 @@ export function classifyWorkspaceState(input: {
   if (input.scan?.parserCompatibility?.status === 'unsupported_profile') return 'unsupported-profile';
 
   const tailer = input.snapshot?.monitor.tailer;
-  if (tailer?.status === 'paused' || tailer?.paused) return 'recovering';
+  if (input.snapshot?.monitor.active && !tailer) return 'recovering';
+  if (tailer?.status === 'stopped' || input.snapshot?.monitor.active === false) return 'ready';
+  if (tailer?.status === 'paused' || tailer?.paused) return 'paused';
   if (tailer?.lastErrorCode) return 'degraded';
   if (tailer && !tailer.available) return 'disconnected';
+  if (tailer && (tailer.backlogBytes > 0 || tailer.deliveryInFlight)) return 'degraded';
 
-  const observedAt = tailer?.lastObservedAt || input.scan?.scannedAt || null;
-  if (observedAt && input.now.getTime() - new Date(observedAt).getTime() > STALE_AFTER_MS) return 'stale';
   return 'ready';
+}
+
+export function classifyActivity(observedAt: string | null, now: Date): ActivityState {
+  if (!observedAt) return 'none';
+  const observedMs = Date.parse(observedAt);
+  if (Number.isNaN(observedMs)) return 'none';
+  return now.getTime() - observedMs > QUIET_AFTER_MS ? 'quiet' : 'recent';
+}
+
+export function classifySourceHealth(
+  snapshot: MonitorSnapshot | null,
+  source: PublicRuntimeSource | null
+): SourceHealthState {
+  if (!source) return 'unknown';
+  if (source.validation?.isValid === false) return 'error';
+  const monitor = snapshot?.monitor;
+  const tailer = monitor?.tailer;
+  if (!tailer) return monitor?.active ? 'recovering' : 'stopped';
+  if (tailer.status === 'stopped' || !monitor?.active) return 'stopped';
+  if (tailer.status === 'paused' || tailer.paused) return 'paused';
+  if (tailer.lastErrorCode) return 'degraded';
+  if (!tailer.available || tailer.status === 'waiting_for_source') return 'missing';
+  if (tailer.backlogBytes > 0 || tailer.deliveryInFlight) return 'degraded';
+  return 'healthy';
 }
 
 export function createStreamEvents(scan: RendererScanResult | null, now: Date): StreamEvent[] {
@@ -494,14 +532,22 @@ function createAlerts(
       message: actionError
     });
   }
-  if (state === 'degraded' || state === 'recovering') {
+  if (state === 'degraded' || state === 'recovering' || state === 'paused') {
     alerts.push({ id: 'degraded', severity: 'warning', title: 'Monitor recovering', message: 'Monitoring is active but health is degraded.' });
   }
   if (state === 'stale') {
-    alerts.push({ id: 'stale', severity: 'warning', title: 'Telemetry stale', message: 'Last observation exceeded the freshness threshold.' });
+    alerts.push({ id: 'stale', severity: 'warning', title: 'Monitor health stale', message: 'Expected monitor health signals exceeded the fault-visibility window.' });
   }
   if (source && source.validation?.isValid === false) {
     alerts.push({ id: 'source', severity: 'critical', title: 'Source disconnected', message: source.validation.message });
+  }
+  if (scan?.parserCompatibility?.status === 'suspected_drift') {
+    alerts.push({
+      id: 'parser-drift',
+      severity: 'warning',
+      title: 'Parser vocabulary drift suspected',
+      message: 'The source remains available, but some current log vocabulary is not recognized by this profile.'
+    });
   }
   for (const diagnostic of scan?.environmentDiagnostics || []) {
     alerts.push({
@@ -515,19 +561,22 @@ function createAlerts(
 }
 
 function countWarnings(state: WorkspaceState, scan: RendererScanResult | null): number {
-  return (state === 'ready' || state === 'loading' ? 0 : 1) + (scan?.environmentDiagnostics?.length || 0);
+  return (state === 'ready' || state === 'loading' ? 0 : 1)
+    + (scan?.parserCompatibility?.status === 'suspected_drift' ? 1 : 0)
+    + (scan?.environmentDiagnostics?.length || 0);
 }
 
-function formatMonitorLabel(state: WorkspaceState, active: boolean): string {
+function formatMonitorLabel(state: WorkspaceState, active: boolean, activity: ActivityState): string {
   if (state === 'loading') return 'Loading';
   if (state === 'fatal') return 'Fatal';
   if (state === 'no-source') return 'Awaiting source';
   if (state === 'unsupported-profile') return 'Unsupported profile';
   if (state === 'disconnected') return 'Disconnected';
   if (state === 'recovering') return 'Recovering';
+  if (state === 'paused') return 'Paused';
   if (state === 'degraded') return 'Degraded';
   if (state === 'stale') return 'Stale';
-  return active ? 'Live' : 'Ready';
+  return active ? (activity === 'quiet' ? 'Live · Quiet' : 'Live') : 'Ready';
 }
 
 function formatEnvironment(scan: RendererScanResult | null): string {

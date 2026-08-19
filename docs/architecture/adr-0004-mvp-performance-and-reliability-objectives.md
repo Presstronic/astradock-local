@@ -153,6 +153,8 @@ The runtime must apply bounded backpressure at filesystem read, framing, extract
 
 The UI must show a stale or disconnected monitoring state within 15 seconds when the active source stops producing expected health signals, file access fails, the runtime process is unavailable, or the main process can no longer receive runtime health.
 
+This objective starts when a monitor/source fault becomes observable; it is not a heartbeat requirement for `game.log`. Normal log silence is neutral activity age and must not age a directly observed shard, PU session, replication connection, party, zone, or destination fact into a warning. Source/tailer health, parser compatibility, observation age, and latched domain state use independent clocks and labels.
+
 Stale-state detection must distinguish:
 
 - No new gameplay lines but source is still readable.
