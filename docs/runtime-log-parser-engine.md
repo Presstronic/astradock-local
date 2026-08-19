@@ -53,8 +53,13 @@ Built-in profiles live in `src/runtimeLogProfiles.js`. A profile includes:
 - `id`
 - `version`
 - `priority`
+- `compatibility.family` (`major` and `minor`)
 - `compatibility.releaseChannels`
-- `compatibility.gameBuildPrefixes`
+- `compatibility.universes`
+- `compatibility.branches`
+- `compatibility.testedBuilds`
+- `compatibility.exclusions` with stable reasons
+- `supportedEventFamilies` with required anchors
 - `parserVersion`
 - `fieldAliases`
 - `knownLimitations`
@@ -129,7 +134,7 @@ The current 4.9.188 HUD notification shape is normalized alongside the legacy sh
 - `locationSnapshot` for independently fresh jurisdiction, monitored-space, and armistice facts from validated HUD notification events.
 - `promotedRuntimeEvents` for sanitized party and zone stream rows backed by canonical runtime event IDs.
 
-Party and location snapshots are conservative by contract. Party-marker records, object-container paths, route subsystem records, nearby place-name noise, missing terminal lines, and unsupported lifecycle candidates do not mutate current state. Session boundaries and stale windows mark existing facts stale or unknown instead of inventing clear, false, disband, leave, or not-in-party state.
+Party and location snapshots are conservative by contract. Party-marker records, object-container paths, route subsystem records, nearby place-name noise, missing terminal lines, and unsupported lifecycle candidates do not mutate current state. Direct session/source boundaries mark existing facts historical instead of inventing clear, false, disband, leave, or not-in-party state; quiet time does not mutate them.
 
 ## Authoring, Review, and Versioning
 
@@ -137,7 +142,7 @@ Profile changes require accepted positive or negative fixtures before an extract
 
 Breaking profile changes require a new profile version. Breaking changes include changing event mappings, required fields, dedupe identity, compatibility scope, or the meaning of an alias. Future profile versions should preserve old versions for replay until the persistence layer has a migration/quarantine policy.
 
-The `sc-4.9-live` profile version `draft-2026-08-19.1` recognizes both the reviewed `4.9.0-LIVE.*` fixture form and the directly observed LIVE executable-version family `4.9.188.*`. Compatibility still requires the LIVE channel. Numerically adjacent future families and PTU 4.10 remain unsupported until separately reviewed; the matcher must not collapse the rule to a broad `4.9.*` prefix.
+The immutable `sc-4.9-live` profile version `2026-08-19.4` shares logic across exact tested 4.9.0 fixture builds and observed LIVE build `4.9.188.23497`. Compatibility still requires the 4.9 family, LIVE channel, PU universe, an allowed branch, and an exact tested build. A matching untested patch is `unverified_build`; numerically adjacent minors and PTU 4.10 remain unsupported until separately captured and reviewed.
 
 ## Failure Handling
 

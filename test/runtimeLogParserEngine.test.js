@@ -22,6 +22,7 @@ const FIXTURE_ROOT = path.join(__dirname, 'fixtures', 'runtime-log');
 const LIVE_PROFILE_OPTIONS = {
   sourceLocation: '%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log',
   sourceProfileId: 'sc-4.9-live',
+  gameBuild: '4.9.0-LIVE.9000000-SYNTH',
   ingestedAt: '2026-08-09T21:00:00.000Z'
 };
 
@@ -476,14 +477,14 @@ test('reviewed LIVE executable version selects the 4.9 profile without widening 
   );
 
   assert.equal(reviewedLive.selectedProfile.id, 'sc-4.9-live');
-  assert.equal(reviewedLive.selectedProfile.version, 'draft-2026-08-19.3');
+  assert.equal(reviewedLive.selectedProfile.version, '2026-08-19.4');
   assert.equal(reviewedLive.parserHealth.status, 'compatible');
   assert.deepEqual(reviewedLive.events.map((event) => event.eventType), ['PuJoinRequested']);
   assert.ok(reviewedLive.events.every((event) => validateRuntimeEvent(event).ok));
 
   for (const candidate of [
-    { releaseChannel: 'LIVE', gameBuild: '4.9.189.10000' },
-    { releaseChannel: 'PTU', gameBuild: '4.10.189.23056' }
+    { releaseChannel: 'LIVE', gameBuild: '4.9.189.10000', expectedStatus: 'unverified_build' },
+    { releaseChannel: 'PTU', gameBuild: '4.10.189.23056', expectedStatus: 'unsupported_profile' }
   ]) {
     const unsupported = parseRuntimeLogText(
       '<2026-08-19T06:00:00.000Z> <Join PU> address[unsupported.example.invalid] port[64332] shard[SYNTH_SHARD_UNSUPPORTED] locationId[SYNTH_LOCATION_UNSUPPORTED]\n',
@@ -495,8 +496,66 @@ test('reviewed LIVE executable version selects the 4.9 profile without widening 
     );
 
     assert.equal(unsupported.events.length, 0);
-    assert.equal(unsupported.parserHealth.status, 'unsupported_profile');
+    assert.equal(unsupported.parserHealth.status, candidate.expectedStatus);
   }
+});
+
+test('profile family reports exact tested, unverified, excluded, and mismatched builds distinctly', () => {
+  const parseBuild = (gameBuild, overrides = {}) => parseRuntimeLogText(
+    '<2026-08-19T06:00:00.000Z> <Join PU> address[family.example.invalid] port[64332] shard[SYNTH_SHARD_FAMILY] locationId[SYNTH_LOCATION_FAMILY]\n',
+    {
+      sourceLocation: '%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log',
+      releaseChannel: 'LIVE',
+      gameBuild,
+      ingestedAt: '2026-08-19T06:01:00.000Z',
+      ...overrides
+    }
+  );
+
+  const tested = parseBuild('4.9.0-LIVE.9000000-SYNTH');
+  const unverified = parseBuild('4.9.189.10000');
+  const excluded = parseBuild('4.9.999.0-BLOCKED-SYNTH');
+  const futureMinor = parseBuild('4.10.0-LIVE.10000');
+  const wrongBranch = parseBuild('4.9.188.23497', { branch: 'sc-alpha-unsupported-branch' });
+  const malformed = parseBuild('not-a-build');
+  const wrongChannel = parseBuild('4.9.188.23497', { releaseChannel: 'PTU' });
+
+  assert.equal(tested.parserHealth.status, 'compatible');
+  assert.equal(tested.parserHealth.compatibilityBasis, 'exact_tested_build');
+  assert.equal(unverified.parserHealth.status, 'unverified_build');
+  assert.equal(unverified.parserHealth.compatibilityBasis, 'major_minor_family_match');
+  assert.equal(unverified.events.length, 0);
+  assert.equal(excluded.parserHealth.status, 'unsupported_profile');
+  assert.equal(excluded.parserHealth.reason, 'build_explicitly_excluded');
+  assert.equal(excluded.parserHealth.exclusionReason, 'synthetic_known_incompatible_vocabulary');
+  assert.equal(futureMinor.parserHealth.status, 'unsupported_profile');
+  assert.equal(wrongBranch.parserHealth.status, 'unsupported_profile');
+  assert.equal(malformed.parserHealth.status, 'unsupported_profile');
+  assert.equal(wrongChannel.parserHealth.status, 'unsupported_profile');
+  assert.ok(unverified.healthEvents.every((event) => validateRuntimeEvent(event).ok));
+});
+
+test('field-shape drift suppresses only its affected event family', () => {
+  const result = parseRuntimeLogText([
+    '<2026-08-19T06:00:00.000Z> <SHUDEvent_OnNotification> Add Type[Location] Message["Entered SYNTH_BAD Jurisdiction"]',
+    '<2026-08-19T06:00:01.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_ZONE_AFTER_DRIFT] Type[Location] Message["Entered SYNTH_AFTER Jurisdiction"]',
+    '<2026-08-19T06:00:02.000Z> <PartyService> PartyCreated partyId[SYNTH_PARTY_UNAFFECTED] leader[SYNTH_HANDLE_LOCAL]'
+  ].join('\n') + '\n', LIVE_PROFILE_OPTIONS);
+
+  assert.deepEqual(result.events.map((event) => event.eventType), ['PartyCreated']);
+  assert.equal(result.parserHealth.status, 'suspected_drift');
+  assert.equal(result.parserHealth.reason, 'event_family_field_shape_changed');
+  assert.deepEqual(result.parserHealth.affectedEventFamilies, ['zone']);
+  assert.ok(result.unknownEvidence.some((item) => item.reason === 'event_family_suppressed'));
+});
+
+test('replay preserves an explicitly stored immutable profile version', () => {
+  const result = parseRuntimeLogText(
+    '<2026-08-19T06:00:00.000Z> <Join PU> address[replay.example.invalid] port[64332] shard[SYNTH_SHARD_REPLAY] locationId[SYNTH_LOCATION_REPLAY]\n',
+    { ...LIVE_PROFILE_OPTIONS, sourceProfileVersion: '2026-08-11.immutable' }
+  );
+  assert.equal(result.selectedProfile.version, '2026-08-19.4');
+  assert.equal(result.events[0].sourceProfileVersion, '2026-08-11.immutable');
 });
 
 test('conflicting matches and malformed records fail safely and observably', () => {

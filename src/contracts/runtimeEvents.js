@@ -170,7 +170,7 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       volumeCost: 'low'
     }),
     payload: {
-      status: field(STRING, { enum: ['compatible', 'unsupported_profile', 'suspected_drift'] }),
+      status: field(STRING, { enum: ['compatible', 'unverified_build', 'unsupported_profile', 'suspected_drift'] }),
       profileId: field(STRING),
       profileVersion: field(STRING),
       reason: field(STRING),

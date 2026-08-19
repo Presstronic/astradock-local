@@ -42,6 +42,20 @@ describe('separated monitor health and activity clocks', () => {
     });
     expect(state).toBe('ready');
   });
+
+  it('surfaces an unverified build without treating it as source failure', () => {
+    const now = new Date('2026-08-18T12:00:00.000Z');
+    const scan = {
+      parserCompatibility: { status: 'unverified_build' },
+      promotedRuntimeEvents: [], entries: [], userActivity: { actions: [], sessions: [] },
+      environmentDiagnostics: [], rendererLifecycle: null, partySnapshot: null,
+      locationSnapshot: null, destinationSnapshot: null
+    } as never;
+    expect(classifyWorkspaceState({ loading: false, fatalError: null, sources: [], activeSource: source, snapshot, scan, now })).toBe('unverified-build');
+    const model = createRuntimeMonitorViewModel({ loading: false, fatalError: null, sources: [], activeSource: source, snapshot, scan, now });
+    expect(model.sourceHealth).toBe('healthy');
+    expect(model.alerts).toContainEqual(expect.objectContaining({ id: 'unverified-build' }));
+  });
 });
 
 describe('PU session duration formatting', () => {

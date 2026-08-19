@@ -397,7 +397,17 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             <span>Retention 100 rows</span>
             <i />
             <span><b>Backlog</b> 0</span>
-            <span><b>Parser</b> {scan?.parserCompatibility?.profileId || 'Unknown'}</span>
+            <span title={[
+              scan?.parserCompatibility?.compatibilityBasis,
+              scan?.parserCompatibility?.testedBuild,
+              scan?.parserCompatibility?.exclusionReason,
+              scan?.parserCompatibility?.affectedEventFamilies?.length
+                ? `Affected: ${scan.parserCompatibility.affectedEventFamilies.join(', ')}`
+                : null
+            ].filter(Boolean).join(' · ') || undefined}>
+              <b>Parser</b> {scan?.parserCompatibility?.familyId || scan?.parserCompatibility?.profileId || 'Unknown'}
+              {scan?.parserCompatibility?.familyVersion ? ` @ ${scan.parserCompatibility.familyVersion}` : ''}
+            </span>
           </footer>
         </section>
 

@@ -130,10 +130,20 @@ export interface RendererScanResult {
   environmentSwitches: readonly unknown[];
   environmentDiagnostics: readonly unknown[];
   parserCompatibility: {
-    status: 'compatible' | 'unsupported_profile' | 'suspected_drift';
+    status: 'compatible' | 'unverified_build' | 'unsupported_profile' | 'suspected_drift';
     reason: string;
     profileId: string | null;
     profileVersion: string | null;
+    familyId: string | null;
+    familyVersion: string | null;
+    compatibilityBasis: string | null;
+    testedBuild: string | null;
+    exclusionReason: string | null;
+    requiredAnchorCount: number;
+    observedAnchorCount: number;
+    missingAnchors: readonly { family: string; anchor: string }[];
+    affectedEventFamilies: readonly string[];
+    lastCompatibleObservationAt: string | null;
   };
   rendererLifecycle: RendererLifecycleProjection;
   partySnapshot: RendererPartySnapshot;
