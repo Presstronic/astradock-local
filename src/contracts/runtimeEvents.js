@@ -1004,7 +1004,22 @@ function compareRuntimeEventOrder(left, right) {
 }
 
 function deriveRuntimeEventId(input) {
-  const identity = {
+  const hash = crypto
+    .createHash('sha256')
+    .update(serializeRuntimeEventIdentityFields(input))
+    .digest('hex')
+    .slice(0, 32);
+
+  return `rte_v1_${hash}`;
+}
+
+function serializeRuntimeEventIdentity(input) {
+  const event = assertValidRuntimeEvent(input);
+  return serializeRuntimeEventIdentityFields(event);
+}
+
+function serializeRuntimeEventIdentityFields(input) {
+  return JSON.stringify(sortForStableSerialization({
     contractVersion: input.contractVersion || CONTRACT_VERSION,
     eventType: input.eventType,
     environmentKey: input.environmentKey,
@@ -1018,15 +1033,7 @@ function deriveRuntimeEventId(input) {
     correlationIds: input.correlationIds,
     evidenceReference: input.evidenceReference,
     payload: input.payload
-  };
-
-  const hash = crypto
-    .createHash('sha256')
-    .update(JSON.stringify(sortForStableSerialization(identity)))
-    .digest('hex')
-    .slice(0, 32);
-
-  return `rte_v1_${hash}`;
+  }));
 }
 
 function buildExampleEvent(eventType, index, overrides = {}) {
@@ -1430,6 +1437,7 @@ module.exports = {
   deriveRuntimeEventId,
   deriveSourceInstallationId,
   serializeRuntimeEvent,
+  serializeRuntimeEventIdentity,
   toPersistenceRecord,
   validateRuntimeEvent
 };

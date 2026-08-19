@@ -45,7 +45,7 @@ The ADR's 250 MB soft-cap orchestration, evidence/projection repositories, UI de
 | Condition | Behavior |
 | --- | --- |
 | New database | Create directories, apply encryption key, migrate transactionally, enable foreign keys and WAL |
-| Duplicate event | Return an idempotent duplicate count; do not rewrite |
+| Duplicate event | Compare the contract-owned event identity, return an idempotent duplicate count, and preserve the first stored envelope |
 | Same ID, different content | Reject and roll back the batch |
 | Invalid event or checkpoint | Reject before commit and roll back |
 | Locked database | Report `store_locked`; caller may retry |

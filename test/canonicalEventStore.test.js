@@ -8,6 +8,7 @@ const path = require('node:path');
 const Database = require('better-sqlite3-multiple-ciphers');
 
 const { createRuntimeEvent, deriveEnvironmentContext, RUNTIME_EVENT_EXAMPLES } = require('../src/contracts/runtimeEvents');
+const { parseLogFile } = require('../src/logParser');
 const {
   CanonicalEventStore,
   CanonicalEventStoreError,
@@ -86,10 +87,62 @@ test('failed batches roll back and event ID conflicts are rejected', async (t) =
   assert.equal(fixture.store.getCheckpoint(LIVE_ENVIRONMENT_KEY, 'must-not-commit'), null);
 
   fixture.store.append(valid);
-  fixture.store.database.prepare('UPDATE events SET serialized_event = ? WHERE event_id = ?').run('{"corrupt":"collision"}', valid.eventId);
+  const conflicting = eventAt('2026-08-19T10:00:01.000Z', 'LIVE_ENV', 'ReleaseEnvironmentObserved');
+  fixture.store.database.prepare('UPDATE events SET serialized_event = ? WHERE event_id = ?').run(JSON.stringify(conflicting), valid.eventId);
   assert.throws(() => fixture.store.append(valid), (error) => error.code === 'event_id_conflict');
   fixture.store.database.prepare('UPDATE events SET serialized_event = ? WHERE event_id = ?').run(JSON.stringify(valid), valid.eventId);
   assert.deepEqual(fixture.store.getById(valid.eventId, LIVE_ENVIRONMENT_KEY), valid);
+});
+
+test('repeated source evidence is idempotent when observation metadata changes', async (t) => {
+  const fixture = await createStoreFixture(t);
+  const first = eventAt('2026-08-19T10:00:00.000Z', 'LIVE_ENV', 'ClientBuildObserved');
+  const replay = createRuntimeEvent({
+    ...first,
+    eventId: undefined,
+    ingestedAt: '2026-08-19T11:00:00.000Z',
+    environment: { ...first.environment, observedAt: '2026-08-19T11:00:00.000Z' },
+    ordering: {
+      ...first.ordering,
+      ingestionSequence: first.ordering.ingestionSequence + 10,
+      sourceGeneration: 2,
+      sourceChunkSequence: 4
+    }
+  });
+
+  assert.equal(replay.eventId, first.eventId);
+  assert.deepEqual(fixture.store.append(first), { attempted: 1, inserted: 1, duplicates: 0 });
+  assert.deepEqual(fixture.store.append(replay), { attempted: 1, inserted: 0, duplicates: 1 });
+  assert.deepEqual(fixture.store.getById(first.eventId, LIVE_ENVIRONMENT_KEY), first);
+  assert.equal(fixture.store.getHealth().eventCount, 1);
+});
+
+test('repeated application scans persist as idempotent redeliveries', async (t) => {
+  const fixture = await createStoreFixture(t);
+  const logPath = path.join(__dirname, 'fixtures/runtime-log/live/4.9-pub/sc-4.9-live/spine/client-build-environment.observed.log');
+  const firstScan = await parseLogFile(logPath);
+  await new Promise((resolve) => setTimeout(resolve, 2));
+  const secondScan = await parseLogFile(logPath);
+
+  assert.ok(firstScan.runtimeEvents.length > 0);
+  assert.deepEqual(firstScan.runtimeEvents.map((event) => event.eventId), secondScan.runtimeEvents.map((event) => event.eventId));
+  fixture.store.append(firstScan.runtimeEvents);
+  const replay = fixture.store.append(secondScan.runtimeEvents);
+  assert.equal(replay.inserted, 0);
+  assert.equal(replay.duplicates, secondScan.runtimeEvents.length);
+  assert.equal(fixture.store.getHealth().status, 'ready');
+});
+
+test('corrupt stored duplicate content fails closed without overwrite', async (t) => {
+  const fixture = await createStoreFixture(t);
+  const event = eventAt('2026-08-19T10:00:00.000Z', 'LIVE_ENV', 'ClientBuildObserved');
+  fixture.store.append(event);
+  fixture.store.database.prepare('UPDATE events SET serialized_event = ? WHERE event_id = ?').run('{"corrupt":true}', event.eventId);
+  assert.throws(
+    () => fixture.store.append(event),
+    (error) => error.code === 'store_corrupt' && error.recoverable === false
+  );
+  assert.equal(fixture.store.database.prepare('SELECT serialized_event FROM events WHERE event_id = ?').get(event.eventId).serialized_event, '{"corrupt":true}');
 });
 
 test('retention hooks and deletion preserve environment isolation', async (t) => {

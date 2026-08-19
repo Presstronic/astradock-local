@@ -4,6 +4,7 @@ const Database = require('better-sqlite3-multiple-ciphers');
 const {
   createRuntimeEventOrderKey,
   deserializeRuntimeEvent,
+  serializeRuntimeEventIdentity,
   toPersistenceRecord
 } = require('../contracts/runtimeEvents');
 
@@ -166,7 +167,17 @@ class CanonicalEventStore {
     });
     if (result.changes === 1) return 'inserted';
     const existing = this.readByIdStatement.get(record.eventId);
-    if (existing?.serialized_event !== serializedEvent) {
+    let existingEvent;
+    try {
+      existingEvent = deserializeRuntimeEvent(existing?.serialized_event);
+    } catch (error) {
+      throw new CanonicalEventStoreError('store_corrupt', 'An existing canonical event could not be validated.', {
+        cause: error,
+        recoverable: false,
+        details: { eventId: record.eventId }
+      });
+    }
+    if (serializeRuntimeEventIdentity(existingEvent) !== serializeRuntimeEventIdentity(event)) {
       throw new CanonicalEventStoreError('event_id_conflict', 'An event ID already exists with different canonical content.', {
         recoverable: false,
         details: { eventId: record.eventId }
