@@ -1,0 +1,81 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/spine/delayed-pu-disconnect-correlation.observed",
+  "title": "Frontend transition disconnects and delayed prior-PU disconnect",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-11",
+  "domain": "spine",
+  "action": "join a US PU, transition through the frontend, request an EU PU, and receive delayed US PU disconnect evidence",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "issue #79 owner-reported server-leave misclassification",
+  "logFile": "delayed-pu-disconnect-correlation.observed.log",
+  "privacyClassification": ["local", "network_sanitized", "personal", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["endpoint", "session", "nodeId", "playerGeid", "shard", "locationId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "All endpoints use reserved .invalid names; identifiers and values are synthetic."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "PuJoinRequested",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["matchmakingRequestId", "shard", "endpoint", "port", "locationId"],
+      "payload": {
+        "matchmakingRequestId": "UNKNOWN_MATCHMAKING_REQUEST",
+        "shard": "SYNTH_SHARD_US_A",
+        "endpoint": "us-game.example.invalid",
+        "port": 64090,
+        "locationId": "SYNTH_LOCATION_US"
+      },
+      "evidenceMarkers": ["<Join PU>"]
+    },
+    {
+      "eventType": "PuJoinRequested",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["matchmakingRequestId", "shard", "endpoint", "port", "locationId"],
+      "payload": {
+        "matchmakingRequestId": "UNKNOWN_MATCHMAKING_REQUEST",
+        "shard": "SYNTH_SHARD_EU_B",
+        "endpoint": "eu-game.example.invalid",
+        "port": 64091,
+        "locationId": "SYNTH_LOCATION_EU"
+      },
+      "evidenceMarkers": ["<Join PU>"]
+    },
+    {
+      "eventType": "PuDisconnected",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["cause", "reason", "isRemote", "endpoint", "uptimeSeconds"],
+      "payload": {
+        "cause": "SYNTH_CAUSE_DELAYED",
+        "reason": "SYNTH_US_DISCONNECT",
+        "isRemote": true,
+        "endpoint": "us-game.example.invalid",
+        "uptimeSeconds": 543
+      },
+      "evidenceMarkers": ["<Channel Disconnected>"]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "PuDisconnected",
+      "reason": "SC_Frontend channel disconnects are transition plumbing, not PU/server leaves."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "environment+endpoint+cause+reason",
+    "sequence": ["PuJoinRequested US", "frontend non-event", "PuJoinRequested EU", "frontend non-event", "PuDisconnected US"],
+    "notes": "The delayed US disconnect must not mutate or borrow the EU shard projection."
+  },
+  "knownLimitations": ["This fixture validates channel-role rejection and endpoint correlation, not every server-meshing transition."],
+  "verificationNotes": "Both whole-file and split-chunk parsing must emit exactly two joins and one true PU disconnect."
+}
