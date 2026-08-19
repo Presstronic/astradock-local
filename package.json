@@ -20,6 +20,7 @@
     "test": "npm run typecheck && npm run test:node && npm run test:renderer",
     "benchmark:parser": "node scripts/benchmarkRuntimeLogParserEngine.js",
     "benchmark:tailer": "node scripts/benchmarkRuntimeLogTailer.js",
+    "benchmark:store": "node scripts/benchmarkCanonicalEventStore.js",
     "build:renderer": "vite build",
     "build": "npm run typecheck && npm run build:renderer && electron-builder --dir",
     "dist": "npm run typecheck && npm run build:renderer && electron-builder",
@@ -72,6 +73,7 @@
     "@fontsource/hanken-grotesk": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/space-grotesk": "^5.3.0",
+    "better-sqlite3-multiple-ciphers": "^13.0.3",
     "lucide-react": "^1.31.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

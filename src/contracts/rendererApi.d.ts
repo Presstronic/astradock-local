@@ -63,6 +63,22 @@ export interface MonitorState {
   pendingScan: boolean;
   tailer: TailerHealth | null;
   checkpoint: TailerCheckpoint | null;
+  storage: StorageHealth;
+}
+
+export interface StorageHealth {
+  status: 'initializing' | 'ready' | 'error';
+  errorCode: string | null;
+  recoverable?: boolean;
+  schemaVersion?: number;
+  encrypted?: boolean;
+  journalMode?: string;
+  databaseSizeBytes?: number;
+  eventCount?: number;
+  environmentCount?: number;
+  oldestEventAt?: string | null;
+  newestEventAt?: string | null;
+  lastAppend?: { attempted: number; inserted: number; duplicates: number };
 }
 
 export interface TailerCheckpoint {

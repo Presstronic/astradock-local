@@ -57,6 +57,7 @@ export interface RuntimeMonitorViewModel {
   party: PanelState;
   mission: PanelState;
   alerts: readonly AlertState[];
+  storageLabel: string;
 }
 
 export type SourceHealthState = 'unknown' | 'healthy' | 'recovering' | 'paused' | 'degraded' | 'missing' | 'stopped' | 'error';
@@ -139,7 +140,8 @@ export function createRuntimeMonitorViewModel(input: {
     instruments: createInstruments(scan, input.now),
     party: createPartyPanel(scan),
     mission: createMissionPanel(scan),
-    alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null)
+    alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null, input.snapshot?.monitor.storage || null),
+    storageLabel: formatStorageLabel(input.snapshot?.monitor.storage || null)
   };
 }
 
@@ -540,9 +542,18 @@ function createAlerts(
   scan: RendererScanResult | null,
   source: PublicRuntimeSource | null,
   fatalError: string | null,
-  actionError: string | null
+  actionError: string | null,
+  storage: { status: string; errorCode: string | null; recoverable?: boolean } | null
 ): AlertState[] {
   const alerts: AlertState[] = [];
+  if (storage?.status === 'error') {
+    alerts.push({
+      id: 'storage-error',
+      severity: storage.recoverable === false ? 'critical' : 'warning',
+      title: 'Encrypted telemetry storage unavailable',
+      message: `Live monitoring can continue, but canonical events are not durable (${storage.errorCode || 'unknown storage error'}).`
+    });
+  }
   if (state === 'fatal') {
     alerts.push({
       id: 'fatal',
@@ -593,6 +604,12 @@ function createAlerts(
     });
   }
   return alerts;
+}
+
+function formatStorageLabel(storage: { status: string; eventCount?: number; encrypted?: boolean } | null): string {
+  if (!storage || storage.status === 'initializing') return 'Initializing';
+  if (storage.status === 'error') return 'Unavailable';
+  return `${storage.eventCount || 0} events · ${storage.encrypted ? 'Encrypted' : 'Unprotected'}`;
 }
 
 function countWarnings(state: WorkspaceState, scan: RendererScanResult | null): number {

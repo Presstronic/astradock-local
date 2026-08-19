@@ -394,7 +394,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             <span>{viewModel.monitorLabel}</span>
             <span>{viewModel.environmentLabel.toUpperCase()}</span>
             <span>Local only</span>
-            <span>Retention 100 rows</span>
+            <span>Retention 30 days</span>
+            <span><b>Storage</b> {viewModel.storageLabel}</span>
             <i />
             <span><b>Backlog</b> 0</span>
             <span title={[
@@ -643,7 +644,8 @@ function createEmptySnapshot(): MonitorSnapshot {
       sequence: 0,
       pendingScan: false,
       tailer: null,
-      checkpoint: null
+      checkpoint: null,
+      storage: { status: 'initializing', errorCode: null, recoverable: true }
     },
     source: null,
     scan: null,
