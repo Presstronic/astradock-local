@@ -45,6 +45,8 @@ The parser engine does not own:
 
 ## Profile Model
 
+Profile selection follows [`runtime-profile-compatibility-policy.md`](runtime-profile-compatibility-policy.md). Profiles normally share extraction logic at `major.minor + channel/universe + branch` scope, while exact tested builds, exclusions, immutable profile revisions, and family-level drift gates decide whether a particular patch may emit events. Matching `major.minor` alone is never sufficient evidence of compatibility, and a profile never crosses channel, branch, universe, or minor-version boundaries implicitly.
+
 Built-in profiles live in `src/runtimeLogProfiles.js`. A profile includes:
 
 - `schemaVersion`

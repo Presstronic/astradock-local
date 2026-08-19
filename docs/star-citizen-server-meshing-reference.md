@@ -166,6 +166,8 @@ These stages explain the intended destination, but their labels should be treate
 
 ## What can and cannot be inferred from a client log
 
+The annotated 2026-08-19 LIVE 4.9.188 capture reinforces this boundary. The owner's `r_displayinfo 3` overlay changed from a DGS label ending `game-185` to one ending `game-11` while the logical shard stayed `_070`, yet the reviewed `game.log` exposed no safe equivalent DGS identifier. Authority-flavored, reroute, zone-host, and `NOT AUTH` records around gameplay therefore remain non-events for DGS identity and authority transfer. A future overlay/OCR/telemetry integration would be a separate local source contract with its own provenance and privacy model.
+
 The following are distinct facts and must remain distinct in AstraDock's model:
 
 | Observation or inference | What it does not prove by itself |
