@@ -122,7 +122,7 @@ export function createRuntimeMonitorViewModel(input: {
     streamEvents,
     retainedCount: createAllEvents(scan).length,
     sourceCandidates: input.sources,
-    instruments: createInstruments(scan, source, state, input.now),
+    instruments: createInstruments(scan, input.now),
     party: createPartyPanel(scan),
     mission: createMissionPanel(),
     alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null)
@@ -205,8 +205,6 @@ function toStreamEvent(kind: StreamEvent['kind'], row: RendererEvidenceRow, now:
 
 function createInstruments(
   scan: RendererScanResult | null,
-  source: PublicRuntimeSource | null,
-  state: WorkspaceState,
   now: Date
 ): InstrumentState[] {
   const latestShard = scan?.entries?.[0];
@@ -218,30 +216,6 @@ function createInstruments(
   const sessionDuration = currentSessionDuration(lifecycle?.puSession, now);
 
   return [
-    {
-      id: 'game-lifecycle',
-      label: 'Game lifecycle',
-      value: formatLifecycleState(lifecycle?.lifecycle.state),
-      state: lifecycle?.lifecycle.status === 'failure'
-        ? 'disconnected'
-        : lifecycle?.freshness === 'stale'
-          ? 'stale'
-          : lifecycle?.lifecycle.status === 'known'
-            ? 'known'
-            : 'unknown',
-      detail: lifecycle?.lifecycle.lastChangedAt
-        ? `${formatFreshness(lifecycle.lifecycle.lastChangedAt, now)} · ${lifecycle.lifecycle.reason}`
-        : 'Monitor may have started mid-state',
-      provenance: lifecycle?.lifecycle.status === 'known' ? 'Observed canonical event' : 'Evidence absent'
-    },
-    {
-      id: 'source-health',
-      label: 'Source health',
-      value: source ? formatSourceState(source) : 'No source',
-      state: state === 'no-source' ? 'unknown' : state === 'stale' ? 'stale' : state === 'disconnected' ? 'disconnected' : 'known',
-      detail: source?.displayLabel || 'Choose a local game.log source',
-      provenance: 'Observed locally'
-    },
     {
       id: 'shard',
       label: 'Shard and region',
@@ -283,6 +257,14 @@ function createInstruments(
         ? 'Observed connection uptime'
         : lifecycle?.puSession.matchmakingStatus || 'Join evidence has not been observed',
       provenance: lifecycle && lifecycle.puSession.state !== 'unknown' ? 'PU session projection' : 'Evidence absent'
+    },
+    {
+      id: 'application-duration',
+      label: 'Application duration',
+      value: 'Unknown',
+      state: 'unknown',
+      detail: 'Application-start evidence is not available',
+      provenance: 'Evidence absent'
     },
     {
       id: 'jurisdiction',
