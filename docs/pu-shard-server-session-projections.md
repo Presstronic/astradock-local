@@ -14,7 +14,11 @@ For the upstream CIG architecture and the distinction among static, quasi-dynami
 | `PuEntered` | `connected` when shard evidence exists | unchanged | `in_game`; records entry time |
 | `PuDisconnected` | `disconnected` | `disconnected`; clears current endpoint/port/node and retains last endpoint plus reason | `disconnected`; uses directly observed channel uptime |
 
-Starting mid-session remains `unknown`. An incomplete join remains `transitioning`. Missing disconnect evidence does not invent a terminal state. Connected snapshots become `stale` after the ADR-0004 15-second health boundary, while an observed disconnect clears the current endpoint immediately.
+Starting mid-session remains `unknown`. An incomplete join remains `transitioning`. Missing disconnect evidence does not invent a terminal state. Connected snapshots remain latched through a quiet log; ADR-0004's 15-second fault-visibility objective applies after a source/monitor fault becomes observable, not after the last unrelated log event. An observed disconnect clears the current endpoint immediately.
+
+One game process and source generation may contain multiple sequential PU sessions. A new correlated join closes or supersedes the active session according to its direct evidence and starts a new immutable session record; it must not rewrite the prior session's shard or endpoint. The 2026-08-19 capture demonstrates `_070` followed by `_110` after an `ExitToMenu` sequence.
+
+Owner-observed `r_displayinfo 3` labels also demonstrated a DGS suffix change inside shard `_070`, but no safe corresponding `game.log` identifier was found. Overlay labels remain human annotations and cannot update `ServerConnectionSnapshot`. Generic authority, reroute, zone-host, or `NOT AUTH` lines remain non-events until a build-specific local-player correlation is proven.
 
 DGS replacement, authority transfer, and shard-changing transition behavior are intentionally not promoted as fixture-validated functionality yet. The reducer keeps the snapshots independent so those transitions can be enabled once representative sanitized evidence is approved.
 

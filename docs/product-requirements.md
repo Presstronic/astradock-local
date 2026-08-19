@@ -158,6 +158,8 @@ Extraction profiles may define:
 - Named field extraction and aliases/fallbacks.
 - Required fields and profile compatibility metadata.
 
+Profiles normally share extraction logic at `major.minor + channel/universe + branch` scope, but compatibility remains an evidence-backed allowlist of exact tested builds with explicit exclusions and drift gates. An untested patch build must not silently inherit full support, and profiles never cross a minor version, channel, universe, or branch implicitly. See [`runtime-profile-compatibility-policy.md`](runtime-profile-compatibility-policy.md).
+
 Application code retains responsibility for file handling, parsing-engine execution, multi-line/context state, validation, confidence, DTO emission, persistence, UI behavior, and synchronization.
 
 Grok-style named patterns are the leading candidate for semi-structured text. JSONPath or JMESPath may be used for JSON-like payloads. Drain/LogPAI may later assist corpus clustering and pattern discovery.
@@ -400,6 +402,8 @@ The MVP shall make a best effort to maintain a `LocationSnapshot` using only val
 
 Location extraction follows an evidence allowlist. Object-container streaming, entity loading, ship navigation belonging to unproven entities, and nearby location-name errors shall not change current player location. Candidate patterns enter the allowlist only after annotated positive/negative fixtures demonstrate acceptable reliability, and shall be removed or disabled for affected builds when testing shows they are unreliable.
 
+Armistice, monitored-space, and jurisdiction records represent client-observed announcements. They do not prove exact physical containment, and contradictory or apparently misplaced announcements remain visible with provenance rather than being corrected by AstraDock. The 4.9.188 quoted notification format requires its own fixture-backed extraction and multi-line deduplication behavior.
+
 ### 8.5.1 Current destination — Provisional MVP target
 
 If setting or changing a destination in the game produces direct, repeatable log evidence attributable to the local player, the Runtime Monitor should maintain a `DestinationSnapshot` and emit destination-set, destination-changed, destination-cleared, travel-started, arrival, cancellation, and failure events as individually supported.
@@ -408,7 +412,13 @@ Destination state shall include the raw observed destination identity/name, disp
 
 No destination shall be inferred from loaded object containers, arbitrary place names, another ship's quantum-navigation record, or temporal proximity alone. Until annotated destination-setting and travel samples prove a pattern, the instrument surface displays destination as unavailable/unknown rather than guessing.
 
-Issue #11 confirms that the current `sc-4.9-live` provisional profile has no promoted destination or travel events. See [`destination-travel-evidence-matrix.md`](destination-travel-evidence-matrix.md) for the unsupported lifecycle decisions, false-positive fixtures, freshness and clear/stale rules, and future capture requirements.
+Issue #11 established the original unsupported baseline. The annotated 2026-08-19 capture now supports provisional promotion of local quantum-target selection and final arrival for a vehicle already correlated to local control. Start, manual cancellation, interruption, failure, and mid-route bootstrap remain unsupported until distinct fixtures prove them. See [`destination-travel-evidence-matrix.md`](destination-travel-evidence-matrix.md).
+
+### 8.5.2 Current vehicle — Provisional MVP target
+
+The Runtime Monitor shall show, when supported independently, the vehicle retrieved/present in the local hangar, the vehicle the local player is aboard, and the vehicle the local player controls. Retrieval, boarding, control, storage, and ownership are distinct relationships and lifecycle facts.
+
+The annotated LIVE 4.9.188 capture provisionally supports retrieval, local control acquisition/release, quantum participation, and storage of a correlated RSI Meteor. Boarding, exiting, request-versus-outcome phases, service/refuel outcomes, and ownership remain unproven or separate efforts. Vehicle facts must appear in both Terminal/Table events and live telemetry with explicit relationship, confidence, freshness, provenance, and unknown/unsupported states. See [`vehicle-lifecycle-evidence-matrix.md`](vehicle-lifecycle-evidence-matrix.md).
 
 ### 8.6 Inventory, equipment, and cargo — Candidate
 
@@ -432,6 +442,8 @@ Capture and evaluate fresh annotated evidence for:
 - Player population or roster state.
 
 Subsystem initialization, configuration pings, actor instance counts, ship-class mentions, and generic notifications are insufficient evidence for these facts.
+
+The vehicle and quantum items above are partially satisfied by the 2026-08-19 annotated capture; only the transitions explicitly promoted by their evidence matrices may advance. Vehicle ownership remains a separate investigation and must never be inferred from retrieval, control, travel, or storage.
 
 ### 8.8 Additional diagnostic telemetry — Candidate
 
@@ -831,11 +843,12 @@ Based on current 4.9 LIVE evidence, the MVP should prioritize:
 | Session timing | Current app/PU connection duration and important transition times | Direct/derived from timestamps |
 | Party state | See whether party state is known, confirmed members, recent member connections, and uncertainty | Direct for creation/launch/named connection; incomplete lifecycle evidence |
 | Jurisdiction and zone status | See latest confirmed jurisdiction, monitored-space state, and armistice entry/exit | Direct notification evidence, high/medium confidence |
+| Current vehicle relationship | See the locally correlated hangar, aboard, or controlled vehicle without implying ownership | Provisional: retrieval/control/storage supported by annotated 4.9.188 sequence; boarding/exit pending fixtures |
 | Critical warnings | Surface disconnects, failed joins, long loading waits, parser/profile mismatch, and monitoring failure | Direct/application-authoritative |
 
 The design should distinguish primary play-relevant state from expandable diagnostic detail. Account/character IDs, node/session IDs, server endpoint, database versions, parser/profile versions, and raw evidence may be useful for troubleshooting but should not dominate the second-screen default.
 
-Current evidence does not justify presenting exact player position, route destination, shard population, player roster, server latency/FPS, current ship ownership/occupancy, mission objective state, quantum phase, jump-tunnel phase, kills, or deaths as reliable live state. These may be added to MVP only if fresh annotated fixtures establish dependable patterns without delaying the coherent release; otherwise they remain later evidence-driven additions.
+Current evidence does not justify presenting exact player position, shard population, player roster, server latency/FPS, vehicle ownership, aboard/occupancy state, mission objective state, unsupported quantum phases, jump-tunnel phase, kills, or deaths as reliable live state. Local vehicle retrieval/control/storage plus quantum target selection/final arrival may be added only after the new annotated evidence is minimized into accepted fixtures. Other items remain later evidence-driven additions.
 
 The approved interim shell includes:
 
@@ -849,6 +862,8 @@ The approved interim shell includes:
 
 State surfaces must show freshness and uncertainty. When a terminal event is missing or monitoring begins mid-session, the interface shall display `unknown` or `stale` rather than carrying an old value forward as current truth.
 
+Freshness does not mean “time since the last log line.” The UI shall distinguish source/monitor health, neutral last-activity age, parser compatibility, and each latched domain lifecycle. A quiet healthy log must not turn a connected PU replication session into a stale warning.
+
 ### 15.7 Instrument-cluster interaction model — Settled
 
 The Runtime Monitor's persistent current-state region should behave like a vehicle instrument cluster: stable, continuously updated, glanceable, and optimized for information needed during active play. It complements rather than replaces the rolling event stream.
@@ -860,6 +875,7 @@ The cluster shall prioritize:
 - Current observed server connection and connection/transition state.
 - Current or last-confirmed player location context at the strongest supported precision.
 - Current destination/travel state when direct evidence exists.
+- Current hangar, aboard, and controlled vehicle relationships when direct evidence exists, without implying ownership.
 - Current party status and confirmed members.
 - Current mission state when direct evidence exists.
 - Session/connection duration and monitor freshness.
