@@ -340,6 +340,9 @@ class RuntimeLogParserEngine {
       unknownRecords: 0,
       diagnosticsEmitted: 0
     };
+    this.driftedEventFamilies = new Set();
+    this.activatedEventFamilies = new Set();
+    this.observedAnchors = new Set();
     this.state = {
       sourceLocation: this.options.sourceLocation,
       build: {
@@ -406,6 +409,13 @@ class RuntimeLogParserEngine {
         continue;
       }
 
+      const compatibility = evaluateProfileCompatibility(selectedProfile, this.environment);
+      if (compatibility.status !== 'compatible') {
+        this.addCompatibilityDiagnostic(record, selectedProfile, compatibility);
+        this.addUnknownEvidence(record, selectedProfile, compatibility.reason);
+        continue;
+      }
+
       const candidates = candidateExtractorsForRecord(selectedProfile, record, this.stats);
       if (candidates.length === 0) {
         this.addUnknownEvidence(record, selectedProfile, 'no_profile_match');
@@ -414,6 +424,12 @@ class RuntimeLogParserEngine {
 
       const pendingEvents = [];
       for (const extractor of candidates) {
+        const eventFamily = extractorEventFamily(extractor);
+        this.activatedEventFamilies.add(eventFamily);
+        if (extractor.eventType && this.driftedEventFamilies.has(eventFamily)) {
+          this.addUnknownEvidence(record, selectedProfile, 'event_family_suppressed', { eventFamily });
+          continue;
+        }
         this.stats.extractorEvaluations += 1;
         const produced = this.applyExtractor(extractor, selectedProfile, record);
         pendingEvents.push(...produced);
@@ -451,6 +467,9 @@ class RuntimeLogParserEngine {
     this.state.puReadyCandidate = null;
     this.state.localHangarVehicleIds.clear();
     this.state.quantumTargetByVehicle.clear();
+    this.driftedEventFamilies.clear();
+    this.activatedEventFamilies.clear();
+    this.observedAnchors.clear();
     this.addDiagnostic({
       code: 'source_generation_changed',
       severity: 'warn',
@@ -466,7 +485,6 @@ class RuntimeLogParserEngine {
     const text = record.normalizedText;
     const timestamp = parseSourceTimestamp(text) || new Date(0).toISOString();
     const build = this.state.build;
-
     const fileVersion = pickKeyValue(text, 'FileVersion');
     if (fileVersion) {
       build.fileVersion = fileVersion;
@@ -506,7 +524,20 @@ class RuntimeLogParserEngine {
       build.componentVersion = pickBracketValue(text, 'component') || build.componentVersion;
     }
 
+    const previousEnvironmentKey = this.environment.environmentKey;
     this.environment = this.buildEnvironment(timestamp, environmentMarkersForRecord(text));
+    if (this.environment.environmentKey !== previousEnvironmentKey) {
+      this.driftedEventFamilies.clear();
+      this.activatedEventFamilies.clear();
+      this.observedAnchors.clear();
+    }
+    for (const profile of this.profiles) {
+      for (const family of profile.supportedEventFamilies || []) {
+        for (const anchor of family.requiredAnchors || []) {
+          if (text.includes(anchor)) this.observedAnchors.add(`${family.id}:${anchor}`);
+        }
+      }
+    }
   }
 
   buildEnvironment(observedAt, markers) {
@@ -546,8 +577,8 @@ class RuntimeLogParserEngine {
     const explicitId = this.options.sourceProfileId;
     const candidates = explicitId
       ? this.profiles.filter((profile) => profile.id === explicitId)
-      : this.profiles;
-    const compatible = candidates.filter((profile) => isProfileCompatible(profile, this.environment));
+      : this.profiles.filter((profile) => !profile.fixtureOnly);
+    const compatible = candidates.filter((profile) => isProfileFamilyMatch(profile, this.environment));
 
     if (compatible.length === 0) {
       this.addDiagnostic({
@@ -566,6 +597,26 @@ class RuntimeLogParserEngine {
     }
 
     return compatible[0];
+  }
+
+  addCompatibilityDiagnostic(record, profile, decision) {
+    if (this.diagnostics.some((diagnostic) => diagnostic.code === decision.reason)) return;
+    this.addDiagnostic({
+      code: decision.reason,
+      severity: 'warn',
+      message: decision.status === 'unverified_build'
+        ? 'The build matches a profile family but has not been explicitly tested.'
+        : 'The build is explicitly excluded from this extraction profile.',
+      lineNumber: record.startLineNumber,
+      sourceByteOffset: record.sourceByteOffset,
+      details: {
+        profileId: profile.id,
+        profileVersion: profile.version,
+        gameBuild: this.environment.buildVersion,
+        basis: decision.basis,
+        exclusionReason: decision.exclusionReason || null
+      }
+    });
   }
 
   applyExtractor(extractor, profile, record) {
@@ -960,6 +1011,8 @@ class RuntimeLogParserEngine {
     const required = requiredFields || extractor.requiredFields || Object.keys(EVENT_TYPE_REGISTRY[eventType]?.payload || {});
     const missing = required.filter((field) => payload[field] === null || payload[field] === undefined || payload[field] === '');
     if (missing.length > 0) {
+      const eventFamily = extractorEventFamily(extractor);
+      if (extractor.driftOnMissingFields === true) this.driftedEventFamilies.add(eventFamily);
       this.addDiagnostic({
         code: 'missing_required_fields',
         severity: 'warn',
@@ -970,6 +1023,7 @@ class RuntimeLogParserEngine {
           profileId: profile.id,
           extractorId: extractor.id,
           eventType,
+          eventFamily,
           missing
         }
       });
@@ -1155,27 +1209,43 @@ class RuntimeLogParserEngine {
     const selectedProfile = input.selectedProfile || this.selectProfileSnapshot();
     const unknownEvidenceSummary = input.unknownEvidenceSummary || this.unknownEvidenceStore.getSummary();
     const unsupportedProfile = this.diagnostics.some((diagnostic) => diagnostic.code === 'unsupported_profile');
+    const compatibility = selectedProfile
+      ? evaluateProfileCompatibility(selectedProfile, this.environment)
+      : { status: 'unsupported_profile', reason: 'no_compatible_profile', basis: 'no_family_match' };
     const recordsSeen = this.stats.recordsSeen;
     const unknownRecords = unknownEvidenceSummary.recordCount;
     const unknownRatio = recordsSeen > 0 ? unknownRecords / recordsSeen : 0;
     const driftPolicy = this.options.driftDetection;
-    const suspectedDrift = !unsupportedProfile &&
+    const suspectedDrift = !unsupportedProfile && compatibility.status === 'compatible' &&
       selectedProfile &&
-      recordsSeen >= driftPolicy.minRecords &&
-      unknownRecords >= driftPolicy.minUnknownRecords &&
-      unknownRatio >= driftPolicy.unknownRatio;
+      (this.driftedEventFamilies.size > 0 || (
+        recordsSeen >= driftPolicy.minRecords &&
+        unknownRecords >= driftPolicy.minUnknownRecords &&
+        unknownRatio >= driftPolicy.unknownRatio
+      ));
     const status = unsupportedProfile
       ? 'unsupported_profile'
-      : suspectedDrift
-        ? 'suspected_drift'
-        : selectedProfile
-          ? 'compatible'
-          : 'unsupported_profile';
+      : compatibility.status !== 'compatible'
+        ? compatibility.status
+        : suspectedDrift
+          ? 'suspected_drift'
+          : selectedProfile
+            ? 'compatible'
+            : 'unsupported_profile';
     const reason = unsupportedProfile
       ? 'no_compatible_profile'
-      : suspectedDrift
-        ? 'high_unknown_ratio'
-        : 'profile_compatible';
+      : compatibility.status !== 'compatible'
+        ? compatibility.reason
+        : suspectedDrift
+          ? this.driftedEventFamilies.size > 0 ? 'event_family_field_shape_changed' : 'high_unknown_ratio'
+          : 'profile_compatible';
+
+    const requiredAnchors = (selectedProfile?.supportedEventFamilies || [])
+      .filter((family) => this.activatedEventFamilies.has(family.id))
+      .flatMap((family) => (
+      (family.requiredAnchors || []).map((anchor) => ({ family: family.id, anchor }))
+      ));
+    const observedAnchors = requiredAnchors.filter(({ family, anchor }) => this.observedAnchors.has(`${family}:${anchor}`));
 
     return {
       status,
@@ -1192,7 +1262,17 @@ class RuntimeLogParserEngine {
       droppedUnknownSamples: unknownEvidenceSummary.droppedSampleCount,
       affectedEnvironmentKey: this.environment.environmentKey,
       gameBuild: this.environment.buildVersion,
-      releaseChannel: this.environment.releaseChannel
+      releaseChannel: this.environment.releaseChannel,
+      familyId: selectedProfile?.id || null,
+      familyVersion: selectedProfile?.version || null,
+      compatibilityBasis: compatibility.basis || null,
+      testedBuild: compatibility.testedBuild || null,
+      exclusionReason: compatibility.exclusionReason || null,
+      requiredAnchorCount: requiredAnchors.length,
+      observedAnchorCount: observedAnchors.length,
+      missingAnchors: requiredAnchors.filter(({ family, anchor }) => !this.observedAnchors.has(`${family}:${anchor}`)),
+      affectedEventFamilies: Array.from(this.driftedEventFamilies).sort(),
+      lastCompatibleObservationAt: status === 'compatible' ? (this.environment.observedAt || null) : null
     };
   }
 
@@ -1290,7 +1370,8 @@ class RuntimeLogParserEngine {
   selectProfileSnapshot() {
     const compatible = this.profiles.filter((profile) => (
       (!this.options.sourceProfileId || profile.id === this.options.sourceProfileId) &&
-      isProfileCompatible(profile, this.environment)
+      (this.options.sourceProfileId || !profile.fixtureOnly) &&
+      isProfileFamilyMatch(profile, this.environment)
     ));
     return compatible[0] || null;
   }
@@ -1350,9 +1431,24 @@ function loadRuntimeLogProfiles(profileInputs) {
       if (!stringArray(profile.compatibility.releaseChannels)) {
         errors.push(error('invalid_release_channels', `${path}.compatibility.releaseChannels`, 'Release channels must be strings.'));
       }
-      if (!stringArray(profile.compatibility.gameBuildPrefixes)) {
-        errors.push(error('invalid_game_build_prefixes', `${path}.compatibility.gameBuildPrefixes`, 'Game-build prefixes must be strings.'));
+      if (!isPlainObject(profile.compatibility.family) ||
+        !Number.isSafeInteger(profile.compatibility.family.major) ||
+        !Number.isSafeInteger(profile.compatibility.family.minor)) {
+        errors.push(error('invalid_profile_family', `${path}.compatibility.family`, 'Profile family must declare integer major and minor values.'));
       }
+      if (!stringArray(profile.compatibility.universes)) errors.push(error('invalid_universes', `${path}.compatibility.universes`, 'Universes must be strings.'));
+      if (!stringArray(profile.compatibility.branches)) errors.push(error('invalid_branches', `${path}.compatibility.branches`, 'Branches must be strings.'));
+      if (!stringArray(profile.compatibility.testedBuilds) || profile.compatibility.testedBuilds.length === 0) {
+        errors.push(error('invalid_tested_builds', `${path}.compatibility.testedBuilds`, 'At least one exact tested build is required.'));
+      }
+      if (!Array.isArray(profile.compatibility.exclusions) || profile.compatibility.exclusions.some((entry) => (
+        !isPlainObject(entry) || typeof entry.build !== 'string' || typeof entry.reason !== 'string'
+      ))) errors.push(error('invalid_build_exclusions', `${path}.compatibility.exclusions`, 'Build exclusions require exact build and reason strings.'));
+    }
+
+    if (!Array.isArray(profile.supportedEventFamilies) || profile.supportedEventFamilies.length === 0 ||
+      profile.supportedEventFamilies.some((family) => !isPlainObject(family) || typeof family.id !== 'string' || !stringArray(family.requiredAnchors))) {
+      errors.push(error('invalid_supported_event_families', `${path}.supportedEventFamilies`, 'Supported event families require IDs and anchor arrays.'));
     }
 
     if (!stringArray(profile.knownLimitations)) {
@@ -1432,11 +1528,48 @@ function candidateExtractorsForRecord(profile, record, stats) {
   });
 }
 
-function isProfileCompatible(profile, environment) {
-  const channels = profile.compatibility.releaseChannels;
-  const buildPrefixes = profile.compatibility.gameBuildPrefixes;
-  return channels.includes(environment.releaseChannel) &&
-    buildPrefixes.some((prefix) => environment.buildVersion.startsWith(prefix));
+function isProfileFamilyMatch(profile, environment) {
+  const compatibility = profile.compatibility;
+  const buildFamily = parseBuildFamily(environment.buildVersion);
+  return Boolean(buildFamily) &&
+    buildFamily.major === compatibility.family.major &&
+    buildFamily.minor === compatibility.family.minor &&
+    compatibility.releaseChannels.includes(environment.releaseChannel) &&
+    compatibility.universes.includes(environment.universe) &&
+    compatibility.branches.includes(environment.branch);
+}
+
+function evaluateProfileCompatibility(profile, environment) {
+  if (!isProfileFamilyMatch(profile, environment)) {
+    return { status: 'unsupported_profile', reason: 'no_compatible_profile', basis: 'no_family_match' };
+  }
+  const exclusion = profile.compatibility.exclusions.find((entry) => entry.build === environment.buildVersion);
+  if (exclusion) {
+    return {
+      status: 'unsupported_profile',
+      reason: 'build_explicitly_excluded',
+      basis: 'exact_exclusion',
+      exclusionReason: exclusion.reason
+    };
+  }
+  if (profile.compatibility.testedBuilds.includes(environment.buildVersion)) {
+    return {
+      status: 'compatible',
+      reason: 'profile_compatible',
+      basis: 'exact_tested_build',
+      testedBuild: environment.buildVersion
+    };
+  }
+  return { status: 'unverified_build', reason: 'build_not_tested', basis: 'major_minor_family_match' };
+}
+
+function parseBuildFamily(value) {
+  const match = String(value || '').match(/^(?<major>\d+)\.(?<minor>\d+)(?:[.\-]|$)/);
+  return match ? { major: Number(match.groups.major), minor: Number(match.groups.minor) } : null;
+}
+
+function extractorEventFamily(extractor) {
+  return String(extractor.id || 'unknown').split('.')[0] || 'unknown';
 }
 
 function buildCorrelationIds(environmentKey, eventType, dedupeKey, payload = {}) {

@@ -15,6 +15,7 @@ export type WorkspaceState =
   | 'stale'
   | 'disconnected'
   | 'unsupported-profile'
+  | 'unverified-build'
   | 'degraded'
   | 'fatal';
 
@@ -161,6 +162,7 @@ export function classifyWorkspaceState(input: {
     return 'unsupported-profile';
   }
   if (input.scan?.parserCompatibility?.status === 'unsupported_profile') return 'unsupported-profile';
+  if (input.scan?.parserCompatibility?.status === 'unverified_build') return 'unverified-build';
 
   const tailer = input.snapshot?.monitor.tailer;
   if (input.snapshot?.monitor.active && !tailer) return 'recovering';
@@ -251,7 +253,7 @@ function createInstruments(
   const lifecycle = activeLifecycle(scan);
   const location = activeLocation(scan);
   const destination = activeDestination(scan);
-  const unsupportedProfile = scan?.parserCompatibility?.status === 'unsupported_profile';
+  const unsupportedProfile = ['unsupported_profile', 'unverified_build'].includes(scan?.parserCompatibility?.status || '');
   const sessionDuration = currentSessionDuration(lifecycle?.puSession, now);
 
   return [
@@ -463,7 +465,7 @@ function createPartyPanel(scan: RendererScanResult | null): PanelState {
   if (!scan) {
     return { title: 'Party', state: 'unknown', label: 'Unknown', detail: 'Telemetry has not been collected in this session.' };
   }
-  if (scan.parserCompatibility?.status === 'unsupported_profile') {
+  if (['unsupported_profile', 'unverified_build'].includes(scan.parserCompatibility?.status || '')) {
     return { title: 'Party', state: 'unsupported', label: 'Unsupported', detail: 'Parser profile does not support party evidence.' };
   }
   if (!party || party.state === 'unknown') {
@@ -549,6 +551,14 @@ function createAlerts(
       message: 'The source remains available, but some current log vocabulary is not recognized by this profile.'
     });
   }
+  if (scan?.parserCompatibility?.status === 'unverified_build') {
+    alerts.push({
+      id: 'unverified-build',
+      severity: 'warning',
+      title: 'Unverified game build',
+      message: 'This patch belongs to a known profile family but lacks exact fixture-backed approval; semantic events are suppressed.'
+    });
+  }
   for (const diagnostic of scan?.environmentDiagnostics || []) {
     alerts.push({
       id: `diagnostic-${alerts.length}`,
@@ -571,6 +581,7 @@ function formatMonitorLabel(state: WorkspaceState, active: boolean, activity: Ac
   if (state === 'fatal') return 'Fatal';
   if (state === 'no-source') return 'Awaiting source';
   if (state === 'unsupported-profile') return 'Unsupported profile';
+  if (state === 'unverified-build') return 'Unverified build';
   if (state === 'disconnected') return 'Disconnected';
   if (state === 'recovering') return 'Recovering';
   if (state === 'paused') return 'Paused';

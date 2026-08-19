@@ -110,6 +110,8 @@ Before approving a fixture PR, verify:
 
 Future controlled captures should add separate issue-backed fixtures for the deferred party lifecycle actions in [`party-lifecycle-evidence-matrix.md`](party-lifecycle-evidence-matrix.md), the deferred mission lifecycle actions in [`mission-lifecycle-evidence-matrix.md`](mission-lifecycle-evidence-matrix.md), the remaining destination/travel actions in [`destination-travel-evidence-matrix.md`](destination-travel-evidence-matrix.md), combat, ship lifecycle, trade/cargo, chat, organization presence, population, normal PU exit, server error, network loss, crash, and shard/server transition.
 
+The 4.10 PTU capture remains a deliberate evidence gap. PTU snippets belong under a separate `ptu/4.10-pu/sc-4.10-ptu/` family only after annotated captures are supplied and sanitized; they cannot widen the LIVE 4.9 corpus. Eventual 4.10 LIVE evidence requires its own family and promotion decision.
+
 The private 2026-08-19 files are cumulative fragments from one source generation and are documented only in [`runtime-capture-findings-2026-08-19.md`](runtime-capture-findings-2026-08-19.md). They must yield separate minimal fixtures for 4.9.188 notification syntax, alternative PU-ready evidence, repeated PU sessions, vehicle lifecycle, quantum target/arrival, and logout ambiguity. Refuel, passenger-elevator movement, overlay-only DGS changes, boarding, exiting, and ownership remain unavailable-evidence annotations until direct records are proven.
 
 ## Technology and Libraries

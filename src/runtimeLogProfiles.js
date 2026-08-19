@@ -1,5 +1,20 @@
-const PROFILE_SCHEMA_VERSION = 1;
-const SC_49_PROFILE_VERSION = 'draft-2026-08-19.3';
+const PROFILE_SCHEMA_VERSION = 2;
+const SC_49_PROFILE_VERSION = '2026-08-19.4';
+
+const SC_49_EVENT_FAMILIES = Object.freeze([
+  { id: 'build', requiredAnchors: ['FileVersion:', 'ProductVersion:', 'Branch:', 'Changelist:'] },
+  { id: 'environment', requiredAnchors: ['<Init>', '<Game Version>'] },
+  { id: 'identity', requiredAnchors: ['<Legacy login response>'] },
+  { id: 'pu', requiredAnchors: ['<Join PU>'] },
+  { id: 'connection', requiredAnchors: ['<Channel Connection Complete>'] },
+  { id: 'mesh', requiredAnchors: ['<RegisterUniverseHierarchy_Begin>', '<RegisterUniverseHierarchy_End>'] },
+  { id: 'disconnect', requiredAnchors: ['<Channel Disconnected>'] },
+  { id: 'frontend', requiredAnchors: ['RequestFrontEndReason'] },
+  { id: 'application', requiredAnchors: ['<SystemQuit>'] },
+  { id: 'party', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
+  { id: 'zone', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
+  { id: 'quantum', requiredAnchors: ['<Player Selected Quantum Target - Local>'] }
+]);
 
 const SC_49_FIELD_ALIASES = Object.freeze({
   accountId: ['accountId', 'account_id', 'citizenId'],
@@ -313,6 +328,7 @@ const SC_49_EXTRACTORS = Object.freeze([
   {
     id: 'zone.jurisdiction-entered',
     kind: 'jurisdictionEntered',
+    driftOnMissingFields: true,
     eventType: 'JurisdictionEntered',
     literals: ['<SHUDEvent_OnNotification>', 'Entered ', ' Jurisdiction'],
     requiredFields: ['notificationId', 'jurisdiction'],
@@ -324,6 +340,7 @@ const SC_49_EXTRACTORS = Object.freeze([
   {
     id: 'zone.monitored-entered',
     kind: 'monitoredSpaceEntered',
+    driftOnMissingFields: true,
     eventType: 'MonitoredSpaceEntered',
     literals: ['<SHUDEvent_OnNotification>', 'Entered Monitored Space'],
     requiredFields: ['notificationId', 'state'],
@@ -335,6 +352,7 @@ const SC_49_EXTRACTORS = Object.freeze([
   {
     id: 'zone.monitored-exited',
     kind: 'monitoredSpaceExited',
+    driftOnMissingFields: true,
     eventType: 'MonitoredSpaceExited',
     literals: ['<SHUDEvent_OnNotification>', 'Exited Monitored Space'],
     requiredFields: ['notificationId', 'state'],
@@ -346,6 +364,7 @@ const SC_49_EXTRACTORS = Object.freeze([
   {
     id: 'zone.armistice-entered',
     kind: 'armisticeStateChanged',
+    driftOnMissingFields: true,
     eventType: 'ArmisticeStateChanged',
     state: 'entered',
     literals: ['<SHUDEvent_OnNotification>', 'Entering Armistice Zone'],
@@ -358,6 +377,7 @@ const SC_49_EXTRACTORS = Object.freeze([
   {
     id: 'zone.armistice-left',
     kind: 'armisticeStateChanged',
+    driftOnMissingFields: true,
     eventType: 'ArmisticeStateChanged',
     state: 'left',
     literals: ['<SHUDEvent_OnNotification>', 'Leaving Armistice Zone'],
@@ -415,11 +435,22 @@ const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
     version: SC_49_PROFILE_VERSION,
     priority: 100,
     compatibility: {
+      family: { major: 4, minor: 9 },
       releaseChannels: ['LIVE'],
-      gameBuildPrefixes: ['4.9.0-LIVE.', '4.9.188.', 'UNKNOWN_BUILD']
+      universes: ['PU'],
+      branches: ['UNKNOWN', 'sc-alpha-4.9.0', 'sc-alpha-4.9-live-synth'],
+      testedBuilds: [
+        '4.9.0-LIVE.9000000-SYNTH',
+        '4.9.0-LIVE.9000000',
+        '4.9.0-LIVE.12344265-SYNTH',
+        '4.9.0-LIVE.12344265',
+        '4.9.188.23497'
+      ],
+      exclusions: [{ build: '4.9.999.0-BLOCKED-SYNTH', reason: 'synthetic_known_incompatible_vocabulary' }]
     },
     parserVersion: 'runtime-log-parser/0.1.0',
     fieldAliases: SC_49_FIELD_ALIASES,
+    supportedEventFamilies: SC_49_EVENT_FAMILIES,
     knownLimitations: [
       'Supports only fixture-promoted runtime-event/v1 patterns.',
       'Executable-version compatibility is limited to reviewed 4.9.0-LIVE and 4.9.188 LIVE families.',
@@ -432,12 +463,22 @@ const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
     id: 'sc-4.9-cross-env',
     version: SC_49_PROFILE_VERSION,
     priority: 90,
+    fixtureOnly: true,
     compatibility: {
+      family: { major: 4, minor: 9 },
       releaseChannels: ['LIVE', 'PTU', 'EPTU', 'HOTFIX'],
-      gameBuildPrefixes: ['4.9.0-']
+      universes: ['PU'],
+      branches: ['UNKNOWN'],
+      testedBuilds: [
+        '4.9.0-MULTI.9000000-SYNTH',
+        '4.9.0-LIVE.9000000-SYNTH',
+        '4.9.0-PTU.9000000-SYNTH'
+      ],
+      exclusions: []
     },
     parserVersion: 'runtime-log-parser/0.1.0',
     fieldAliases: SC_49_FIELD_ALIASES,
+    supportedEventFamilies: SC_49_EVENT_FAMILIES,
     knownLimitations: [
       'Intended for fixture isolation and compatibility diagnostics across multiple release channels.',
       'Supports the same promoted event families as sc-4.9-live.'

@@ -47,7 +47,7 @@ export interface RuntimeEventPayloadMap {
     recoverable: boolean;
   };
   ParserCompatibilityStatusObserved: {
-    status: 'compatible' | 'unsupported_profile' | 'suspected_drift';
+    status: 'compatible' | 'unverified_build' | 'unsupported_profile' | 'suspected_drift';
     profileId: string;
     profileVersion: string;
     reason: string;

@@ -2,7 +2,7 @@
 
 ## Decision
 
-Implementation is tracked by [#88](https://github.com/Presstronic/astradock-local/issues/88).
+Implemented by [#88](https://github.com/Presstronic/astradock-local/issues/88).
 
 AstraDock extraction profiles are organized at the narrowest useful shared family, normally `major.minor` plus release channel/universe/branch (for example, `sc-4.9-live`). Patch builds may reuse that family only while evidence proves compatible vocabulary and semantics. A family name is not a claim that every `major.minor.*` build is automatically supported.
 
@@ -28,11 +28,13 @@ Profiles never cross a minor-version, release-channel, universe, or branch bound
 6. Required-anchor failures, contradictory vocabulary, field-shape changes, or abnormal unknown-event rates move the session to `suspected_drift` and disable affected event families safely.
 7. An unknown minor/channel/branch is `unsupported_profile`; it does not fall back to the nearest profile.
 
-The current exact 4.9.188 compatibility support is an appropriate safety measure. After the new sanitized fixtures are accepted, it may be represented as a tested member of the `sc-4.9-live` family rather than copied into an independent profile for every patch.
+Profile schema version 2 implements this decision. The immutable `sc-4.9-live@2026-08-19.4` family accepts exact fixture-backed 4.9.0 synthetic builds and observed LIVE build `4.9.188.23497`. `4.9.999.0-BLOCKED-SYNTH` is the deterministic explicit-exclusion test case with reason `synthetic_known_incompatible_vocabulary`; it is not a claim about a real game build. Other matching 4.9 LIVE patches are `unverified_build`, and semantic event extraction is suppressed until exact fixture evidence is accepted.
+
+`sc-4.9-cross-env` is marked fixture-only and can be selected only by an explicit test option. It exists to verify partition isolation and can never become an automatic PTU/EPTU/HOTFIX fallback in the application.
 
 ## Drift and observability
 
-Compatibility is per event family as well as global. A build can retain a healthy lifecycle spine while its HUD notification family is drifting. Diagnostics expose:
+Compatibility is per event family as well as global. Extractor IDs define bounded families such as `identity`, `pu`, `connection`, `party`, `zone`, and `quantum`. A required-field shape failure marks only that family as drifting and suppresses later semantic emissions from it; unaffected families continue. A globally abnormal unknown ratio remains a global suspicion because unmatched records cannot be attributed safely. Diagnostics expose:
 
 - detected channel, branch, full build, and selected profile/version;
 - exact compatibility result and reason;
@@ -45,7 +47,7 @@ Drift must never reinterpret historical events. Profile revisions are immutable 
 
 ## PTU 4.10 capture policy
 
-The owner's PTU/TEST access is an opportunity to detect drift before release, not permission to treat PTU as LIVE evidence. Capture 4.10 under its exact PTU environment key and a separate provisional profile family. Compare structural vocabulary and semantic sequences with 4.9 LIVE, but promote patterns only after sanitized positive and negative fixtures exist. When 4.10 reaches LIVE, validate the LIVE build separately even if it appears textually identical to PTU.
+The owner's PTU/TEST access is an opportunity to detect drift before release, not permission to treat PTU as LIVE evidence. Current 4.10 PTU builds remain `unsupported_profile` and cannot fall back to 4.9 LIVE. After annotated captures are supplied, create a provisional `sc-4.10-ptu` family with exact PTU builds and sanitized positive/negative fixtures. The capture sequence is: record exact build/channel/branch, retain raw logs locally, minimize and sanitize action-specific excerpts, declare exact builds and anchors, pass privacy/isolation replay, then approve semantic families. When 4.10 reaches LIVE, validate it in a separate `sc-4.10-live` family even if it appears textually identical to PTU.
 
 ## Failure and recovery behavior
 
@@ -72,4 +74,4 @@ Unhappy path:
 
 ## Technology and libraries
 
-None expected. This policy extends the existing profile metadata, parser-health diagnostics, sanitized fixtures, and built-in test infrastructure.
+None. This policy extends the existing profile metadata, parser-health diagnostics, sanitized fixtures, and built-in test infrastructure.

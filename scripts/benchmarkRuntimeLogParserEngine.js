@@ -14,6 +14,7 @@ function main() {
   const result = parseRuntimeLogText(workload, {
     sourceLocation: '%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log',
     sourceProfileId: 'sc-4.9-live',
+    gameBuild: '4.9.0-LIVE.9000000-SYNTH',
     ingestedAt: '2026-08-12T00:00:00.000Z',
     chunkSizes: [1, 7, 64, 8192]
   });
