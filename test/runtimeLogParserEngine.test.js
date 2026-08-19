@@ -389,6 +389,41 @@ test('unsupported builds fail observably without best-guess events', () => {
   assert.ok(result.healthEvents.every((event) => validateRuntimeEvent(event).ok));
 });
 
+test('reviewed LIVE executable version selects the 4.9 profile without widening future compatibility', () => {
+  const reviewedLive = parseRuntimeLogText(
+    '<2026-08-19T05:55:09.825Z> <Join PU> address[replicant-live.example.invalid] port[64332] shard[SYNTH_SHARD_LIVE_4_9_188] locationId[SYNTH_LOCATION_LIVE]\n',
+    {
+      sourceLocation: '%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log',
+      releaseChannel: 'LIVE',
+      gameBuild: '4.9.188.23497',
+      ingestedAt: '2026-08-19T06:00:00.000Z'
+    }
+  );
+
+  assert.equal(reviewedLive.selectedProfile.id, 'sc-4.9-live');
+  assert.equal(reviewedLive.selectedProfile.version, 'draft-2026-08-19.1');
+  assert.equal(reviewedLive.parserHealth.status, 'compatible');
+  assert.deepEqual(reviewedLive.events.map((event) => event.eventType), ['PuJoinRequested']);
+  assert.ok(reviewedLive.events.every((event) => validateRuntimeEvent(event).ok));
+
+  for (const candidate of [
+    { releaseChannel: 'LIVE', gameBuild: '4.9.189.10000' },
+    { releaseChannel: 'PTU', gameBuild: '4.10.189.23056' }
+  ]) {
+    const unsupported = parseRuntimeLogText(
+      '<2026-08-19T06:00:00.000Z> <Join PU> address[unsupported.example.invalid] port[64332] shard[SYNTH_SHARD_UNSUPPORTED] locationId[SYNTH_LOCATION_UNSUPPORTED]\n',
+      {
+        sourceLocation: `%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/${candidate.releaseChannel}/game.log`,
+        ...candidate,
+        ingestedAt: '2026-08-19T06:01:00.000Z'
+      }
+    );
+
+    assert.equal(unsupported.events.length, 0);
+    assert.equal(unsupported.parserHealth.status, 'unsupported_profile');
+  }
+});
+
 test('conflicting matches and malformed records fail safely and observably', () => {
   const conflictProfile = {
     ...BUILT_IN_RUNTIME_LOG_PROFILES[0],

@@ -1,5 +1,5 @@
 const PROFILE_SCHEMA_VERSION = 1;
-const SC_49_PROFILE_VERSION = 'draft-2026-08-19';
+const SC_49_PROFILE_VERSION = 'draft-2026-08-19.1';
 
 const SC_49_FIELD_ALIASES = Object.freeze({
   accountId: ['accountId', 'account_id', 'citizenId'],
@@ -349,12 +349,13 @@ const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
     priority: 100,
     compatibility: {
       releaseChannels: ['LIVE'],
-      gameBuildPrefixes: ['4.9.0-LIVE.', 'UNKNOWN_BUILD']
+      gameBuildPrefixes: ['4.9.0-LIVE.', '4.9.188.', 'UNKNOWN_BUILD']
     },
     parserVersion: 'runtime-log-parser/0.1.0',
     fieldAliases: SC_49_FIELD_ALIASES,
     knownLimitations: [
       'Supports only fixture-promoted runtime-event/v1 patterns.',
+      'Executable-version compatibility is limited to reviewed 4.9.0-LIVE and 4.9.188 LIVE families.',
       'Does not infer mission, destination, travel, or deferred party lifecycle events.'
     ],
     extractors: SC_49_EXTRACTORS

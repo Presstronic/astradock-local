@@ -1,0 +1,49 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/spine/live-4-9-188-profile.observed",
+  "title": "LIVE 4.9.188 executable-version profile compatibility",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19.1",
+  "domain": "spine",
+  "action": "current LIVE executable-version family joins a PU shard",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "owner-active 2026-08-19 LIVE log reviewed locally; raw log remains untracked",
+  "logFile": "live-4-9-188-profile.observed.log",
+  "privacyClassification": ["local", "network_sanitized", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["endpoint", "shard", "locationId", "matchmakingRequestId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "The endpoint uses .example.invalid and all identifiers are synthetic placeholders."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "PuJoinRequested",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["matchmakingRequestId", "shard", "endpoint", "port", "locationId"],
+      "payload": {
+        "matchmakingRequestId": "UNKNOWN_MATCHMAKING_REQUEST",
+        "shard": "SYNTH_SHARD_LIVE_4_9_188",
+        "endpoint": "replicant-live.example.invalid",
+        "port": 64332,
+        "locationId": "SYNTH_LOCATION_LIVE"
+      },
+      "evidenceMarkers": ["<Join PU>"]
+    }
+  ],
+  "expectedNonEvents": [],
+  "correlation": {
+    "dedupeKey": "releaseChannel+gameBuild+endpoint+port+shard",
+    "sequence": ["PuJoinRequested"],
+    "notes": "This fixture proves the reviewed executable-version family selects the canonical LIVE profile."
+  },
+  "knownLimitations": [
+    "This bounded fixture proves compatibility and join extraction, not every event family in the active private log.",
+    "Adjacent executable-version families remain unsupported until separately reviewed."
+  ],
+  "verificationNotes": "Replay contiguously and across arbitrary chunks; profile selection must be compatible and the event must validate."
+}
