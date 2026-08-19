@@ -60,7 +60,7 @@ Keep a private original only outside the repository. Before committing a snippet
 1. Reduce the sample to the smallest line sequence that proves or disproves the behavior.
 2. Replace every player handle, account ID, character GEID, player GEID, node ID, session ID, login ID, trace ID, endpoint, local path, token, service URL, hardware identifier, and other private value.
 3. Preserve correlation by using the same synthetic placeholder for the same original value within one fixture.
-4. Use obvious values such as `SYNTH_HANDLE_LOCAL`, `SYNTH_ACCOUNT_LOCAL`, `SYNTH_NODE_PU`, and `game-server-alpha.example.invalid`.
+4. Use obvious values such as `SYNTH_HANDLE_LOCAL`, `SYNTH_ACCOUNT_LOCAL`, `SYNTH_OBSERVED_GATEWAY_NODE_PU`, and `replicant-alpha.example.invalid`.
 5. Avoid numeric account-looking identifiers, UUIDs, long hexadecimal strings, JWT-looking strings, real IP addresses, real Windows or Unix user paths, and real Star Citizen installation paths.
 6. Do not include full logs, game assets, screenshots of private data, or extracted copyrighted records.
 7. Run `npm test`; the fixture validator rejects common secret/PII patterns and malformed manifests.
@@ -88,6 +88,7 @@ Before approving a fixture PR, verify:
 | Build/environment | `spine/client-build-environment.observed` |
 | Local identity/login | `spine/local-identity-login.observed` |
 | PU join/shard/server | `spine/pu-join-shard-server.observed` |
+| Frontend disconnect rejection and delayed prior-PU correlation | `spine/delayed-pu-disconnect-correlation.observed` |
 | Party creation/launch/member connection | `party/party-create-launch-member-connected.observed` |
 | Party marker-only membership guard | `party/party-marker-only-membership.non-event` |
 | Party lifecycle gaps | `party/party-lifecycle-transitions.unavailable`; see [`party-lifecycle-evidence-matrix.md`](party-lifecycle-evidence-matrix.md) |

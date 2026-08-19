@@ -29,7 +29,7 @@
         "cause": "SYNTH_CAUSE_REMOTE_IDLE",
         "reason": "SYNTH_REASON_REMOTE_TIMEOUT",
         "isRemote": true,
-        "endpoint": "game-server-alpha.example.invalid",
+        "endpoint": "replicant-alpha.example.invalid",
         "uptimeSeconds": 3900
       },
       "evidenceMarkers": ["<Channel Disconnected>"]

@@ -62,6 +62,26 @@ test('fixture-backed lifecycle projection reaches clean exit without inventing u
   assert.equal(current.puSession.durationSource, 'observed_connection_uptime');
 });
 
+test('delayed disconnect for a prior endpoint does not disconnect or relabel the newer shard', () => {
+  const parsed = parseRuntimeLogText(
+    readFixture('delayed-pu-disconnect-correlation.observed.log'),
+    PARSER_OPTIONS
+  );
+  const projected = projectRuntimeLifecycle(parsed.events, { now: '2026-08-19T00:10:04.000Z' });
+  const current = projected.environments[projected.activeEnvironmentKey];
+
+  assert.deepEqual(parsed.events.map((event) => event.eventType), [
+    'PuJoinRequested',
+    'PuJoinRequested',
+    'PuDisconnected'
+  ]);
+  assert.equal(current.shard.shardLabel, 'SYNTH_SHARD_EU_B');
+  assert.equal(current.shard.state, 'transitioning');
+  assert.equal(current.replicationConnection.endpoint, 'eu-game.example.invalid');
+  assert.equal(current.replicationConnection.state, 'transitioning');
+  assert.equal(current.replicationConnection.disconnect, null);
+});
+
 test('identity evidence remains additive and exposes conflicts without collapsing identifiers', () => {
   const parsed = parseSpine();
   const identityEvent = parsed.events.find((event) => event.eventType === 'IdentityObserved');

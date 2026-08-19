@@ -249,6 +249,13 @@ function applyPuSessionEvent(projection, event) {
   }
 
   if (event.eventType === 'PuDisconnected') {
+    if (
+      projection.replicationConnection.endpoint &&
+      event.payload.endpoint &&
+      projection.replicationConnection.endpoint !== event.payload.endpoint
+    ) {
+      return;
+    }
     const lastEndpoint = projection.replicationConnection.endpoint || event.payload.endpoint;
     projection.replicationConnection = {
       ...projection.replicationConnection,

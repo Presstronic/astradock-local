@@ -706,6 +706,7 @@ class RuntimeLogParserEngine {
         }, extractor, profile, record);
       case 'puDisconnected': {
         const disconnect = channelPayload(record.normalizedText);
+        if (isFrontendChannel(disconnect)) return [];
         return this.createEventIfComplete('PuDisconnected', {
           cause: pickKeyValue(record.normalizedText, 'cause'),
           reason: pickKeyValue(record.normalizedText, 'reason'),
@@ -1316,6 +1317,10 @@ function channelPayload(text) {
     gamerules: pickKeyValue(text, 'gamerules'),
     hostType: pickKeyValue(text, 'hostType')
   };
+}
+
+function isFrontendChannel(channel) {
+  return String(channel?.gamerules || '').toLowerCase() === 'sc_frontend';
 }
 
 function parseEndpointPort(value) {
