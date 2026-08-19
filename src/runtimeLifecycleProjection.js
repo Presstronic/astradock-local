@@ -1,7 +1,7 @@
 const { compareRuntimeEventOrder } = require('./contracts/runtimeEvents');
 const { mapShardRegion } = require('./runtimeRegionMappings');
 
-const PROJECTION_VERSION = 1;
+const PROJECTION_VERSION = 2;
 const DEFAULT_STALE_AFTER_MS = 15_000;
 const IDENTITY_FIELDS = Object.freeze([
   'handle',
@@ -19,7 +19,7 @@ const LIFECYCLE_TRANSITIONS = Object.freeze({
   AccountAuthenticated: 'authenticated',
   IdentityObserved: 'frontend',
   PuJoinRequested: 'loading',
-  GameServerConnectionEstablished: 'loading',
+  PuReplicationConnectionEstablished: 'loading',
   PuEntered: 'in_game',
   PuDisconnected: 'disconnected',
   ReturnedToFrontend: 'frontend',
@@ -43,7 +43,7 @@ function projectRuntimeLifecycle(events, options = {}) {
     projection.freshness = classifyFreshness(projection.lastChangedAt, nowMs, staleAfterMs);
     if (projection.freshness === 'stale') {
       if (projection.shard.state === 'connected') projection.shard.state = 'stale';
-      if (projection.serverConnection.state === 'connected') projection.serverConnection.state = 'stale';
+      if (projection.replicationConnection.state === 'connected') projection.replicationConnection.state = 'stale';
     }
   }
 
@@ -88,11 +88,12 @@ function createProjection(event) {
       observedAt: null,
       confidence: 'unknown'
     },
-    serverConnection: {
+    replicationConnection: {
       state: 'unknown',
       endpoint: null,
       port: null,
-      nodeId: null,
+      observedNodeId: null,
+      hostType: null,
       gamerules: null,
       connectedAt: null,
       disconnectedAt: null,
@@ -200,8 +201,8 @@ function applyPuSessionEvent(projection, event) {
       observedAt: event.sourceTimestamp,
       confidence: event.confidence
     };
-    projection.serverConnection = {
-      ...projection.serverConnection,
+    projection.replicationConnection = {
+      ...projection.replicationConnection,
       state: 'transitioning',
       endpoint: event.payload.endpoint,
       port: event.payload.port,
@@ -223,13 +224,14 @@ function applyPuSessionEvent(projection, event) {
     return;
   }
 
-  if (event.eventType === 'GameServerConnectionEstablished') {
-    projection.serverConnection = {
-      ...projection.serverConnection,
+  if (event.eventType === 'PuReplicationConnectionEstablished') {
+    projection.replicationConnection = {
+      ...projection.replicationConnection,
       state: 'connected',
       endpoint: event.payload.endpoint,
       port: event.payload.port,
-      nodeId: event.payload.nodeId,
+      observedNodeId: event.payload.observedNodeId,
+      hostType: event.payload.hostType,
       gamerules: event.payload.gamerules,
       connectedAt: event.sourceTimestamp,
       disconnectedAt: null,
@@ -247,13 +249,14 @@ function applyPuSessionEvent(projection, event) {
   }
 
   if (event.eventType === 'PuDisconnected') {
-    const lastEndpoint = projection.serverConnection.endpoint || event.payload.endpoint;
-    projection.serverConnection = {
-      ...projection.serverConnection,
+    const lastEndpoint = projection.replicationConnection.endpoint || event.payload.endpoint;
+    projection.replicationConnection = {
+      ...projection.replicationConnection,
       state: 'disconnected',
       endpoint: null,
       port: null,
-      nodeId: null,
+      observedNodeId: null,
+      hostType: null,
       connectedAt: null,
       disconnectedAt: event.sourceTimestamp,
       lastEndpoint,
@@ -311,11 +314,11 @@ function toRendererLifecycleProjection(result, options = {}) {
         }];
       })),
       shard: { ...projection.shard, region: { ...projection.shard.region } },
-      serverConnection: {
-        ...projection.serverConnection,
-        endpoint: redactEndpoint(projection.serverConnection.endpoint),
-        lastEndpoint: redactEndpoint(projection.serverConnection.lastEndpoint),
-        disconnect: projection.serverConnection.disconnect ? { ...projection.serverConnection.disconnect } : null
+      replicationConnection: {
+        ...projection.replicationConnection,
+        endpoint: redactEndpoint(projection.replicationConnection.endpoint),
+        lastEndpoint: redactEndpoint(projection.replicationConnection.lastEndpoint),
+        disconnect: projection.replicationConnection.disconnect ? { ...projection.replicationConnection.disconnect } : null
       },
       puSession: {
         ...projection.puSession,

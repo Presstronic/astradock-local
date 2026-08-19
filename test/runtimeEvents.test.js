@@ -29,7 +29,6 @@ const DEFERRED_PARTY_EVENTS = new Set([
   'PartyMemberJoined',
   'PartyMemberDisconnected',
   'PartyMemberReconnected',
-  'PartyLeft',
   'PartyMemberLeft',
   'PartyMemberRemoved',
   'PartyLeaderChanged',

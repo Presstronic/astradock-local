@@ -1,0 +1,57 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/mesh/pu-replicant-hierarchy-territory.observed",
+  "title": "Received PU universe hierarchy and territory setup",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.12344265-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19",
+  "domain": "mesh",
+  "action": "client receives the PU universe hierarchy and completes territory setup",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "owner-reviewed 2026-08-19 PUB capture; raw log remains ignored",
+  "logFile": "pu-replicant-hierarchy-territory.observed.log",
+  "privacyClassification": ["local", "network_sanitized", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["replicationSessionId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Only bounded hierarchy and territory records are retained; no account, endpoint, or machine data is present."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "UniverseHierarchyRegistered",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["receivedFromNetwork", "nodeCount", "durationMs"],
+      "payload": {
+        "receivedFromNetwork": true,
+        "nodeCount": 197018,
+        "durationMs": 9147
+      },
+      "evidenceMarkers": ["<RegisterUniverseHierarchy_Begin>", "<RegisterUniverseHierarchy_End>"]
+    },
+    {
+      "eventType": "PuTerritorySetupCompleted",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["gamerules", "status", "runningTimeSeconds"],
+      "payload": {
+        "gamerules": "SC_Default",
+        "status": "Finished",
+        "runningTimeSeconds": 0.000013
+      },
+      "evidenceMarkers": ["SetupTerritories", "SC_Default", "Finished"]
+    }
+  ],
+  "expectedNonEvents": [],
+  "correlation": {
+    "dedupeKey": "receivedFromNetwork+nodeCount|gamerules+status",
+    "sequence": ["UniverseHierarchyRegistered", "PuTerritorySetupCompleted"],
+    "notes": "Hierarchy registration must complete before the observed PU territory setup completion."
+  },
+  "knownLimitations": ["The capture exposes hierarchy size and registration timing, not individual nodes, edges, DGS identity, or territory topology."],
+  "verificationNotes": "Replay contiguously and across arbitrary chunk boundaries; incomplete and frontend-only variants must not emit these PU diagnostics."
+}

@@ -1,0 +1,7 @@
+<2026-08-19T02:14:30.746Z> [Notice] <Local Route Guard - Server Rerouted> [ItemNavigation][CL][37712] | NOT AUTH | SYNTH_SHIP_ENTITY[SYNTH_SHIP_ENTITY]|FinalStop=-1 [Team_CGP4][QuantumTravel]
+<2026-08-19T02:14:53.978Z> [Notice] <Player Requested Fuel to Quantum Target - Server Routing> [ItemNavigation][CL][37712] | NOT AUTH | SYNTH_SHIP_ENTITY[SYNTH_SHIP_ENTITY]|Player has requested fuel calculation [Team_CGP4][QuantumTravel]
+<2026-08-19T02:16:15.490Z> [Notice] <LandingArea_UnregisterFromExternalSystems_StowingVehicle> Vehicle Zone Host [SYNTH_ZONE_HOST] IsAuthorityPossible [0] IsAuthoritative [0] [Team_MissionFeatures][ATC]
+<2026-08-19T02:10:40.613Z> [Notice] <Action handler reset action state> Resetting action state. Player: SYNTH_HANDLE_LOCAL, Reason: Lost authority [Team_ActorTech][Actor]
+<2026-08-19T03:32:07.342Z> [Notice] <RegisterUniverseHierarchy_Begin> bNetRecvd="0" nodeCount="1" commonDataPrecached="false" [Team_EntitySystemTech][SolarSystem][Loading][Persistence]
+<2026-08-19T03:32:07.342Z> [Notice] <RegisterUniverseHierarchy_End> [Team_EntitySystemTech][SolarSystem][Loading][Persistence]
+<2026-08-19T03:32:07.358Z> [Notice] <ContextEstablisherTaskFinished> taskname="SetupTerritories" state=eCVS_ReadyToReplicate(8) status="Finished" runningTime=0.000010 gamerules="SC_Frontend" [Team_Network][Network][Replication][Loading][Persistence]

@@ -82,7 +82,7 @@ Runtime event ordering uses the shared contract comparator: source timestamp, in
 
 The parser accepts both raw byte/string chunks and tailer chunk envelopes. When a tailer source generation changes because of truncation or replacement, the parser resets incomplete framing, semantic-record assembly, channel/matchmaking/frontend correlation state, and orchestrator dedupe context. It emits a `source_generation_changed` diagnostic without exposing the source path.
 
-Event-specific correlation IDs are deterministic partitioned IDs scoped by `environmentKey`. Supported domain IDs currently include login session, local account, client session, matchmaking request, server connection, party, notification, build fingerprint, event family, event dedupe, and parser environment session. Raw handles, account IDs, endpoints, and notification IDs are not used directly as correlation values.
+Event-specific correlation IDs are deterministic partitioned IDs scoped by `environmentKey`. Supported domain IDs currently include login session, local account, client session, matchmaking request, PU replication connection, party, notification, build fingerprint, event family, event dedupe, and parser environment session. Raw handles, account IDs, endpoints, and notification IDs are not used directly as correlation values.
 
 Promoted event-family policies are:
 
@@ -94,15 +94,18 @@ Promoted event-family policies are:
 | `LoginStarted` | Login session ID | 30 minutes | Local-player session |
 | `AccountAuthenticated` | Handle and account ID | 30 minutes | Local account |
 | `IdentityObserved` | Account ID, character GEID, player GEID, client session | 30 minutes | Local account/client session |
-| `PuJoinRequested` | Matchmaking request, shard, endpoint, port, location | 30 minutes | Matchmaking/server connection |
-| `GameServerConnectionEstablished` | Endpoint, port, node, player GEID, gamerules | 30 minutes | Server connection |
+| `PuJoinRequested` | Matchmaking request, shard, endpoint, port, location | 30 minutes | Matchmaking/replication connection |
+| `PuReplicationConnectionEstablished` | Endpoint, port, observed node, player GEID, gamerules, Replicant host type | 30 minutes | PU replication connection |
+| `UniverseHierarchyRegistered` | Network-received flag and node count | 30 minutes | PU hierarchy initialization |
+| `PuTerritorySetupCompleted` | Gamerules and terminal setup status | 30 minutes | PU territory initialization |
 | `PuEntered` | Gamerules and load duration | 30 minutes | PU session |
-| `PuDisconnected` | Endpoint, cause, reason | 30 minutes | Server connection |
+| `PuDisconnected` | Endpoint, cause, reason | 30 minutes | PU replication connection |
 | `ReturnedToFrontend` | Frontend reason | 30 minutes | PU/frontend transition |
 | `ApplicationExited` | Cause, reason, exit code | 30 minutes | Application session |
 | `PartyCreated` | Party ID | 10 minutes | Party |
 | `PartyLaunchInitiated` | Notification ID and message | 10 minutes | Party notification |
 | `PartyMemberConnected` | Notification ID and member handle | 10 minutes | Party notification/member |
+| `PartyLeft` | Party ID, local player GEID, voluntary-leave reason | 10 minutes | Party/local player |
 | `JurisdictionEntered` | Notification ID and jurisdiction | 10 minutes | Location notification |
 | `MonitoredSpaceEntered` | Notification ID and state | 10 minutes | Location notification |
 | `ArmisticeStateChanged` | Notification ID and state | 10 minutes | Location notification |
@@ -113,8 +116,8 @@ Duplicate suppression never crosses `environmentKey`. A repeated action with the
 
 `parseLogFile` now projects promoted runtime events into renderer-safe current-state DTOs:
 
-- `rendererLifecycle` for game lifecycle, shard, server connection, and PU session.
-- `partySnapshot` for environment-scoped party state from `PartyCreated`, `PartyLaunchInitiated`, and `PartyMemberConnected`.
+- `rendererLifecycle` for game lifecycle, shard, PU Replicant connection, and PU session.
+- `partySnapshot` for environment-scoped party state from `PartyCreated`, `PartyLaunchInitiated`, `PartyMemberConnected`, and `PartyLeft`.
 - `locationSnapshot` for independently fresh jurisdiction, monitored-space, and armistice facts from validated HUD notification events.
 - `promotedRuntimeEvents` for sanitized party and zone stream rows backed by canonical runtime event IDs.
 

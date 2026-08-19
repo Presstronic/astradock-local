@@ -384,25 +384,61 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       locationId: 'SYNTH_LOCATION_STANTON_A'
     }
   },
-  GameServerConnectionEstablished: {
+  PuReplicationConnectionEstablished: {
     owner: 'runtime-contracts',
     status: 'mvp',
-    summary: 'A game server endpoint connection was established.',
+    summary: 'A PU Replicant transport connection was established.',
     traits: traits({ subjectScopes: ['local_player', 'session', 'server_connection'] }),
     fixtureId: 'live/4.9-pub/sc-4.9-live/spine/pu-join-shard-server.observed',
     payload: {
       endpoint: field(STRING),
       port: field(INTEGER, { min: 1, max: 65535 }),
-      nodeId: field(STRING),
+      observedNodeId: field(STRING),
       playerGeid: field(STRING),
-      gamerules: field(STRING)
+      gamerules: field(STRING),
+      hostType: field(STRING, { enum: ['Replicant'] })
     },
     examplePayload: {
-      endpoint: 'game-server-alpha.example.invalid',
+      endpoint: 'replicant-alpha.example.invalid',
       port: 64090,
-      nodeId: 'SYNTH_NODE_PU',
+      observedNodeId: 'SYNTH_OBSERVED_GATEWAY_NODE_PU',
       playerGeid: 'SYNTH_PLAYER_GEID_LOCAL',
-      gamerules: 'SC_Default'
+      gamerules: 'SC_Default',
+      hostType: 'Replicant'
+    }
+  },
+  UniverseHierarchyRegistered: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'The client completed registration of a universe hierarchy received from the network.',
+    traits: traits({ subjectScopes: ['session', 'shard'], persistence: { scope: 'session', retention: '30d' } }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/mesh/pu-replicant-hierarchy-territory.observed',
+    payload: {
+      receivedFromNetwork: field(BOOLEAN),
+      nodeCount: field(INTEGER, { min: 1 }),
+      durationMs: field(INTEGER, { min: 0 })
+    },
+    examplePayload: {
+      receivedFromNetwork: true,
+      nodeCount: 197018,
+      durationMs: 9175
+    }
+  },
+  PuTerritorySetupCompleted: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'The PU replication context completed territory setup.',
+    traits: traits({ subjectScopes: ['session', 'shard'], persistence: { scope: 'session', retention: '30d' } }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/mesh/pu-replicant-hierarchy-territory.observed',
+    payload: {
+      gamerules: field(STRING, { enum: ['SC_Default'] }),
+      status: field(STRING, { enum: ['Finished'] }),
+      runningTimeSeconds: field(NUMBER, { min: 0 })
+    },
+    examplePayload: {
+      gamerules: 'SC_Default',
+      status: 'Finished',
+      runningTimeSeconds: 0.000013
     }
   },
   PuEntered: {
@@ -516,6 +552,23 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
     examplePayload: {
       notificationId: 'SYNTH_NOTIFICATION_PARTY_MEMBER',
       memberHandle: 'SYNTH_HANDLE_PARTY_MEMBER'
+    }
+  },
+  PartyLeft: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'Direct evidence shows the local player voluntarily left a party.',
+    traits: traits({ subjectScopes: ['local_player', 'party'], sensitivity: 'social' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/party/party-explicit-leave.observed',
+    payload: {
+      partyId: field(STRING),
+      playerGeid: field(STRING),
+      reason: field(STRING, { enum: ['voluntary_leave'] })
+    },
+    examplePayload: {
+      partyId: 'SYNTH_PARTY_A',
+      playerGeid: 'SYNTH_PLAYER_GEID_LOCAL',
+      reason: 'voluntary_leave'
     }
   },
   JurisdictionEntered: {

@@ -1,5 +1,5 @@
 const PROFILE_SCHEMA_VERSION = 1;
-const SC_49_PROFILE_VERSION = 'draft-2026-08-12';
+const SC_49_PROFILE_VERSION = 'draft-2026-08-19';
 
 const SC_49_FIELD_ALIASES = Object.freeze({
   accountId: ['accountId', 'account_id', 'citizenId'],
@@ -19,8 +19,9 @@ const SC_49_FIELD_ALIASES = Object.freeze({
   matchmakingStatus: ['status'],
   loginSessionId: ['LoginSessionId'],
   message: ['Message'],
-  nodeId: ['node_id'],
+  observedNodeId: ['node_id'],
   notificationId: ['NotificationId'],
+  nodeId: ['node_id'],
   partyId: ['partyId'],
   playerGeid: ['playerGEID'],
   port: ['port'],
@@ -161,14 +162,42 @@ const SC_49_EXTRACTORS = Object.freeze([
   },
   {
     id: 'connection.complete',
-    kind: 'gameServerConnectionEstablished',
-    eventType: 'GameServerConnectionEstablished',
-    literals: ['<Channel Connection Complete>'],
-    requiredFields: ['endpoint', 'port', 'nodeId', 'playerGeid', 'gamerules'],
+    kind: 'puReplicationConnectionEstablished',
+    eventType: 'PuReplicationConnectionEstablished',
+    literals: ['<Channel Connection Complete>', 'hostType="Replicant"'],
+    requiredFields: ['endpoint', 'port', 'observedNodeId', 'playerGeid', 'gamerules', 'hostType'],
     confidence: 'high',
     sensitivity: 'local',
     evidenceMarkers: ['<Channel Created>', '<Channel Connection Complete>'],
-    dedupeFields: ['endpoint', 'port', 'nodeId', 'playerGeid', 'gamerules']
+    dedupeFields: ['endpoint', 'port', 'observedNodeId', 'playerGeid', 'gamerules', 'hostType']
+  },
+  {
+    id: 'mesh.universe-hierarchy-start',
+    kind: 'rememberUniverseHierarchyStart',
+    literals: ['<RegisterUniverseHierarchy_Begin>'],
+    evidenceMarkers: ['<RegisterUniverseHierarchy_Begin>']
+  },
+  {
+    id: 'mesh.universe-hierarchy-complete',
+    kind: 'universeHierarchyRegistered',
+    eventType: 'UniverseHierarchyRegistered',
+    literals: ['<RegisterUniverseHierarchy_End>'],
+    requiredFields: ['receivedFromNetwork', 'nodeCount', 'durationMs'],
+    confidence: 'high',
+    sensitivity: 'local',
+    evidenceMarkers: ['<RegisterUniverseHierarchy_Begin>', '<RegisterUniverseHierarchy_End>'],
+    dedupeFields: ['receivedFromNetwork', 'nodeCount']
+  },
+  {
+    id: 'mesh.pu-territory-setup-complete',
+    kind: 'puTerritorySetupCompleted',
+    eventType: 'PuTerritorySetupCompleted',
+    literals: ['<ContextEstablisherTaskFinished>', 'taskname="SetupTerritories"', 'gamerules="SC_Default"', 'status="Finished"'],
+    requiredFields: ['gamerules', 'status', 'runningTimeSeconds'],
+    confidence: 'high',
+    sensitivity: 'local',
+    evidenceMarkers: ['SetupTerritories', 'SC_Default', 'Finished'],
+    dedupeFields: ['gamerules', 'status']
   },
   {
     id: 'pu.entered',
@@ -252,6 +281,17 @@ const SC_49_EXTRACTORS = Object.freeze([
     sensitivity: 'social',
     evidenceMarkers: ['<SHUDEvent_OnNotification>', 'connected.'],
     dedupeFields: ['notificationId', 'memberHandle']
+  },
+  {
+    id: 'party.left-local',
+    kind: 'partyLeft',
+    eventType: 'PartyLeft',
+    literals: ['<Leave group>', 'Client ', ' leave group '],
+    requiredFields: ['partyId', 'playerGeid', 'reason'],
+    confidence: 'high',
+    sensitivity: 'social',
+    evidenceMarkers: ['<Leave group>'],
+    dedupeFields: ['partyId', 'playerGeid', 'reason']
   },
   {
     id: 'zone.jurisdiction-entered',

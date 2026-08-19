@@ -3,7 +3,7 @@ const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 
 const SNAPSHOT_VERSION = 1;
 const DEFAULT_SNAPSHOT_STALE_AFTER_MS = 15_000;
-const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected']);
+const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected', 'PartyLeft']);
 const LOCATION_EVENT_TYPES = Object.freeze(['JurisdictionEntered', 'MonitoredSpaceEntered', 'ArmisticeStateChanged']);
 const SESSION_BOUNDARY_EVENT_TYPES = Object.freeze(['PuDisconnected', 'ReturnedToFrontend', 'ApplicationExited']);
 
@@ -21,6 +21,8 @@ function projectRuntimeParty(events, options = {}) {
       applyPartyLaunchInitiated(projection, event);
     } else if (event.eventType === 'PartyMemberConnected') {
       applyPartyMemberConnected(projection, event);
+    } else if (event.eventType === 'PartyLeft') {
+      applyPartyLeft(projection, event);
     } else if (SESSION_BOUNDARY_EVENT_TYPES.includes(event.eventType)) {
       stalePartyProjection(projection, event);
     }
@@ -95,7 +97,7 @@ function createPartyProjection(event) {
     possibleMemberCount: 0,
     recentTransitions: [],
     lastChangedAt: null,
-    limitation: 'Only party creation, launch, and named connection evidence are promoted for this profile.'
+    limitation: 'Only explicit local creation/leave, launch, and named connection evidence are promoted for this profile.'
   };
 }
 
@@ -141,6 +143,21 @@ function applyPartyMemberConnected(projection, event) {
     evidenceEventId: event.eventId
   });
   addTransition(projection, event, 'Member connected', memberHandle);
+}
+
+function applyPartyLeft(projection, event) {
+  projection.state = 'not_in_party';
+  projection.partyId = null;
+  projection.leader = {
+    status: 'unknown',
+    handle: null,
+    isLocalPlayer: null,
+    observedAt: event.sourceTimestamp,
+    confidence: event.confidence,
+    evidenceEventId: event.eventId
+  };
+  projection.membersByHandle.clear();
+  addTransition(projection, event, 'Left party', null);
 }
 
 function stalePartyProjection(projection, event) {

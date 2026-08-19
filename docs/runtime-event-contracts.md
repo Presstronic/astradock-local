@@ -101,12 +101,12 @@ The registry currently promotes only event families backed by the accepted fixtu
 - Source and monitor lifecycle: `RuntimeSourceDiscovered`, `RuntimeSourceSelected`, `RuntimeMonitorStarted`, `RuntimeMonitorStopped`, `RuntimeSourceUnavailable`.
 - Build and environment: `ClientBuildObserved`, `ReleaseEnvironmentObserved`, `GameDataVersionObserved`.
 - Identity and login: `LoginStarted`, `AccountAuthenticated`, `IdentityObserved`.
-- PU, shard, and server spine: `PuJoinRequested`, `GameServerConnectionEstablished`, `PuEntered`.
+- PU, shard, and replication spine: `PuJoinRequested`, `PuReplicationConnectionEstablished`, `UniverseHierarchyRegistered`, `PuTerritorySetupCompleted`, `PuEntered`.
 - Disconnect and frontend/quit: `PuDisconnected`, `ReturnedToFrontend`, `ApplicationExited`.
-- Proven party events: `PartyCreated`, `PartyLaunchInitiated`, `PartyMemberConnected`.
+- Proven party events: `PartyCreated`, `PartyLaunchInitiated`, `PartyMemberConnected`, `PartyLeft`.
 - Validated zone events: `JurisdictionEntered`, `MonitoredSpaceEntered`, `ArmisticeStateChanged`.
 
-The registry intentionally does not promote mission, destination/travel, marker-only party membership, deferred party lifecycle, combat, trade, ship, population, chat, or analytics events. Those require separate evidence, fixtures, acceptance criteria, and a registry update.
+The registry intentionally does not promote mission, destination/travel, marker-only party membership, still-deferred party lifecycle, combat, trade, ship, population, chat, or analytics events. Those require separate evidence, fixtures, acceptance criteria, and a registry update.
 
 ## Validation Behavior
 
