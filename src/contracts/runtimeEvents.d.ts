@@ -175,6 +175,10 @@ export interface RuntimeEventPayloadMap {
     notificationId: string;
     state: 'entered';
   };
+  MonitoredSpaceExited: {
+    notificationId: string;
+    state: 'exited';
+  };
   ArmisticeStateChanged: {
     notificationId: string;
     state: 'entered' | 'left';

@@ -1,0 +1,22 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/negative/live-4-9-188-frontend-ready-noise.non-event",
+  "title": "Frontend game-mode and telemetry-ready vocabulary is not PU entry",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19.2",
+  "domain": "negative",
+  "action": "frontend initializes similar game-mode and context-establisher records",
+  "outcome": "non-event",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/runtime-capture-findings-2026-08-19.md#build-specific-vocabulary-and-lifecycle-findings",
+  "logFile": "live-4-9-188-frontend-ready-noise.non-event.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {"redactedFields":[],"syntheticPlaceholderPrefix":"SYNTH_","notes":"No private identifiers are retained."},
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [{"eventType":"PuEntered","reason":"No active PU join and no completed SC_Default territory anchor exist."}],
+  "correlation": {"dedupeKey":"none","sequence":["frontend territory","game mode","frontend OnClientEnteredGame","local telemetry"],"notes":"Shared literals cannot substitute for the ordered PU-ready conjunction."},
+  "knownLimitations": ["Additional incomplete and out-of-window permutations are covered in unit tests."],
+  "verificationNotes": "Replay must emit no canonical event and must retain bounded unknown evidence without raw text in diagnostics."
+}

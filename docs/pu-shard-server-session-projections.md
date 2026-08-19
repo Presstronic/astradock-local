@@ -18,6 +18,8 @@ Starting mid-session remains `unknown`. An incomplete join remains `transitionin
 
 One game process and source generation may contain multiple sequential PU sessions. A new correlated join closes or supersedes the active session according to its direct evidence and starts a new immutable session record; it must not rewrite the prior session's shard or endpoint. The 2026-08-19 capture demonstrates `_070` followed by `_110` after an `ExitToMenu` sequence.
 
+The parser scopes territory and ready-event deduplication to the active join candidate. Two sessions with identical terminal payload values therefore retain two distinct `PuEntered` events and histories; repeated physical records within one candidate remain deduplicated.
+
 Owner-observed `r_displayinfo 3` labels also demonstrated a DGS suffix change inside shard `_070`, but no safe corresponding `game.log` identifier was found. Overlay labels remain human annotations and cannot update `ServerConnectionSnapshot`. Generic authority, reroute, zone-host, or `NOT AUTH` lines remain non-events until a build-specific local-player correlation is proven.
 
 DGS replacement, authority transfer, and shard-changing transition behavior are intentionally not promoted as fixture-validated functionality yet. The reducer keeps the snapshots independent so those transitions can be enabled once representative sanitized evidence is approved.

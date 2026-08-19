@@ -1,0 +1,9 @@
+<2026-08-19T07:06:05.000Z> <Join PU> address[replicant-one.example.invalid] port[64332] shard[SYNTH_SHARD_070] locationId[SYNTH_LOCATION_FIRST]
+<2026-08-19T07:06:06.000Z> [Notice] <ContextEstablisherTaskFinished> taskname="SetupTerritories" gamerules="SC_Default" status="Finished" runningTime=0.000009
+<2026-08-19T07:06:06.250Z> [Notice] <[GameRules] GameRulesActionEvent_GameModeCreated> Game mode created
+<2026-08-19T07:06:17.000Z> [Notice] <Initializing Game Telemetry> Initializing game telemetry component of local player
+<2026-08-19T07:38:23.000Z> <Channel Disconnected> cause=30016 reason="SYNTH_EXIT_TO_MENU" isRemote=0 viewState=eCVS_InGame gamerules="SC_Default" remoteAddr=replicant-one.example.invalid:64332 uptime_secs=1938.47
+<2026-08-19T07:38:43.000Z> <Join PU> address[replicant-two.example.invalid] port[64333] shard[SYNTH_SHARD_110] locationId[SYNTH_LOCATION_SECOND]
+<2026-08-19T07:38:44.000Z> [Notice] <ContextEstablisherTaskFinished> taskname="SetupTerritories" gamerules="SC_Default" status="Finished" runningTime=0.000011
+<2026-08-19T07:38:44.250Z> [Notice] <[GameRules] GameRulesActionEvent_GameModeCreated> Game mode created
+<2026-08-19T07:38:54.000Z> [Notice] <Initializing Game Telemetry> Initializing game telemetry component of local player

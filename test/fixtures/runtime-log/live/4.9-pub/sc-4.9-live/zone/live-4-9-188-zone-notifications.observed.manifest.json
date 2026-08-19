@@ -1,0 +1,32 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/zone/live-4-9-188-zone-notifications.observed",
+  "title": "LIVE 4.9.188 quoted zone notifications",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19.2",
+  "domain": "zone",
+  "action": "local HUD receives current jurisdiction, monitored-space, and armistice announcements",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/runtime-capture-findings-2026-08-19.md#build-specific-vocabulary-and-lifecycle-findings",
+  "logFile": "live-4-9-188-zone-notifications.observed.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["jurisdictionLabel", "notificationCounter", "missionId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Only five minimal lines are retained; identifiers and the jurisdiction label are synthetic."
+  },
+  "expectedCanonicalEvents": [
+    {"eventType":"MonitoredSpaceEntered","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["notificationId","state"],"payload":{"notificationId":"0","state":"entered"},"evidenceMarkers":["Entered Monitored Space"]},
+    {"eventType":"JurisdictionEntered","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["notificationId","jurisdiction"],"payload":{"notificationId":"1","jurisdiction":"SYNTH_JURISDICTION_CURRENT"},"evidenceMarkers":["Entered","Jurisdiction"]},
+    {"eventType":"ArmisticeStateChanged","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["notificationId","state"],"payload":{"notificationId":"2","state":"entered"},"evidenceMarkers":["Entering Armistice Zone"]},
+    {"eventType":"ArmisticeStateChanged","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["notificationId","state"],"payload":{"notificationId":"3","state":"left"},"evidenceMarkers":["Leaving Armistice Zone"]},
+    {"eventType":"MonitoredSpaceExited","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["notificationId","state"],"payload":{"notificationId":"4","state":"exited"},"evidenceMarkers":["Exited Monitored Space"]}
+  ],
+  "expectedNonEvents": [],
+  "correlation": {"dedupeKey":"environment+notificationCounter+state","sequence":["MonitoredSpaceEntered","JurisdictionEntered","ArmisticeStateChanged entered","ArmisticeStateChanged left","MonitoredSpaceExited"],"notes":"These are client announcements, not authoritative physical containment."},
+  "knownLimitations": ["The bracket counter is scoped as a notification correlation value and is not assumed globally stable."],
+  "verificationNotes": "Replay contiguously and across chunks; trailing colons and descriptive armistice suffixes must normalize without changing observed-announcement semantics."
+}

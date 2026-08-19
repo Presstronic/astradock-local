@@ -1,0 +1,30 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/spine/live-4-9-188-repeated-pu-ready.observed",
+  "title": "LIVE 4.9.188 alternative ready sequence across repeated PU sessions",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19.2",
+  "domain": "spine",
+  "action": "local player completes two sequential PU joins in one source generation",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/runtime-capture-findings-2026-08-19.md#session-timeline",
+  "logFile": "live-4-9-188-repeated-pu-ready.observed.log",
+  "privacyClassification": ["local", "network_sanitized", "sanitized"],
+  "sensitivityHandling": {"redactedFields":["endpoint","shard","locationId","disconnectReason"],"syntheticPlaceholderPrefix":"SYNTH_","notes":"Endpoints use .example.invalid and all identifiers are synthetic."},
+  "expectedCanonicalEvents": [
+    {"eventType":"PuJoinRequested","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["matchmakingRequestId","shard","endpoint","port","locationId"],"payload":{"matchmakingRequestId":"UNKNOWN_MATCHMAKING_REQUEST","shard":"SYNTH_SHARD_070","endpoint":"replicant-one.example.invalid","port":64332,"locationId":"SYNTH_LOCATION_FIRST"},"evidenceMarkers":["<Join PU>"]},
+    {"eventType":"PuTerritorySetupCompleted","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["gamerules","status","runningTimeSeconds"],"payload":{"gamerules":"SC_Default","status":"Finished","runningTimeSeconds":0.000009},"evidenceMarkers":["SetupTerritories","SC_Default","Finished"]},
+    {"eventType":"PuEntered","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["gamerules","loadDurationSeconds"],"payload":{"gamerules":"SC_Default","loadDurationSeconds":12},"evidenceMarkers":["SetupTerritories","GameModeCreated","Initializing Game Telemetry","local player"]},
+    {"eventType":"PuDisconnected","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["cause","reason","isRemote","endpoint","uptimeSeconds"],"payload":{"cause":"30016","reason":"SYNTH_EXIT_TO_MENU","isRemote":false,"endpoint":"replicant-one.example.invalid","uptimeSeconds":1938.47},"evidenceMarkers":["<Channel Disconnected>"]},
+    {"eventType":"PuJoinRequested","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["matchmakingRequestId","shard","endpoint","port","locationId"],"payload":{"matchmakingRequestId":"UNKNOWN_MATCHMAKING_REQUEST","shard":"SYNTH_SHARD_110","endpoint":"replicant-two.example.invalid","port":64333,"locationId":"SYNTH_LOCATION_SECOND"},"evidenceMarkers":["<Join PU>"]},
+    {"eventType":"PuTerritorySetupCompleted","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["gamerules","status","runningTimeSeconds"],"payload":{"gamerules":"SC_Default","status":"Finished","runningTimeSeconds":0.000011},"evidenceMarkers":["SetupTerritories","SC_Default","Finished"]},
+    {"eventType":"PuEntered","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["gamerules","loadDurationSeconds"],"payload":{"gamerules":"SC_Default","loadDurationSeconds":11},"evidenceMarkers":["SetupTerritories","GameModeCreated","Initializing Game Telemetry","local player"]}
+  ],
+  "expectedNonEvents": [],
+  "correlation": {"dedupeKey":"environment+join+session-local sequence","sequence":["join _070","territory","game mode","local telemetry","disconnect","join _110","territory","game mode","local telemetry"],"notes":"Each terminal consumes only its active join candidate; the second shard never rewrites the first session's events."},
+  "knownLimitations": ["The alternative terminal proves playable PU entry but does not identify a DGS."],
+  "verificationNotes": "Withhold PuEntered for missing, misordered, cross-session, frontend, duplicate, or out-of-window anchors."
+}

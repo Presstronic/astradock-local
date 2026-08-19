@@ -601,6 +601,21 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       state: 'entered'
     }
   },
+  MonitoredSpaceExited: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'The local player received an observed monitored-space exit announcement.',
+    traits: traits({ subjectScopes: ['local_player', 'session'], sensitivity: 'local' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/zone/live-4-9-188-zone-notifications.observed',
+    payload: {
+      notificationId: field(STRING),
+      state: field(STRING, { enum: ['exited'] })
+    },
+    examplePayload: {
+      notificationId: 'SYNTH_NOTIFICATION_MONITORED_EXIT_A',
+      state: 'exited'
+    }
+  },
   ArmisticeStateChanged: {
     owner: 'runtime-contracts',
     status: 'mvp',

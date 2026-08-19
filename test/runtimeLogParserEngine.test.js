@@ -203,6 +203,81 @@ test('mesh diagnostics require a completed network hierarchy and PU territory co
   assert.deepEqual(result.events, []);
 });
 
+test('4.9.188 alternative PU-ready sequence is ordered, bounded, and idempotent', () => {
+  const valid = parseRuntimeLogText([
+    '<2026-08-19T07:06:05.000Z> <Join PU> address[replicant-ready.example.invalid] port[64332] shard[SYNTH_SHARD_READY] locationId[SYNTH_LOCATION_READY]',
+    '<2026-08-19T07:06:06.000Z> <ContextEstablisherTaskFinished> taskname="SetupTerritories" gamerules="SC_Default" status="Finished" runningTime=0.000009',
+    '<2026-08-19T07:06:06.250Z> <[GameRules] GameRulesActionEvent_GameModeCreated> Game mode created',
+    '<2026-08-19T07:06:17.000Z> <Initializing Game Telemetry> Initializing game telemetry component of local player',
+    '<2026-08-19T07:06:18.000Z> <Initializing Game Telemetry> Initializing game telemetry component of local player'
+  ].join('\n') + '\n', { ...LIVE_PROFILE_OPTIONS, gameBuild: '4.9.188.23497' });
+
+  assert.equal(valid.events.filter((event) => event.eventType === 'PuEntered').length, 1);
+  assert.equal(valid.events.find((event) => event.eventType === 'PuEntered').payload.loadDurationSeconds, 12);
+
+  const invalidSequences = [
+    [
+      '<2026-08-19T07:06:05.000Z> <Join PU> address[replicant-ready.example.invalid] port[64332] shard[SYNTH_SHARD_READY] locationId[SYNTH_LOCATION_READY]',
+      '<2026-08-19T07:06:06.250Z> <[GameRules] GameRulesActionEvent_GameModeCreated> Game mode created',
+      '<2026-08-19T07:06:17.000Z> <Initializing Game Telemetry> Initializing game telemetry component of local player'
+    ],
+    [
+      '<2026-08-19T07:06:05.000Z> <Join PU> address[replicant-ready.example.invalid] port[64332] shard[SYNTH_SHARD_READY] locationId[SYNTH_LOCATION_READY]',
+      '<2026-08-19T07:06:06.250Z> <[GameRules] GameRulesActionEvent_GameModeCreated> Game mode created',
+      '<2026-08-19T07:06:07.000Z> <ContextEstablisherTaskFinished> taskname="SetupTerritories" gamerules="SC_Default" status="Finished" runningTime=0.000009',
+      '<2026-08-19T07:06:17.000Z> <Initializing Game Telemetry> Initializing game telemetry component of local player'
+    ],
+    [
+      '<2026-08-19T07:00:00.000Z> <Join PU> address[replicant-ready.example.invalid] port[64332] shard[SYNTH_SHARD_READY] locationId[SYNTH_LOCATION_READY]',
+      '<2026-08-19T07:00:01.000Z> <ContextEstablisherTaskFinished> taskname="SetupTerritories" gamerules="SC_Default" status="Finished" runningTime=0.000009',
+      '<2026-08-19T07:00:02.000Z> <[GameRules] GameRulesActionEvent_GameModeCreated> Game mode created',
+      '<2026-08-19T07:06:00.000Z> <Initializing Game Telemetry> Initializing game telemetry component of local player'
+    ]
+  ];
+
+  for (const lines of invalidSequences) {
+    const result = parseRuntimeLogText(lines.join('\n') + '\n', { ...LIVE_PROFILE_OPTIONS, gameBuild: '4.9.188.23497' });
+    assert.equal(result.events.some((event) => event.eventType === 'PuEntered'), false);
+  }
+});
+
+test('repeated PU sessions do not dedupe identical ready payloads', () => {
+  const sequence = (minute, endpoint, shard) => [
+    `<2026-08-19T07:${minute}:00.000Z> <Join PU> address[${endpoint}] port[64332] shard[${shard}] locationId[SYNTH_LOCATION_READY]`,
+    `<2026-08-19T07:${minute}:01.000Z> <ContextEstablisherTaskFinished> taskname="SetupTerritories" gamerules="SC_Default" status="Finished" runningTime=0.000009`,
+    `<2026-08-19T07:${minute}:01.250Z> <[GameRules] GameRulesActionEvent_GameModeCreated> Game mode created`,
+    `<2026-08-19T07:${minute}:12.000Z> <Initializing Game Telemetry> Initializing game telemetry component of local player`
+  ];
+  const result = parseRuntimeLogText([
+    ...sequence('06', 'replicant-one.example.invalid', 'SYNTH_SHARD_070'),
+    '<2026-08-19T07:10:00.000Z> <Channel Disconnected> cause=30016 reason="SYNTH_EXIT" isRemote=0 gamerules="SC_Default" remoteAddr=replicant-one.example.invalid:64332 uptime_secs=234',
+    ...sequence('11', 'replicant-two.example.invalid', 'SYNTH_SHARD_110')
+  ].join('\n') + '\n', { ...LIVE_PROFILE_OPTIONS, gameBuild: '4.9.188.23497' });
+
+  assert.equal(result.events.filter((event) => event.eventType === 'PuTerritorySetupCompleted').length, 2);
+  assert.equal(result.events.filter((event) => event.eventType === 'PuEntered').length, 2);
+  assert.equal(new Set(result.events.filter((event) => event.eventType === 'PuEntered').map((event) => event.eventId)).size, 2);
+});
+
+test('legacy OnClientEnteredGame accepts SC_Default only', () => {
+  const result = parseRuntimeLogText([
+    '<2026-08-19T07:05:39.510Z> taskname="OnClientEnteredGame" state=eCVS_InGame(17) status="Finished" rules="SC_Frontend" elapsedSecs=1',
+    '<2026-08-19T07:06:17.000Z> taskname="OnClientEnteredGame" state=eCVS_InGame(17) status="Finished" rules="SC_Default" elapsedSecs=12'
+  ].join('\n') + '\n', LIVE_PROFILE_OPTIONS);
+  assert.deepEqual(result.events.map((event) => event.eventType), ['PuEntered']);
+  assert.equal(result.events[0].payload.gamerules, 'SC_Default');
+});
+
+test('malformed current notifications fail closed with privacy-safe diagnostics', () => {
+  const result = parseRuntimeLogText(
+    '<2026-08-19T07:06:45.175Z> <SHUDEvent_OnNotification> Added notification "Entered Monitored Space: " [NOT_AN_ID] to queue.\n',
+    { ...LIVE_PROFILE_OPTIONS, gameBuild: '4.9.188.23497' }
+  );
+  assert.equal(result.events.length, 0);
+  assert.ok(result.diagnostics.some((diagnostic) => diagnostic.code === 'missing_required_fields'));
+  assert.equal(JSON.stringify(result.diagnostics).includes('Entered Monitored Space'), false);
+});
+
 test('party leave is emitted only when the client GEID matches observed local identity', () => {
   const result = parseRuntimeLogText([
     '<2026-08-19T03:32:00.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_LOCAL accountId SYNTH_ACCOUNT_LOCAL geid SYNTH_CHARACTER_GEID_LOCAL state Active',
@@ -401,7 +476,7 @@ test('reviewed LIVE executable version selects the 4.9 profile without widening 
   );
 
   assert.equal(reviewedLive.selectedProfile.id, 'sc-4.9-live');
-  assert.equal(reviewedLive.selectedProfile.version, 'draft-2026-08-19.1');
+  assert.equal(reviewedLive.selectedProfile.version, 'draft-2026-08-19.2');
   assert.equal(reviewedLive.parserHealth.status, 'compatible');
   assert.deepEqual(reviewedLive.events.map((event) => event.eventType), ['PuJoinRequested']);
   assert.ok(reviewedLive.events.every((event) => validateRuntimeEvent(event).ok));

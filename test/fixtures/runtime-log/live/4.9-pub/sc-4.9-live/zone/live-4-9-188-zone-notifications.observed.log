@@ -1,0 +1,5 @@
+<2026-08-19T07:06:45.175Z> [Notice] <SHUDEvent_OnNotification> Added notification "Entered Monitored Space: " [0] to queue. New queue size: 1, MissionId: [SYNTH_MISSION_NONE], ObjectiveId: []
+<2026-08-19T07:06:53.450Z> [Notice] <SHUDEvent_OnNotification> Added notification "Entered SYNTH_JURISDICTION_CURRENT Jurisdiction: " [1] to queue. New queue size: 2, MissionId: [SYNTH_MISSION_NONE], ObjectiveId: []
+<2026-08-19T07:12:03.856Z> [Notice] <SHUDEvent_OnNotification> Added notification "Entering Armistice Zone - Combat Prohibited: " [2] to queue. New queue size: 1, MissionId: [SYNTH_MISSION_NONE], ObjectiveId: []
+<2026-08-19T07:12:46.291Z> [Notice] <SHUDEvent_OnNotification> Added notification "Leaving Armistice Zone - Caution Advised: " [3] to queue. New queue size: 1, MissionId: [SYNTH_MISSION_NONE], ObjectiveId: []
+<2026-08-19T07:12:54.373Z> [Notice] <SHUDEvent_OnNotification> Added notification "Exited Monitored Space: " [4] to queue. New queue size: 2, MissionId: [SYNTH_MISSION_NONE], ObjectiveId: []
