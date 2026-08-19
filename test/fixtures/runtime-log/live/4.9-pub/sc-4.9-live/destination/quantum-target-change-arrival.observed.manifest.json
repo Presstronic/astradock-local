@@ -1,0 +1,38 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/destination/quantum-target-change-arrival.observed",
+  "title": "Locally anchored quantum target change and final arrival",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19.3",
+  "domain": "destination",
+  "action": "local player selects, changes, and reaches a quantum destination in an anchored vehicle",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "docs/runtime-capture-findings-2026-08-19.md",
+  "logFile": "quantum-target-change-arrival.observed.log",
+  "privacyClassification": ["personal", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["characterName", "accountId", "vehicleEntityId", "targetObservedId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "The fixture preserves only the minimal same-session identity, local hangar anchor, and quantum records."
+  },
+  "expectedCanonicalEvents": [
+    {"eventType":"QuantumTargetSelected","contractStatus":"runtime-event/v1","confidence":"high","provenance":"observed","requiredPayloadFields":["vehicleEntityId","vehicleClassName","targetObservedId"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","targetObservedId":"SYNTH_TARGET_AREA18"},"evidenceMarkers":["Player Selected Quantum Target - Local"]},
+    {"eventType":"QuantumTargetChanged","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","previousTargetObservedId","targetObservedId"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","previousTargetObservedId":"SYNTH_TARGET_AREA18","targetObservedId":"SYNTH_TARGET_ORISON"},"evidenceMarkers":["Player Selected Quantum Target - Local"]},
+    {"eventType":"QuantumTravelArrived","contractStatus":"runtime-event/v1","confidence":"high","provenance":"inferred","requiredPayloadFields":["vehicleEntityId","vehicleClassName","targetObservedId"],"payload":{"vehicleEntityId":"SYNTH_VEHICLE_ENTITY_LOCAL","vehicleClassName":"RSI_Meteor_SYNTH","targetObservedId":"SYNTH_TARGET_ORISON"},"evidenceMarkers":["Arrived at Final Destination"]}
+  ],
+  "expectedNonEvents": [
+    {"eventType":"QuantumTravelStarted","reason":"Target selection does not prove travel started."},
+    {"eventType":"QuantumTravelCancelled","reason":"A replacement target does not prove cancellation."},
+    {"eventType":"QuantumTravelFailed","reason":"No explicit failure evidence is present."}
+  ],
+  "correlation": {
+    "dedupeKey": "environment+session+vehicleEntityId+targetObservedId",
+    "sequence": ["QuantumTargetSelected", "QuantumTargetChanged", "QuantumTravelArrived"],
+    "notes": "Target change and arrival depend on prior same-session local vehicle and target evidence."
+  },
+  "knownLimitations": ["Arrival identifies the selected target, not exact coordinates.", "No start, cancellation, or failure inference is made."],
+  "verificationNotes": "Replay whole and chunked input; duplicates and unanchored vehicles must not create destination events."
+}

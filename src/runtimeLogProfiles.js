@@ -1,5 +1,5 @@
 const PROFILE_SCHEMA_VERSION = 1;
-const SC_49_PROFILE_VERSION = 'draft-2026-08-19.2';
+const SC_49_PROFILE_VERSION = 'draft-2026-08-19.3';
 
 const SC_49_FIELD_ALIASES = Object.freeze({
   accountId: ['accountId', 'account_id', 'citizenId'],
@@ -366,6 +366,45 @@ const SC_49_EXTRACTORS = Object.freeze([
     sensitivity: 'local',
     evidenceMarkers: ['Leaving Armistice Zone'],
     dedupeFields: ['notificationId', 'state']
+  },
+  {
+    id: 'vehicle.local-hangar-anchor',
+    kind: 'rememberLocalHangarVehicle',
+    literals: ['<CEntityComponentShipListProvider::SetVehicleSpawningInformations>', 'VehicleEntityId:', 'LandingArea:'],
+    evidenceMarkers: ['SetVehicleSpawningInformations', 'VehicleEntityId', 'LandingArea']
+  },
+  {
+    id: 'quantum.target-selected-local',
+    kind: 'quantumTargetSelected',
+    eventType: 'QuantumTargetSelected',
+    literals: ['<Player Selected Quantum Target - Local>', 'OnPlayerSelectedQuantumTarget', 'routing locally'],
+    requiredFields: ['vehicleEntityId', 'vehicleClassName', 'targetObservedId'],
+    confidence: 'high',
+    sensitivity: 'personal',
+    evidenceMarkers: ['Player Selected Quantum Target - Local', 'OnPlayerSelectedQuantumTarget', 'routing locally'],
+    dedupeFields: ['vehicleEntityId', 'targetObservedId']
+  },
+  {
+    id: 'quantum.target-changed-local',
+    kind: 'quantumTargetChanged',
+    eventType: 'QuantumTargetChanged',
+    literals: ['<Player Selected Quantum Target - Local>', 'OnPlayerSelectedQuantumTarget', 'routing locally'],
+    requiredFields: ['vehicleEntityId', 'vehicleClassName', 'previousTargetObservedId', 'targetObservedId'],
+    confidence: 'high',
+    sensitivity: 'personal',
+    evidenceMarkers: ['Player Selected Quantum Target - Local', 'OnPlayerSelectedQuantumTarget', 'routing locally'],
+    dedupeFields: ['vehicleEntityId', 'previousTargetObservedId', 'targetObservedId']
+  },
+  {
+    id: 'quantum.final-arrival',
+    kind: 'quantumTravelArrived',
+    eventType: 'QuantumTravelArrived',
+    literals: ['<Quantum Drive Arrived - Arrived at Final Destination>', 'OnQuantumDriveArrived', 'arrived at final destination'],
+    requiredFields: ['vehicleEntityId', 'vehicleClassName', 'targetObservedId'],
+    confidence: 'high',
+    sensitivity: 'personal',
+    evidenceMarkers: ['Quantum Drive Arrived', 'Arrived at Final Destination', 'OnQuantumDriveArrived'],
+    dedupeFields: ['vehicleEntityId', 'targetObservedId']
   }
 ]);
 

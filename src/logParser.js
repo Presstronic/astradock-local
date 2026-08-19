@@ -7,9 +7,12 @@ const {
 const {
   LOCATION_EVENT_TYPES,
   PARTY_EVENT_TYPES,
+  QUANTUM_EVENT_TYPES,
+  projectRuntimeDestination,
   projectRuntimeLocation,
   projectRuntimeParty,
   toRendererLocationSnapshot,
+  toRendererDestinationSnapshot,
   toRendererPartySnapshot
 } = require('./runtimeStateProjections');
 const {
@@ -759,19 +762,27 @@ async function parseLogFile(logPath, options = {}) {
     now: parsed.scannedAt,
     staleAfterMs: options.snapshotStaleAfterMs
   });
+  const destinationProjection = projectRuntimeDestination(canonical.events, {
+    activeEnvironmentKey: parsed.environmentKey,
+    now: parsed.scannedAt,
+    staleAfterMs: options.snapshotStaleAfterMs
+  });
   return {
     ...parsed,
     runtimeEvents: canonical.events,
     promotedRuntimeEvents: canonical.events.filter((event) => (
       PARTY_EVENT_TYPES.includes(event.eventType) || LOCATION_EVENT_TYPES.includes(event.eventType)
+        || QUANTUM_EVENT_TYPES.includes(event.eventType)
     )),
     parserCompatibility: canonical.parserHealth,
     lifecycleProjection,
     partyProjection,
     locationProjection,
+    destinationProjection,
     rendererLifecycle: toRendererLifecycleProjection(lifecycleProjection),
     partySnapshot: toRendererPartySnapshot(partyProjection),
-    locationSnapshot: toRendererLocationSnapshot(locationProjection)
+    locationSnapshot: toRendererLocationSnapshot(locationProjection),
+    destinationSnapshot: toRendererDestinationSnapshot(destinationProjection)
   };
 }
 

@@ -5,8 +5,10 @@ const path = require('node:path');
 
 const { parseRuntimeLogText } = require('../src/runtimeLogParserEngine');
 const {
+  projectRuntimeDestination,
   projectRuntimeLocation,
   projectRuntimeParty,
+  toRendererDestinationSnapshot,
   toRendererLocationSnapshot,
   toRendererPartySnapshot
 } = require('../src/runtimeStateProjections');
@@ -141,6 +143,39 @@ test('negative location fixtures cannot mutate location state', () => {
   }));
 
   assert.equal(events.length, 0);
+  assert.equal(snapshot.activeEnvironmentKey, null);
+  assert.deepEqual(snapshot.environments, {});
+});
+
+test('destination snapshot projects target replacement and final arrival without inventing travel state', () => {
+  const result = parseRuntimeLogText(
+    readFixture('destination', 'quantum-target-change-arrival.observed.log'),
+    { ...LIVE_PROFILE_OPTIONS, sourceProfileVersion: 'draft-2026-08-19.3', gameBuild: '4.9.188.23497' }
+  );
+  const snapshot = toRendererDestinationSnapshot(projectRuntimeDestination(result.events, {
+    activeEnvironmentKey: result.events.at(-1).environmentKey,
+    now: '2026-08-19T07:04:01.000Z',
+    staleAfterMs: 60 * 60 * 1000
+  }));
+  const destination = snapshot.environments[snapshot.activeEnvironmentKey];
+
+  assert.deepEqual(result.events.map((event) => event.eventType), [
+    'QuantumTargetSelected', 'QuantumTargetChanged', 'QuantumTravelArrived'
+  ]);
+  assert.equal(destination.state, 'arrived');
+  assert.equal(destination.currentTarget, null);
+  assert.equal(destination.lastArrival.targetObservedId, 'SYNTH_TARGET_ORISON');
+  assert.equal(destination.lastArrival.vehicleClassName, 'RSI_Meteor_SYNTH');
+  assert.notEqual(destination.lastArrival.vehicleEntityId, 'SYNTH_VEHICLE_ENTITY_LOCAL');
+});
+
+test('unanchored quantum records cannot create destination state', () => {
+  const result = parseRuntimeLogText(
+    readFixture('destination', 'quantum-unanchored-local-selection.non-event.log'),
+    { ...LIVE_PROFILE_OPTIONS, sourceProfileVersion: 'draft-2026-08-19.3', gameBuild: '4.9.188.23497' }
+  );
+  const snapshot = toRendererDestinationSnapshot(projectRuntimeDestination(result.events));
+  assert.equal(result.events.length, 0);
   assert.equal(snapshot.activeEnvironmentKey, null);
   assert.deepEqual(snapshot.environments, {});
 });

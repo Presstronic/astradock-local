@@ -33,17 +33,17 @@ The original `DestinationSet` and `DestinationChanged` candidates remain histori
 
 | Action or transition | Candidate event | Decision | Confidence | Evidence | Projection implication |
 | --- | --- | --- | --- | --- | --- |
-| Quantum target selected by local player | `QuantumTargetSelected` | Promote after sanitized fixture | High | Target-selection records are correlated to the locally controlled RSI Meteor and owner actions. | Set/update the observed quantum target; do not claim travel started. |
-| Quantum target changed by local player | `QuantumTargetChanged` | Promote after sanitized fixture | High | Repeated local selections include a manual redirection from Area18 to Orison. | Replace target while preserving prior event history; cancellation reason remains unknown. |
+| Quantum target selected by local player | `QuantumTargetSelected` | Promoted in `draft-2026-08-19.3` | High | The accepted fixture correlates target selection to a same-session local hangar vehicle anchor. | Set the observed quantum target; do not claim travel started. |
+| Quantum target changed by local player | `QuantumTargetChanged` | Promoted in `draft-2026-08-19.3` | High | The accepted fixture directly observes a replacement selection for the same anchored vehicle. | Replace target while preserving prior event history; cancellation reason remains unknown. |
 | Destination cleared by local player | `DestinationCleared` | Defer | None | No controlled clear sequence proves an authoritative local clear. | Do not clear by absence of route records, notification removal, or unrelated session noise. |
 | Travel started | `TravelStarted` | Defer | None | `[QuantumTravel]` records exist, but no capture proves local-player travel state or the enum/phase meaning. | Do not show active travel from route subsystem activity alone. |
-| Final quantum destination reached | `QuantumTravelArrived` | Promote after sanitized fixture | High | Two direct final-destination arrival records correlate to the locally controlled vehicle sequence. | Mark final arrival and clear active target only according to the accepted fixture contract. |
+| Final quantum destination reached | `QuantumTravelArrived` | Promoted in `draft-2026-08-19.3` | High | A final-arrival record correlates to the accepted same-session vehicle and selected target. | Mark final arrival and clear the active target. |
 | Travel cancelled | `TravelCancelled` | Defer | None | Manual interruption is owner-annotated but no distinct direct cancellation record was isolated. | Do not infer cancellation from a later target or missing continuation records. |
 | Travel failed | `TravelFailed` | Defer | None | No failure or interdiction-like terminal sequence was captured. | Do not raise travel failure alerts from subsystem errors or timing gaps. |
 | Confirmed empty destination state | `DestinationCurrentStateConfirmedEmpty` | Defer | None | No source proves an authoritative empty destination when monitoring starts or when no destination record is present. | Start as `unknown` or `unsupported`; never convert missing evidence into confirmed no-destination state. |
 | Monitor starts mid-route | No event; projection bootstrap state | Defer | None | No mid-route startup capture with proven active destination/travel state exists. | Start destination/travel projection as `unknown`; do not reconstruct travel from nearby route records. |
 
-`QuantumTargetSelected`/`QuantumTargetChanged` and `QuantumTravelArrived` are provisionally approved for registry promotion only after minimized sanitized fixtures and negative guards pass review. All other issue #11 decisions remain deferred.
+`QuantumTargetSelected`, `QuantumTargetChanged`, and `QuantumTravelArrived` are registered and projected for the compatible 4.9.188 profile. The positive fixture and unanchored-vehicle guard enforce the same-session correlation boundary. All other issue #11 decisions remain deferred.
 
 ## Identity, Payload, and Display Rules
 
@@ -70,11 +70,11 @@ Destination/travel projection state uses explicit unsupported and uncertainty st
 
 | State | Meaning | Entry evidence | Clear or transition evidence |
 | --- | --- | --- | --- |
-| `unsupported` | The current extraction profile has no promoted destination/travel events. | Unsupported build/profile or current profile revision before the new fixtures are accepted. | Compatible profile version with positive fixtures and promotion decisions. |
+| `unsupported` | The current extraction profile has no promoted destination/travel events. | Unsupported build/profile. | Select a compatible profile with accepted destination fixtures. |
 | `unknown` | The profile may support some destination/travel events, but current session evidence is insufficient to know destination or travel state. | App startup, monitoring starts mid-session, partial replay, missing terminal evidence, or ambiguous/redacted source sequence. | Direct supported destination/travel evidence, session boundary, or stale policy. |
-| `destination_set` | Direct evidence proves a current quantum target for the locally correlated vehicle. | Supported target selection/change evidence. | Supported clear, final arrival, incompatible session/environment boundary, or explicit uncertainty policy. |
+| `target_selected` | Direct evidence proves a current quantum target for the locally correlated vehicle. | Supported target selection/change evidence. | Final arrival, incompatible session/environment boundary, or stale policy. |
 | `traveling` | Direct evidence proves the local player is traveling toward a destination. | Future supported travel-start evidence. | Future supported arrival, cancellation, failure, incompatible session/environment boundary, or stale policy. |
-| `terminal` | Direct evidence proves a final travel outcome. | Future supported arrival, cancellation, or failure evidence. | Projection retention expiry or user/session boundary policy. |
+| `arrived` | Direct evidence proves final arrival at the last correlated target. | Supported final-arrival evidence. | A later target selection, session boundary, or stale policy. |
 
 An empty destination is a confirmed value only after a future supported source proves that no current destination exists. Missing captures, object-container streaming, route silence, application restart, or UI label disappearance must not produce a confirmed empty destination/travel state.
 

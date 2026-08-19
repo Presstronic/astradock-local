@@ -1,0 +1,4 @@
+<2026-08-19T08:00:00.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_LOCAL accountId SYNTH_ACCOUNT_LOCAL geid SYNTH_CHARACTER_LOCAL
+<2026-08-19T08:01:00.000Z> <Player Selected Quantum Target - Local> OnPlayerSelectedQuantumTarget | NOT AUTH | RSI_Unknown_SYNTH[SYNTH_UNANCHORED_VEHICLE]| Player has selected point SYNTH_TARGET_UNPROVEN as their destination, routing locally
+<2026-08-19T08:02:00.000Z> <Quantum Drive Arrived - Arrived at Final Destination> OnQuantumDriveArrived | NOT AUTH | RSI_Unknown_SYNTH[SYNTH_UNANCHORED_VEHICLE]| arrived at final destination
+<2026-08-19T08:03:00.000Z> <SYNTH_UNKNOWN_NAVIGATION_MARKER> state unavailable

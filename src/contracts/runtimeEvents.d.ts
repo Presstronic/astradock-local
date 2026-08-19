@@ -183,6 +183,22 @@ export interface RuntimeEventPayloadMap {
     notificationId: string;
     state: 'entered' | 'left';
   };
+  QuantumTargetSelected: {
+    vehicleEntityId: string;
+    vehicleClassName: string;
+    targetObservedId: string;
+  };
+  QuantumTargetChanged: {
+    vehicleEntityId: string;
+    vehicleClassName: string;
+    previousTargetObservedId: string;
+    targetObservedId: string;
+  };
+  QuantumTravelArrived: {
+    vehicleEntityId: string;
+    vehicleClassName: string;
+    targetObservedId: string;
+  };
 }
 
 export type RuntimeEventType = keyof RuntimeEventPayloadMap;

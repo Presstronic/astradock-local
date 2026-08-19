@@ -5,6 +5,7 @@ const SNAPSHOT_VERSION = 1;
 const DEFAULT_SNAPSHOT_STALE_AFTER_MS = 15_000;
 const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected', 'PartyLeft']);
 const LOCATION_EVENT_TYPES = Object.freeze(['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged']);
+const QUANTUM_EVENT_TYPES = Object.freeze(['QuantumTargetSelected', 'QuantumTargetChanged', 'QuantumTravelArrived']);
 const SESSION_BOUNDARY_EVENT_TYPES = Object.freeze(['PuDisconnected', 'ReturnedToFrontend', 'ApplicationExited']);
 
 function projectRuntimeParty(events, options = {}) {
@@ -76,6 +77,62 @@ function projectRuntimeLocation(events, options = {}) {
 
   finalizeLocationProjections(projections, options);
   return toProjectionCollection(projections, options.activeEnvironmentKey, orderedEvents);
+}
+
+function projectRuntimeDestination(events, options = {}) {
+  const projections = new Map();
+  const orderedEvents = [...(events || [])].sort(compareRuntimeEventOrder);
+  for (const event of orderedEvents) {
+    if (!event?.environmentKey || !event.environment) continue;
+    const projection = getOrCreateProjection(projections, event, createDestinationProjection);
+    if (event.eventType === 'QuantumTargetSelected' || event.eventType === 'QuantumTargetChanged') {
+      projection.state = 'target_selected';
+      projection.currentTarget = destinationFact(event);
+      projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
+    } else if (event.eventType === 'QuantumTravelArrived') {
+      projection.state = 'arrived';
+      projection.lastArrival = destinationFact(event);
+      projection.currentTarget = null;
+      projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
+    } else if (SESSION_BOUNDARY_EVENT_TYPES.includes(event.eventType) && projection.lastChangedAt) {
+      projection.state = 'stale';
+      projection.currentTarget = null;
+      projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
+    }
+  }
+  const nowMs = toTime(options.now) ?? Date.now();
+  const staleAfterMs = positiveInteger(options.staleAfterMs) || DEFAULT_SNAPSHOT_STALE_AFTER_MS;
+  for (const projection of projections.values()) {
+    projection.freshness = classifyFreshness(projection.lastChangedAt, nowMs, staleAfterMs);
+    if (projection.freshness === 'stale' && projection.state !== 'unknown') projection.state = 'stale';
+  }
+  return toProjectionCollection(projections, options.activeEnvironmentKey, orderedEvents);
+}
+
+function createDestinationProjection(event) {
+  return {
+    version: SNAPSHOT_VERSION,
+    environmentKey: event.environmentKey,
+    environment: event.environment,
+    state: 'unknown',
+    freshness: 'unknown',
+    currentTarget: null,
+    lastArrival: null,
+    lastChangedAt: null,
+    limitation: 'Only explicit local target selections and final arrivals correlated to a same-session local vehicle anchor are promoted.'
+  };
+}
+
+function destinationFact(event) {
+  return {
+    targetObservedId: sanitizeDisplayText(event.payload.targetObservedId),
+    vehicleClassName: sanitizeDisplayText(event.payload.vehicleClassName),
+    vehicleEntityId: event.payload.vehicleEntityId,
+    observedAt: event.sourceTimestamp,
+    confidence: event.confidence,
+    provenance: event.provenance,
+    evidenceEventId: event.eventId
+  };
 }
 
 function getOrCreateProjection(projections, event, factory) {
@@ -355,6 +412,24 @@ function toRendererLocationSnapshot(result) {
   return { version: SNAPSHOT_VERSION, activeEnvironmentKey: result.activeEnvironmentKey, environments };
 }
 
+function toRendererDestinationSnapshot(result) {
+  if (!result) return null;
+  const environments = {};
+  for (const [environmentKey, projection] of Object.entries(result.environments || {})) {
+    const sanitizeTarget = (target) => target ? {
+      ...target,
+      vehicleEntityId: redactStableIdentifier(target.vehicleEntityId)
+    } : null;
+    environments[environmentKey] = {
+      ...projection,
+      environment: { ...projection.environment },
+      currentTarget: sanitizeTarget(projection.currentTarget),
+      lastArrival: sanitizeTarget(projection.lastArrival)
+    };
+  }
+  return { version: SNAPSHOT_VERSION, activeEnvironmentKey: result.activeEnvironmentKey, environments };
+}
+
 function compareMembers(left, right) {
   return Number(right.isLeader) - Number(left.isLeader)
     || Number(right.isLocalPlayer) - Number(left.isLocalPlayer)
@@ -394,9 +469,12 @@ module.exports = {
   DEFAULT_SNAPSHOT_STALE_AFTER_MS,
   LOCATION_EVENT_TYPES,
   PARTY_EVENT_TYPES,
+  QUANTUM_EVENT_TYPES,
   SNAPSHOT_VERSION,
   projectRuntimeLocation,
+  projectRuntimeDestination,
   projectRuntimeParty,
   toRendererLocationSnapshot,
+  toRendererDestinationSnapshot,
   toRendererPartySnapshot
 };

@@ -1,0 +1,26 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/destination/quantum-unanchored-local-selection.non-event",
+  "title": "Unanchored quantum navigation records remain non-events",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19.3",
+  "domain": "destination",
+  "action": "quantum selection and arrival records name a vehicle without local control evidence",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/runtime-capture-findings-2026-08-19.md",
+  "logFile": "quantum-unanchored-local-selection.non-event.log",
+  "privacyClassification": ["personal", "sanitized"],
+  "sensitivityHandling": {"redactedFields":["vehicleEntityId","targetObservedId"],"syntheticPlaceholderPrefix":"SYNTH_","notes":"All identifiers are synthetic."},
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {"eventType":"QuantumTargetSelected","reason":"No same-session local vehicle anchor exists."},
+    {"eventType":"QuantumTargetChanged","reason":"No trusted prior local target exists."},
+    {"eventType":"QuantumTravelArrived","reason":"Neither local vehicle nor target correlation is established."}
+  ],
+  "correlation": {"dedupeKey":"none","sequence":[],"notes":"Temporal proximity and a local target message alone do not prove local vehicle control."},
+  "knownLimitations": ["A supported same-session local vehicle anchor is intentionally absent."],
+  "verificationNotes": "No quantum event may be emitted from either record."
+}

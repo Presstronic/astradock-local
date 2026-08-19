@@ -630,6 +630,59 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       notificationId: 'SYNTH_NOTIFICATION_ARMISTICE_A',
       state: 'entered'
     }
+  },
+  QuantumTargetSelected: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'The local player directly selected a quantum target for a locally correlated vehicle.',
+    traits: traits({ subjectScopes: ['local_player', 'session'], sensitivity: 'personal' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/destination/quantum-target-change-arrival.observed',
+    payload: {
+      vehicleEntityId: field(STRING),
+      vehicleClassName: field(STRING),
+      targetObservedId: field(STRING)
+    },
+    examplePayload: {
+      vehicleEntityId: 'SYNTH_VEHICLE_ENTITY_LOCAL',
+      vehicleClassName: 'RSI_Meteor_SYNTH',
+      targetObservedId: 'SYNTH_TARGET_L2'
+    }
+  },
+  QuantumTargetChanged: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'A direct local selection replaced the prior quantum target for the same correlated vehicle.',
+    traits: traits({ subjectScopes: ['local_player', 'session'], sensitivity: 'personal' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/destination/quantum-target-change-arrival.observed',
+    payload: {
+      vehicleEntityId: field(STRING),
+      vehicleClassName: field(STRING),
+      previousTargetObservedId: field(STRING),
+      targetObservedId: field(STRING)
+    },
+    examplePayload: {
+      vehicleEntityId: 'SYNTH_VEHICLE_ENTITY_LOCAL',
+      vehicleClassName: 'RSI_Meteor_SYNTH',
+      previousTargetObservedId: 'SYNTH_TARGET_AREA18',
+      targetObservedId: 'SYNTH_TARGET_ORISON'
+    }
+  },
+  QuantumTravelArrived: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'A final quantum arrival was correlated to the last selected target for the same local vehicle.',
+    traits: traits({ subjectScopes: ['local_player', 'session'], sensitivity: 'personal' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/destination/quantum-target-change-arrival.observed',
+    payload: {
+      vehicleEntityId: field(STRING),
+      vehicleClassName: field(STRING),
+      targetObservedId: field(STRING)
+    },
+    examplePayload: {
+      vehicleEntityId: 'SYNTH_VEHICLE_ENTITY_LOCAL',
+      vehicleClassName: 'RSI_Meteor_SYNTH',
+      targetObservedId: 'SYNTH_TARGET_ORISON'
+    }
   }
 });
 

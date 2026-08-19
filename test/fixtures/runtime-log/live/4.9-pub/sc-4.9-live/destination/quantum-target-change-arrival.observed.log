@@ -1,0 +1,5 @@
+<2026-08-19T07:00:00.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_LOCAL accountId SYNTH_ACCOUNT_LOCAL geid SYNTH_CHARACTER_LOCAL
+<2026-08-19T07:01:00.000Z> <CEntityComponentShipListProvider::SetVehicleSpawningInformations> SetVehicleSpawningInformations - VehicleEntityId: [SYNTH_VEHICLE_ENTITY_LOCAL], LandingArea: SYNTH_HANDLE_LOCAL's Hangar
+<2026-08-19T07:02:00.000Z> <Player Selected Quantum Target - Local> OnPlayerSelectedQuantumTarget | NOT AUTH | RSI_Meteor_SYNTH[SYNTH_VEHICLE_ENTITY_LOCAL]| Player has selected point SYNTH_TARGET_AREA18 as their destination, routing locally
+<2026-08-19T07:03:00.000Z> <Player Selected Quantum Target - Local> OnPlayerSelectedQuantumTarget | NOT AUTH | RSI_Meteor_SYNTH[SYNTH_VEHICLE_ENTITY_LOCAL]| Player has selected point SYNTH_TARGET_ORISON as their destination, routing locally
+<2026-08-19T07:04:00.000Z> <Quantum Drive Arrived - Arrived at Final Destination> OnQuantumDriveArrived | NOT AUTH | RSI_Meteor_SYNTH[SYNTH_VEHICLE_ENTITY_LOCAL]| arrived at final destination
