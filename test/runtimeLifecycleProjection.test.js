@@ -5,7 +5,6 @@ const path = require('node:path');
 
 const { parseRuntimeLogText } = require('../src/runtimeLogParserEngine');
 const {
-  DEFAULT_STALE_AFTER_MS,
   projectRuntimeLifecycle,
   redactEndpoint,
   redactStableIdentifier,
@@ -50,7 +49,7 @@ test('fixture-backed lifecycle projection reaches clean exit without inventing u
   assert.equal(current.lifecycle.state, 'exited');
   assert.equal(current.lifecycle.cleanExit, true);
   assert.equal(current.lifecycle.status, 'known');
-  assert.equal(current.freshness, 'current');
+  assert.equal(current.observation.state, 'observed');
   assert.equal(current.shard.shardLabel, 'SYNTH_SHARD_STANTON_US_EAST_A');
   assert.equal(current.shard.region.friendlyRegion, 'US');
   assert.equal(current.shard.state, 'disconnected');
@@ -160,20 +159,32 @@ test('incomplete joins remain transitioning and do not claim successful entry', 
   assert.equal(current.puSession.enteredAt, null);
 });
 
-test('missing evidence stays unknown and freshness becomes stale at the approved health boundary', () => {
+test('connected PU lifecycle remains latched through ten minutes of log silence', () => {
+  const parsed = parseRuntimeLogText(readFixture('pu-join-shard-server.observed.log'), PARSER_OPTIONS);
+  const projected = projectRuntimeLifecycle(parsed.events, { now: '2026-08-09T19:17:00.000Z' });
+  const current = projected.environments[projected.activeEnvironmentKey];
+
+  assert.equal(current.replicationConnection.state, 'connected');
+  assert.equal(current.shard.state, 'connected');
+  assert.equal(current.puSession.state, 'in_game');
+  assert.equal(current.lifecycle.state, 'in_game');
+});
+
+test('missing evidence stays unknown and quiet time does not mutate latched lifecycle state', () => {
   assert.deepEqual(projectRuntimeLifecycle([], { now: '2026-08-09T19:00:00.000Z' }), {
-    version: 2,
+    version: 3,
     activeEnvironmentKey: null,
     environments: {}
   });
 
   const parsed = parseRuntimeLogText(readFixture('local-identity-login.observed.log'), PARSER_OPTIONS);
   const projected = projectRuntimeLifecycle(parsed.events, {
-    now: new Date(Date.parse('2026-08-09T19:01:03.000Z') + DEFAULT_STALE_AFTER_MS + 1).toISOString()
+    now: '2026-08-09T23:01:03.000Z'
   });
   const current = projected.environments[projected.activeEnvironmentKey];
   assert.equal(current.lifecycle.state, 'frontend');
-  assert.equal(current.freshness, 'stale');
+  assert.equal(current.observation.state, 'observed');
+  assert.equal(current.observation.lastDomainEventAt, current.lastChangedAt);
   assert.equal(current.lifecycle.cleanExit, null);
 });
 

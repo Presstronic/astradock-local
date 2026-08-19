@@ -1,9 +1,48 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  classifyActivity,
+  classifySourceHealth,
+  classifyWorkspaceState,
   createRuntimeMonitorViewModel,
   formatCompactDuration
 } from '../src/renderer/src/runtime-monitor-model';
+
+describe('separated monitor health and activity clocks', () => {
+  const source = { validation: { isValid: true }, channelConfidence: 'confirmed' } as never;
+  const tailer = {
+    status: 'monitoring', available: true, generation: 1, sequence: 2, offset: 100,
+    fileSize: 100, backlogBytes: 0, pendingCheck: false, deliveryInFlight: false,
+    paused: false, pauseReason: null, lastErrorCode: null, sourceIdentity: 'redacted',
+    lastObservedAt: '2026-08-18T11:50:00.000Z', lastDeliveredAt: '2026-08-18T11:50:00.000Z'
+  };
+  const snapshot = { monitor: { active: true, tailer } } as never;
+
+  it('classifies a quiet healthy source without creating a stale workspace warning', () => {
+    const now = new Date('2026-08-18T12:00:00.000Z');
+    expect(classifyActivity(tailer.lastObservedAt, now)).toBe('quiet');
+    expect(classifySourceHealth(snapshot, source)).toBe('healthy');
+    expect(classifyWorkspaceState({ loading: false, fatalError: null, sources: [], activeSource: source, snapshot, scan: null, now })).toBe('ready');
+  });
+
+  it('keeps pause, source loss, backlog, and parser drift in separate dimensions', () => {
+    expect(classifySourceHealth({ monitor: { active: true, tailer: { ...tailer, paused: true, status: 'paused' } } } as never, source)).toBe('paused');
+    expect(classifySourceHealth({ monitor: { active: true, tailer: { ...tailer, available: false, status: 'waiting_for_source' } } } as never, source)).toBe('missing');
+    expect(classifySourceHealth({ monitor: { active: true, tailer: { ...tailer, backlogBytes: 512 } } } as never, source)).toBe('degraded');
+    expect(classifyWorkspaceState({
+      loading: false, fatalError: null, sources: [], activeSource: source,
+      snapshot: { monitor: { active: true, tailer: { ...tailer, backlogBytes: 512 } } } as never,
+      scan: null, now: new Date('2026-08-18T12:00:00.000Z')
+    })).toBe('degraded');
+
+    const state = classifyWorkspaceState({
+      loading: false, fatalError: null, sources: [], activeSource: source, snapshot,
+      scan: { parserCompatibility: { status: 'suspected_drift' } } as never,
+      now: new Date('2026-08-18T12:00:00.000Z')
+    });
+    expect(state).toBe('ready');
+  });
+});
 
 describe('PU session duration formatting', () => {
   it('uses MM:SS below one hour', () => {

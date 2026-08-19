@@ -2,7 +2,6 @@ const { compareRuntimeEventOrder } = require('./contracts/runtimeEvents');
 const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 
 const SNAPSHOT_VERSION = 1;
-const DEFAULT_SNAPSHOT_STALE_AFTER_MS = 15_000;
 const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected', 'PartyLeft']);
 const LOCATION_EVENT_TYPES = Object.freeze(['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged']);
 const QUANTUM_EVENT_TYPES = Object.freeze(['QuantumTargetSelected', 'QuantumTargetChanged', 'QuantumTravelArrived']);
@@ -100,11 +99,8 @@ function projectRuntimeDestination(events, options = {}) {
       projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
     }
   }
-  const nowMs = toTime(options.now) ?? Date.now();
-  const staleAfterMs = positiveInteger(options.staleAfterMs) || DEFAULT_SNAPSHOT_STALE_AFTER_MS;
   for (const projection of projections.values()) {
-    projection.freshness = classifyFreshness(projection.lastChangedAt, nowMs, staleAfterMs);
-    if (projection.freshness === 'stale' && projection.state !== 'unknown') projection.state = 'stale';
+    projection.freshness = projection.state === 'stale' ? 'stale' : projection.lastChangedAt ? 'current' : 'unknown';
   }
   return toProjectionCollection(projections, options.activeEnvironmentKey, orderedEvents);
 }
@@ -266,23 +262,9 @@ function addTransition(projection, event, label, subjectHandle) {
   projection.recentTransitions = projection.recentTransitions.slice(0, 10);
 }
 
-function finalizePartyProjections(projections, options) {
-  const nowMs = toTime(options.now) ?? Date.now();
-  const staleAfterMs = positiveInteger(options.staleAfterMs) || DEFAULT_SNAPSHOT_STALE_AFTER_MS;
-
+function finalizePartyProjections(projections) {
   for (const projection of projections.values()) {
-    projection.freshness = classifyFreshness(projection.lastChangedAt, nowMs, staleAfterMs);
-    if (projection.freshness === 'stale' && projection.state === 'in_party') {
-      projection.state = 'stale';
-    }
-    for (const member of projection.membersByHandle.values()) {
-      if (member.observedAt && nowMs - toTime(member.observedAt) > staleAfterMs) {
-        if (member.connectionState === 'connected') member.connectionState = 'stale';
-        if (member.membershipState === 'confirmed' || member.membershipState === 'possible') {
-          member.membershipState = 'stale';
-        }
-      }
-    }
+    projection.freshness = projection.state === 'stale' ? 'stale' : projection.lastChangedAt ? 'current' : 'unknown';
     const members = Array.from(projection.membersByHandle.values());
     projection.confirmedMemberCount = members.filter((member) => member.membershipState === 'confirmed').length;
     projection.possibleMemberCount = members.filter((member) => member.membershipState === 'possible').length;
@@ -316,16 +298,11 @@ function staleLocationProjection(projection, event) {
   projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
 }
 
-function finalizeLocationProjections(projections, options) {
-  const nowMs = toTime(options.now) ?? Date.now();
-  const staleAfterMs = positiveInteger(options.staleAfterMs) || DEFAULT_SNAPSHOT_STALE_AFTER_MS;
-
+function finalizeLocationProjections(projections) {
   for (const projection of projections.values()) {
-    for (const key of ['jurisdiction', 'monitoredSpace', 'armistice']) {
-      const observedMs = toTime(projection[key].observedAt);
-      if (observedMs !== null && nowMs - observedMs > staleAfterMs) projection[key].state = 'stale';
-    }
-    projection.freshness = classifyFreshness(projection.lastChangedAt, nowMs, staleAfterMs);
+    projection.freshness = ['jurisdiction', 'monitoredSpace', 'armistice'].some((key) => projection[key].state === 'stale')
+      ? 'stale'
+      : projection.lastChangedAt ? 'current' : 'unknown';
     projection.state = locationState(projection);
   }
 }
@@ -442,12 +419,6 @@ function sanitizeDisplayText(value, maxLength = 80) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
 }
 
-function classifyFreshness(timestamp, nowMs, staleAfterMs) {
-  const observedMs = toTime(timestamp);
-  if (observedMs === null) return 'unknown';
-  return nowMs - observedMs > staleAfterMs ? 'stale' : 'current';
-}
-
 function laterTimestamp(left, right) {
   if (!left) return right || null;
   if (!right) return left;
@@ -461,12 +432,7 @@ function toTime(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-function positiveInteger(value) {
-  return Number.isSafeInteger(value) && value > 0 ? value : null;
-}
-
 module.exports = {
-  DEFAULT_SNAPSHOT_STALE_AFTER_MS,
   LOCATION_EVENT_TYPES,
   PARTY_EVENT_TYPES,
   QUANTUM_EVENT_TYPES,

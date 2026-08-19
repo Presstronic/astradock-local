@@ -860,7 +860,7 @@ The approved interim shell includes:
 - Shared event drilldown drawers for detail and evidence.
 - A status bar for monitoring state, environment, local-only status, retention, backlog, and parser profile.
 
-State surfaces must show freshness and uncertainty. When a terminal event is missing or monitoring begins mid-session, the interface shall display `unknown` or `stale` rather than carrying an old value forward as current truth.
+State surfaces must show observation age and uncertainty. When monitoring begins mid-session, the interface shall display `unknown`; a previously confirmed value becomes `stale` only after a defined source/session boundary or observable monitor-health fault makes it historical. Quiet log activity alone must not mutate latched domain state.
 
 Freshness does not mean “time since the last log line.” The UI shall distinguish source/monitor health, neutral last-activity age, parser compatibility, and each latched domain lifecycle. A quiet healthy log must not turn a connected PU replication session into a stale warning.
 

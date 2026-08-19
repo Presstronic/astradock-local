@@ -1,6 +1,6 @@
 # Runtime lifecycle projection
 
-Issue #24 promotes the fixture-backed build, environment, local identity, and game lifecycle events into an environment-scoped current-state read model. Projection version 2 renames the ambiguous server connection to a PU replication connection and replaces its generic node field with `observedNodeId`. The authoritative reducer is `src/runtimeLifecycleProjection.js`; the renderer receives only its privacy-safe DTO.
+Issue #24 promotes the fixture-backed build, environment, local identity, and game lifecycle events into an environment-scoped current-state read model. Projection version 3 keeps lifecycle state latched and replaces its overloaded wall-clock `freshness` field with neutral domain-observation metadata. The authoritative reducer is `src/runtimeLifecycleProjection.js`; the renderer receives only its privacy-safe DTO.
 
 ## Directly supported transitions
 
@@ -26,7 +26,7 @@ The renderer DTO exposes handle and character name as display labels. Stable ide
 
 ## Freshness and compatibility
 
-The implementation correction is tracked by [#87](https://github.com/Presstronic/astradock-local/issues/87).
+The implementation correction is delivered by [#87](https://github.com/Presstronic/astradock-local/issues/87).
 
 Source health, observation age, parser compatibility, and domain lifecycle are independent dimensions:
 
@@ -37,10 +37,12 @@ Source health, observation age, parser compatibility, and domain lifecycle are i
 
 The ADR-0004 15-second objective applies to detecting and surfacing an actual monitoring fault after it becomes observable. It does not make a healthy quiet log, replication connection, shard, or PU session stale merely because no new domain event arrived. A connected replication projection remains connected through quiet gameplay until a direct disconnect, replacement, source-generation/session boundary, process exit, or explicit source-loss recovery rule applies. The UI may show “last log activity” and per-fact age as neutral context without raising a stale warning.
 
+Renderer state exposes four independent dimensions: tailer-derived source health (`healthy`, `recovering`, `paused`, `degraded`, `missing`, `stopped`, `error`, or `unknown`), neutral activity (`recent`, `quiet`, or `none`), parser compatibility, and the directly reduced lifecycle/domain values. Snapshot version 2 is not persisted; consumers must treat an absent version-3 `observation` field as unknown rather than deriving stale state from the old field.
+
 Parser compatibility is reported separately as `compatible`, `unverified_build`, `unsupported_profile`, or `suspected_drift` under [`runtime-profile-compatibility-policy.md`](runtime-profile-compatibility-policy.md). Unknown or future release tags remain unknown; `PUB`, `PU`, and `LIVE` are never treated as aliases.
 
 LIVE 4.9.188 uses an alternative bounded `SC_Default` ready sequence because `OnClientEnteredGame` is absent. The implemented profile requires an active PU join followed by completed territory setup, game-mode creation, and local-player telemetry initialization, in order within five minutes. Frontend, incomplete, misordered, cross-session, duplicate, and expired sequences cannot emit `PuEntered`; the legacy completed `SC_Default` terminal remains supported for older accepted 4.9 fixtures.
 
 ## Verification
 
-`test/runtimeLifecycleProjection.test.js` replays the sanitized startup-to-clean-exit spine and covers missing evidence, stale state, conflicting identities, renderer redaction, and cross-environment isolation. Parser profile positive, negative, duplicate, malformed, and compatibility coverage remains in `test/runtimeLogParserEngine.test.js`.
+`test/runtimeLifecycleProjection.test.js` replays the sanitized startup-to-clean-exit spine and covers missing evidence, quiet-time latching, conflicting identities, renderer redaction, and cross-environment isolation. Renderer fake-clock tests independently cover quiet activity, tailer faults, pause, backlog, parser drift, and direct disconnect behavior. Parser profile positive, negative, duplicate, malformed, and compatibility coverage remains in `test/runtimeLogParserEngine.test.js`.

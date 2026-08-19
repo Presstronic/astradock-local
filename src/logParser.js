@@ -754,18 +754,15 @@ async function parseLogFile(logPath, options = {}) {
   });
   const partyProjection = projectRuntimeParty(canonical.events, {
     activeEnvironmentKey: parsed.environmentKey,
-    now: parsed.scannedAt,
-    staleAfterMs: options.snapshotStaleAfterMs
+    now: parsed.scannedAt
   });
   const locationProjection = projectRuntimeLocation(canonical.events, {
     activeEnvironmentKey: parsed.environmentKey,
-    now: parsed.scannedAt,
-    staleAfterMs: options.snapshotStaleAfterMs
+    now: parsed.scannedAt
   });
   const destinationProjection = projectRuntimeDestination(canonical.events, {
     activeEnvironmentKey: parsed.environmentKey,
-    now: parsed.scannedAt,
-    staleAfterMs: options.snapshotStaleAfterMs
+    now: parsed.scannedAt
   });
   return {
     ...parsed,
