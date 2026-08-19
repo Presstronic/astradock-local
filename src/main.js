@@ -591,6 +591,7 @@ function toRendererScanResult(result, source) {
     lifecycleProjection: _lifecycleProjection,
     partyProjection: _partyProjection,
     locationProjection: _locationProjection,
+    destinationProjection: _destinationProjection,
     entries = [],
     userActivity = {},
     ...safeResult
@@ -626,6 +627,9 @@ function toRendererRuntimeEventRow(event) {
     sensitivity: event.evidenceReference?.sensitivity || event.traits?.sensitivity || 'local',
     eventCategory: runtimeEventCategory(event.eventType),
     summary: formatRuntimeEventSummary(event),
+    targetObservedId: event.payload?.targetObservedId || null,
+    previousTargetObservedId: event.payload?.previousTargetObservedId || null,
+    vehicleClassName: event.payload?.vehicleClassName || null,
     evidenceAvailable: true
   };
 }
@@ -633,6 +637,7 @@ function toRendererRuntimeEventRow(event) {
 function runtimeEventCategory(eventType) {
   if (String(eventType).startsWith('Party')) return 'party';
   if (['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged'].includes(eventType)) return 'zone';
+  if (String(eventType).startsWith('Quantum')) return 'navigation';
   return 'runtime';
 }
 
@@ -645,7 +650,10 @@ function formatRuntimeEventLabel(event) {
     JurisdictionEntered: 'Jurisdiction Entered',
     MonitoredSpaceEntered: 'Monitored Space',
     MonitoredSpaceExited: 'Monitored Space',
-    ArmisticeStateChanged: 'Armistice'
+    ArmisticeStateChanged: 'Armistice',
+    QuantumTargetSelected: 'Quantum Target Selected',
+    QuantumTargetChanged: 'Quantum Target Changed',
+    QuantumTravelArrived: 'Quantum Travel Arrived'
   })[event.eventType] || event.eventType;
 }
 
@@ -667,6 +675,12 @@ function formatRuntimeEventSummary(event) {
       return 'Exited monitored space';
     case 'ArmisticeStateChanged':
       return event.payload.state === 'entered' ? 'Entered armistice zone' : 'Left armistice zone';
+    case 'QuantumTargetSelected':
+      return `Selected quantum target ${event.payload.targetObservedId}`;
+    case 'QuantumTargetChanged':
+      return `Changed quantum target to ${event.payload.targetObservedId}`;
+    case 'QuantumTravelArrived':
+      return `Arrived at ${event.payload.targetObservedId}`;
     default:
       return event.eventType;
   }

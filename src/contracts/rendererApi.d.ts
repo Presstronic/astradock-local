@@ -138,6 +138,7 @@ export interface RendererScanResult {
   rendererLifecycle: RendererLifecycleProjection;
   partySnapshot: RendererPartySnapshot;
   locationSnapshot: RendererLocationSnapshot;
+  destinationSnapshot: RendererDestinationSnapshot;
   promotedRuntimeEvents: readonly RendererEvidenceRow[];
   entries: readonly RendererEvidenceRow[];
   userActivity: {
@@ -334,6 +335,34 @@ export interface RendererLocationFact<TValue> {
   confidence: string;
   provenance: string;
   evidenceEventId: string | null;
+}
+
+export interface RendererDestinationSnapshot {
+  version: 1;
+  activeEnvironmentKey: string | null;
+  environments: Readonly<Record<string, RendererDestinationEnvironment>>;
+}
+
+export interface RendererDestinationEnvironment {
+  version: 1;
+  environmentKey: string;
+  environment: EnvironmentContext;
+  state: 'unknown' | 'target_selected' | 'arrived' | 'stale';
+  freshness: 'current' | 'stale' | 'unknown';
+  currentTarget: RendererDestinationFact | null;
+  lastArrival: RendererDestinationFact | null;
+  lastChangedAt: string | null;
+  limitation: string;
+}
+
+export interface RendererDestinationFact {
+  targetObservedId: string | null;
+  vehicleClassName: string | null;
+  vehicleEntityId: string;
+  observedAt: string;
+  confidence: string;
+  provenance: string;
+  evidenceEventId: string;
 }
 
 export interface MonitorSnapshot {

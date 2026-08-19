@@ -56,6 +56,9 @@ const EXPECTED_OBSERVED_EVENTS = new Set([
   'MonitoredSpaceEntered',
   'MonitoredSpaceExited',
   'ArmisticeStateChanged',
+  'QuantumTargetSelected',
+  'QuantumTargetChanged',
+  'QuantumTravelArrived',
   'PuDisconnected',
   'ReturnedToFrontend',
   'ApplicationExited'
@@ -211,7 +214,7 @@ function assertManifestShape(manifest, manifestPath) {
       `${manifestPath} ${event.eventType} contractStatus must reference published runtime event contract`
     );
     assert.ok(event.confidence, `${manifestPath} ${event.eventType} confidence`);
-    assert.equal(event.provenance, 'observed', `${manifestPath} ${event.eventType} provenance`);
+    assert.ok(['observed', 'inferred'].includes(event.provenance), `${manifestPath} ${event.eventType} provenance`);
     assert.ok(Array.isArray(event.requiredPayloadFields), `${manifestPath} ${event.eventType} requiredPayloadFields`);
     assert.ok(Array.isArray(event.evidenceMarkers), `${manifestPath} ${event.eventType} evidenceMarkers`);
     assert.ok(event.payload && typeof event.payload === 'object', `${manifestPath} ${event.eventType} payload`);

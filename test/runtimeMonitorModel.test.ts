@@ -132,6 +132,31 @@ describe('Runtime Monitor party and zone projections', () => {
           }
         }
       },
+      destinationSnapshot: {
+        version: 1,
+        activeEnvironmentKey: 'LIVE::PU::BUILD::BRANCH::SOURCE',
+        environments: {
+          'LIVE::PU::BUILD::BRANCH::SOURCE': {
+            version: 1,
+            environmentKey: 'LIVE::PU::BUILD::BRANCH::SOURCE',
+            environment: {},
+            state: 'target_selected',
+            freshness: 'current',
+            currentTarget: {
+              targetObservedId: 'SYNTH_TARGET_ORISON',
+              vehicleClassName: 'RSI_Meteor_SYNTH',
+              vehicleEntityId: 'SY...AL',
+              observedAt: '2026-08-18T11:59:23.000Z',
+              confidence: 'high',
+              provenance: 'observed',
+              evidenceEventId: 'event_quantum'
+            },
+            lastArrival: null,
+            lastChangedAt: '2026-08-18T11:59:23.000Z',
+            limitation: 'Only locally correlated quantum evidence.'
+          }
+        }
+      },
       promotedRuntimeEvents: [
         {
           id: 'event_party',
@@ -148,6 +173,15 @@ describe('Runtime Monitor party and zone projections', () => {
           eventCategory: 'zone',
           summary: 'Entered SYNTH_JURISDICTION_A',
           timestamp: '2026-08-18T11:59:20.000Z',
+          confidence: 'high',
+          evidenceAvailable: true
+        },
+        {
+          id: 'event_quantum',
+          eventType: 'QuantumTargetSelected',
+          eventCategory: 'navigation',
+          summary: 'Selected quantum target SYNTH_TARGET_ORISON',
+          timestamp: '2026-08-18T11:59:23.000Z',
           confidence: 'high',
           evidenceAvailable: true
         }
@@ -178,8 +212,10 @@ describe('Runtime Monitor party and zone projections', () => {
     expect(viewModel.instruments).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'jurisdiction', value: 'SYNTH_JURISDICTION_A' }),
       expect.objectContaining({ id: 'monitored-space', value: 'Entered' }),
-      expect.objectContaining({ id: 'armistice', value: 'Outside' })
+      expect.objectContaining({ id: 'armistice', value: 'Outside' }),
+      expect.objectContaining({ id: 'destination', value: 'SYNTH_TARGET_ORISON', state: 'known' })
     ]));
-    expect(viewModel.streamEvents.map((event) => event.kind)).toEqual(['zone', 'party']);
+    expect(viewModel.mission).toMatchObject({ title: 'Destination', label: 'SYNTH_TARGET_ORISON' });
+    expect(viewModel.streamEvents.map((event) => event.kind)).toEqual(['navigation', 'zone', 'party']);
   });
 });

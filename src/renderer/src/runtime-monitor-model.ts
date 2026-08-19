@@ -23,7 +23,7 @@ export type DrawerPlacement = 'right' | 'bottom';
 
 export interface StreamEvent {
   id: string;
-  kind: 'shard' | 'action' | 'session' | 'party' | 'zone' | 'runtime' | 'diagnostic';
+  kind: 'shard' | 'action' | 'session' | 'party' | 'zone' | 'navigation' | 'runtime' | 'diagnostic';
   urgency: 'normal' | 'warning' | 'urgent' | 'critical';
   summary: string;
   context: string;
@@ -124,7 +124,7 @@ export function createRuntimeMonitorViewModel(input: {
     sourceCandidates: input.sources,
     instruments: createInstruments(scan, input.now),
     party: createPartyPanel(scan),
-    mission: createMissionPanel(),
+    mission: createMissionPanel(scan),
     alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null)
   };
 }
@@ -212,6 +212,7 @@ function createInstruments(
   const latestAction = scan?.userActivity.actions?.[0];
   const lifecycle = activeLifecycle(scan);
   const location = activeLocation(scan);
+  const destination = activeDestination(scan);
   const unsupportedProfile = scan?.parserCompatibility?.status === 'unsupported_profile';
   const sessionDuration = currentSessionDuration(lifecycle?.puSession, now);
 
@@ -285,6 +286,25 @@ function createInstruments(
         ? `${formatFreshness(location.monitoredSpace.observedAt, now)} · No clear evidence promoted`
         : unsupportedProfile ? 'Parser profile does not support monitored-space evidence' : 'No validated monitored-space evidence observed',
       provenance: location?.monitoredSpace.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent'
+    },
+    {
+      id: 'destination',
+      label: 'Quantum destination',
+      value: unsupportedProfile
+        ? 'Unsupported'
+        : destination?.currentTarget?.targetObservedId || destination?.lastArrival?.targetObservedId || 'Unknown',
+      state: unsupportedProfile ? 'unsupported'
+        : destination?.state === 'target_selected' ? 'known'
+          : destination?.state === 'arrived' ? 'last-confirmed'
+            : destination?.state === 'stale' ? 'stale' : 'unknown',
+      detail: destination?.currentTarget
+        ? `Selected · ${destination.currentTarget.vehicleClassName || 'vehicle unknown'}`
+        : destination?.lastArrival
+          ? `Arrived · ${destination.lastArrival.vehicleClassName || 'vehicle unknown'}`
+          : unsupportedProfile ? 'Parser profile does not support destination evidence' : 'No locally correlated quantum target observed',
+      provenance: destination?.currentTarget?.evidenceEventId || destination?.lastArrival?.evidenceEventId
+        ? 'Observed target with local vehicle correlation'
+        : 'Evidence absent'
     },
     {
       id: 'armistice',
@@ -368,9 +388,16 @@ function activeLocation(scan: RendererScanResult | null) {
   return location.environments[location.activeEnvironmentKey] || null;
 }
 
+function activeDestination(scan: RendererScanResult | null) {
+  const destination = scan?.destinationSnapshot;
+  if (!destination?.activeEnvironmentKey) return null;
+  return destination.environments[destination.activeEnvironmentKey] || null;
+}
+
 function runtimeEventKind(row: RendererEvidenceRow): StreamEvent['kind'] {
   if (row.eventCategory === 'party') return 'party';
   if (row.eventCategory === 'zone') return 'zone';
+  if (row.eventCategory === 'navigation') return 'navigation';
   return 'runtime';
 }
 
@@ -427,9 +454,16 @@ function createPartyPanel(scan: RendererScanResult | null): PanelState {
   };
 }
 
-function createMissionPanel(): PanelState {
+function createMissionPanel(scan: RendererScanResult | null): PanelState {
+  const destination = activeDestination(scan);
+  if (destination?.currentTarget) {
+    return { title: 'Destination', state: 'ready', label: destination.currentTarget.targetObservedId || 'Selected', detail: `Quantum target selected · ${destination.currentTarget.vehicleClassName || 'vehicle unknown'}` };
+  }
+  if (destination?.lastArrival) {
+    return { title: 'Destination', state: 'ready', label: destination.lastArrival.targetObservedId || 'Arrived', detail: `Final quantum arrival observed · ${destination.lastArrival.vehicleClassName || 'vehicle unknown'}` };
+  }
   return {
-    title: 'Mission',
+    title: 'Mission / destination',
     state: 'unsupported',
     label: 'Unsupported',
     detail: 'Mission lifecycle evidence is not promoted into MVP current state yet.'

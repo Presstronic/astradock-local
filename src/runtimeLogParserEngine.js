@@ -62,7 +62,11 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'jurisdictionEntered',
   'monitoredSpaceEntered',
   'monitoredSpaceExited',
-  'armisticeStateChanged'
+  'armisticeStateChanged',
+  'rememberLocalHangarVehicle',
+  'quantumTargetSelected',
+  'quantumTargetChanged',
+  'quantumTravelArrived'
 ]);
 const EVENT_TYPE_BY_KIND = Object.freeze({
   clientBuildObserved: 'ClientBuildObserved',
@@ -88,7 +92,10 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   jurisdictionEntered: 'JurisdictionEntered',
   monitoredSpaceEntered: 'MonitoredSpaceEntered',
   monitoredSpaceExited: 'MonitoredSpaceExited',
-  armisticeStateChanged: 'ArmisticeStateChanged'
+  armisticeStateChanged: 'ArmisticeStateChanged',
+  quantumTargetSelected: 'QuantumTargetSelected',
+  quantumTargetChanged: 'QuantumTargetChanged',
+  quantumTravelArrived: 'QuantumTravelArrived'
 });
 
 class RuntimeLogLineFramer {
@@ -354,7 +361,9 @@ class RuntimeLogParserEngine {
       channelByEndpoint: new Map(),
       frontendReason: null,
       universeHierarchyStart: null,
-      puReadyCandidate: null
+      puReadyCandidate: null,
+      localHangarVehicleIds: new Set(),
+      quantumTargetByVehicle: new Map()
     };
     this.environment = this.buildEnvironment(new Date(0).toISOString(), ['parser-engine:initial']);
   }
@@ -440,6 +449,8 @@ class RuntimeLogParserEngine {
     this.state.frontendReason = null;
     this.state.universeHierarchyStart = null;
     this.state.puReadyCandidate = null;
+    this.state.localHangarVehicleIds.clear();
+    this.state.quantumTargetByVehicle.clear();
     this.addDiagnostic({
       code: 'source_generation_changed',
       severity: 'warn',
@@ -652,6 +663,8 @@ class RuntimeLogParserEngine {
         };
         const events = this.createEventIfComplete('PuJoinRequested', payload, extractor, profile, record);
         if (events.length === 0) return events;
+        this.state.localHangarVehicleIds.clear();
+        this.state.quantumTargetByVehicle.clear();
         const joinedAt = parseSourceTimestamp(record.normalizedText);
         this.state.puReadyCandidate = {
           environmentKey: this.environment.environmentKey,
@@ -786,6 +799,8 @@ class RuntimeLogParserEngine {
         }, extractor, profile, record);
         if (!this.state.puReadyCandidate || this.state.puReadyCandidate.endpoint === disconnect.endpoint) {
           this.state.puReadyCandidate = null;
+          this.state.localHangarVehicleIds.clear();
+          this.state.quantumTargetByVehicle.clear();
         }
         return events;
       }
@@ -799,6 +814,8 @@ class RuntimeLogParserEngine {
           reason: this.state.frontendReason
         }, extractor, profile, record);
         this.state.puReadyCandidate = null;
+        this.state.localHangarVehicleIds.clear();
+        this.state.quantumTargetByVehicle.clear();
         return events;
       }
       case 'applicationExited': {
@@ -809,6 +826,8 @@ class RuntimeLogParserEngine {
           clean: toInteger(pickKeyValue(record.normalizedText, 'exitCode')) === 0
         }, extractor, profile, record);
         this.state.puReadyCandidate = null;
+        this.state.localHangarVehicleIds.clear();
+        this.state.quantumTargetByVehicle.clear();
         return events;
       }
       case 'partyCreated':
@@ -866,6 +885,62 @@ class RuntimeLogParserEngine {
           notificationId: pickNotification(record.normalizedText).id,
           state: extractor.state
         }, extractor, profile, record);
+      case 'rememberLocalHangarVehicle': {
+        const anchor = parseLocalHangarVehicleAnchor(record.normalizedText);
+        const localName = this.state.identity.characterName || this.state.identity.handle;
+        if (anchor && localName && anchor.ownerName === localName) {
+          this.state.localHangarVehicleIds.add(anchor.vehicleEntityId);
+        }
+        return [];
+      }
+      case 'quantumTargetSelected':
+      case 'quantumTargetChanged': {
+        const navigation = parseQuantumNavigation(record.normalizedText);
+        if (!navigation || !this.state.localHangarVehicleIds.has(navigation.vehicleEntityId)) return [];
+        const previous = this.state.quantumTargetByVehicle.get(navigation.vehicleEntityId);
+        if (previous?.targetObservedId === navigation.targetObservedId) return [];
+        const eventType = previous ? 'QuantumTargetChanged' : 'QuantumTargetSelected';
+        if ((eventType === 'QuantumTargetSelected') !== (extractor.kind === 'quantumTargetSelected')) return [];
+        const payload = {
+          vehicleEntityId: navigation.vehicleEntityId,
+          vehicleClassName: navigation.vehicleClassName,
+          ...(previous ? { previousTargetObservedId: previous.targetObservedId } : {}),
+          targetObservedId: navigation.targetObservedId
+        };
+        const events = this.createEventIfComplete(eventType, payload, extractor, profile, record, undefined, previous ? {
+          provenance: 'inferred',
+          derivation: {
+            reason: 'A new direct local quantum-target selection replaced the prior selected target for the same correlated vehicle.',
+            contributingEventIds: [previous.eventId]
+          }
+        } : undefined);
+        if (events.length > 0) {
+          this.state.quantumTargetByVehicle.set(navigation.vehicleEntityId, {
+            targetObservedId: navigation.targetObservedId,
+            eventId: events[0].event.eventId
+          });
+        }
+        return events;
+      }
+      case 'quantumTravelArrived': {
+        const navigation = parseQuantumNavigation(record.normalizedText);
+        if (!navigation || !this.state.localHangarVehicleIds.has(navigation.vehicleEntityId)) return [];
+        const target = this.state.quantumTargetByVehicle.get(navigation.vehicleEntityId);
+        if (!target) return [];
+        const events = this.createEventIfComplete('QuantumTravelArrived', {
+          vehicleEntityId: navigation.vehicleEntityId,
+          vehicleClassName: navigation.vehicleClassName,
+          targetObservedId: target.targetObservedId
+        }, extractor, profile, record, undefined, {
+          provenance: 'inferred',
+          derivation: {
+            reason: 'A direct final-arrival record was correlated to the last selected target for the same local vehicle.',
+            contributingEventIds: [target.eventId]
+          }
+        });
+        if (events.length > 0) this.state.quantumTargetByVehicle.delete(navigation.vehicleEntityId);
+        return events;
+      }
       default:
         this.addDiagnostic({
           code: 'unknown_extractor_kind',
@@ -881,7 +956,7 @@ class RuntimeLogParserEngine {
     }
   }
 
-  createEventIfComplete(eventType, payload, extractor, profile, record, requiredFields) {
+  createEventIfComplete(eventType, payload, extractor, profile, record, requiredFields, eventOptions = {}) {
     const required = requiredFields || extractor.requiredFields || Object.keys(EVENT_TYPE_REGISTRY[eventType]?.payload || {});
     const missing = required.filter((field) => payload[field] === null || payload[field] === undefined || payload[field] === '');
     if (missing.length > 0) {
@@ -929,7 +1004,7 @@ class RuntimeLogParserEngine {
       sourceProfileId: profile.id,
       sourceProfileVersion: this.options.sourceProfileVersion || profile.version,
       parserVersion: profile.parserVersion,
-      provenance: 'observed',
+      provenance: eventOptions.provenance || 'observed',
       confidence: extractor.confidence || 'medium',
       correlationIds: buildCorrelationIds(this.environment.environmentKey, eventType, dedupeKey, payload),
       ordering: {
@@ -950,7 +1025,8 @@ class RuntimeLogParserEngine {
           start: record.startLineNumber,
           end: record.endLineNumber
         }
-      }
+      },
+      ...(eventOptions.derivation ? { derivation: eventOptions.derivation } : {})
     };
 
     let validation;
@@ -1454,6 +1530,26 @@ function isOrderedWithin(earlier, later, maximumMs) {
 
 function secondsBetween(earlier, later) {
   return Math.max(0, (Date.parse(later) - Date.parse(earlier)) / 1000);
+}
+
+function parseLocalHangarVehicleAnchor(text) {
+  const match = String(text).match(/VehicleEntityId:\s*\[(?<vehicleEntityId>[^\]]+)\],\s*LandingArea:\s*(?<ownerName>.+?)'s(?:\s|$)/);
+  if (!match) return null;
+  return {
+    vehicleEntityId: cleanValue(match.groups.vehicleEntityId),
+    ownerName: cleanValue(match.groups.ownerName)
+  };
+}
+
+function parseQuantumNavigation(text) {
+  const vehicle = String(text).match(/\|\s*(?:NOT AUTH|AUTH)\s*\|\s*(?<vehicleClassName>[A-Za-z0-9_]+)\[(?<vehicleEntityId>[^\]]+)\]\|/);
+  if (!vehicle) return null;
+  const target = String(text).match(/Player has selected point\s+(?<targetObservedId>.+?)\s+as their destination,\s*routing locally/);
+  return {
+    vehicleClassName: cleanValue(vehicle.groups.vehicleClassName),
+    vehicleEntityId: cleanValue(vehicle.groups.vehicleEntityId),
+    targetObservedId: target ? cleanValue(target.groups.targetObservedId) : null
+  };
 }
 
 function pickBracketValue(text, key) {

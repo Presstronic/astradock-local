@@ -476,7 +476,7 @@ test('reviewed LIVE executable version selects the 4.9 profile without widening 
   );
 
   assert.equal(reviewedLive.selectedProfile.id, 'sc-4.9-live');
-  assert.equal(reviewedLive.selectedProfile.version, 'draft-2026-08-19.2');
+  assert.equal(reviewedLive.selectedProfile.version, 'draft-2026-08-19.3');
   assert.equal(reviewedLive.parserHealth.status, 'compatible');
   assert.deepEqual(reviewedLive.events.map((event) => event.eventType), ['PuJoinRequested']);
   assert.ok(reviewedLive.events.every((event) => validateRuntimeEvent(event).ok));
