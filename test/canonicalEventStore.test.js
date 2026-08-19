@@ -170,7 +170,7 @@ test('storage key provider wraps keys atomically and fails closed for unprotecte
   const second = await provider.getOrCreateKey();
   assert.deepEqual(first, Buffer.alloc(32, 7));
   assert.deepEqual(second, first);
-  assert.equal((await fsPromises.stat(keyFilePath)).mode & 0o077, 0);
+  if (process.platform !== 'win32') assert.equal((await fsPromises.stat(keyFilePath)).mode & 0o077, 0);
   assert.equal((await fsPromises.readFile(keyFilePath, 'utf8')).includes(first.toString('base64')), false);
 
   const insecure = createElectronStorageKeyProvider({
