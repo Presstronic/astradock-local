@@ -1,6 +1,6 @@
 # Runtime lifecycle projection
 
-Issue #24 promotes the fixture-backed build, environment, local identity, and game lifecycle events into an environment-scoped current-state read model. The authoritative reducer is `src/runtimeLifecycleProjection.js`; the renderer receives only its privacy-safe DTO.
+Issue #24 promotes the fixture-backed build, environment, local identity, and game lifecycle events into an environment-scoped current-state read model. Projection version 2 renames the ambiguous server connection to a PU replication connection and replaces its generic node field with `observedNodeId`. The authoritative reducer is `src/runtimeLifecycleProjection.js`; the renderer receives only its privacy-safe DTO.
 
 ## Directly supported transitions
 
@@ -10,7 +10,7 @@ Issue #24 promotes the fixture-backed build, environment, local identity, and ga
 | `AccountAuthenticated` | `authenticated` |
 | `IdentityObserved` | `frontend` |
 | `PuJoinRequested` | `loading` |
-| `GameServerConnectionEstablished` | `loading` |
+| `PuReplicationConnectionEstablished` | `loading` |
 | `PuEntered` | `in_game` |
 | `PuDisconnected` | `disconnected` |
 | `ReturnedToFrontend` | `frontend` |
@@ -20,7 +20,7 @@ Application start, explicit frontend exit, authentication failure, loading progr
 
 ## Identity and privacy
 
-Handle, character name, account ID, character GEID, player GEID, node ID, login session ID, and client session ID remain separate additive facts. Each fact retains its observation time, confidence, evidence event ID, and distinct claims. More than one value for the same field in one environment is `conflicting`; identical values in different environment keys never conflict.
+Handle, character name, account ID, character GEID, player GEID, identity node ID, login session ID, and client session ID remain separate additive facts. The connection-specific opaque `observedNodeId` is retained separately and is not asserted to be a DGS, hierarchy, or EntityGraph identifier. Each fact retains its observation time, confidence, evidence event ID, and distinct claims. More than one value for the same field in one environment is `conflicting`; identical values in different environment keys never conflict.
 
 The renderer DTO exposes handle and character name as display labels. Stable identifiers are truncated to two leading and two trailing characters, and full values and evidence event IDs remain behind the privileged boundary. Raw canonical events are not copied into the scan response.
 

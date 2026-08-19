@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "fixtureId": "live/4.9-pub/sc-4.9-live/spine/pu-join-shard-server.observed",
-  "title": "PU matchmaking, shard, server endpoint, and successful entry",
+  "title": "PU matchmaking, shard, Replicant endpoint, and successful entry",
   "releaseChannel": "LIVE",
   "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
   "sourceProfileId": "sc-4.9-live",
@@ -14,7 +14,7 @@
   "logFile": "pu-join-shard-server.observed.log",
   "privacyClassification": ["local", "personal", "network_sanitized", "sanitized"],
   "sensitivityHandling": {
-    "redactedFields": ["endpoint", "shard", "locationId", "matchmakingRequestId", "playerGeid", "nodeId", "clientSession"],
+    "redactedFields": ["endpoint", "shard", "locationId", "matchmakingRequestId", "playerGeid", "observedNodeId", "clientSession"],
     "syntheticPlaceholderPrefix": "SYNTH_",
     "notes": "Endpoint uses .example.invalid and is not a real IP address."
   },
@@ -41,24 +41,25 @@
       "payload": {
         "matchmakingRequestId": "SYNTH_MATCHMAKING_REQUEST_A",
         "shard": "SYNTH_SHARD_STANTON_US_EAST_A",
-        "endpoint": "game-server-alpha.example.invalid",
+        "endpoint": "replicant-alpha.example.invalid",
         "port": 64090,
         "locationId": "SYNTH_LOCATION_STANTON_A"
       },
       "evidenceMarkers": ["{Join PU}", "<Join PU>"]
     },
     {
-      "eventType": "GameServerConnectionEstablished",
+      "eventType": "PuReplicationConnectionEstablished",
       "contractStatus": "runtime-event/v1",
       "confidence": "high",
       "provenance": "observed",
-      "requiredPayloadFields": ["endpoint", "port", "nodeId", "playerGeid", "gamerules"],
+      "requiredPayloadFields": ["endpoint", "port", "observedNodeId", "playerGeid", "gamerules", "hostType"],
       "payload": {
-        "endpoint": "game-server-alpha.example.invalid",
+        "endpoint": "replicant-alpha.example.invalid",
         "port": 64090,
-        "nodeId": "SYNTH_NODE_PU",
+        "observedNodeId": "SYNTH_OBSERVED_GATEWAY_NODE_PU",
         "playerGeid": "SYNTH_PLAYER_GEID_LOCAL",
-        "gamerules": "SC_Default"
+        "gamerules": "SC_Default",
+        "hostType": "Replicant"
       },
       "evidenceMarkers": ["<Channel Created>", "<Channel Connection Complete>"]
     },
@@ -77,10 +78,10 @@
   ],
   "expectedNonEvents": [],
   "correlation": {
-    "dedupeKey": "matchmakingRequestId|shard+endpoint+port+nodeId",
-    "sequence": ["PuJoinRequested", "GameServerConnectionEstablished", "PuEntered"],
+    "dedupeKey": "matchmakingRequestId|shard+endpoint+port+observedNodeId+hostType",
+    "sequence": ["PuJoinRequested", "PuReplicationConnectionEstablished", "PuEntered"],
     "notes": "A join request alone is not a successful PU entry."
   },
-  "knownLimitations": ["Public endpoint is useful local evidence but not a stable server identity."],
+  "knownLimitations": ["The Replicant endpoint and opaque observed node value do not establish DGS identity or stable mesh topology."],
   "verificationNotes": "Future extractor tests should withhold PuEntered unless the completed OnClientEnteredGame record exists."
 }

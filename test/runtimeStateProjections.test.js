@@ -58,6 +58,24 @@ test('marker-only party evidence leaves party state unknown', () => {
   assert.deepEqual(snapshot.environments, {});
 });
 
+test('explicit local party leave clears party state while marker removal does not', () => {
+  const created = readFixture('party', 'party-create-launch-member-connected.observed.log');
+  const leaving = readFixture('party', 'party-explicit-leave.observed.log');
+  const result = parseRuntimeLogText(`${created}\n${leaving}`, LIVE_PROFILE_OPTIONS);
+  const snapshot = toRendererPartySnapshot(projectRuntimeParty(result.events, {
+    activeEnvironmentKey: result.events.at(-1).environmentKey,
+    now: '2026-08-19T03:33:09.000Z',
+    staleAfterMs: 60 * 60 * 1000
+  }));
+  const party = snapshot.environments[snapshot.activeEnvironmentKey];
+
+  assert.equal(party.state, 'not_in_party');
+  assert.equal(party.partyId, null);
+  assert.equal(party.confirmedMemberCount, 0);
+  assert.equal(party.possibleMemberCount, 0);
+  assert.equal(party.recentTransitions[0].eventType, 'PartyLeft');
+});
+
 test('session boundaries stale party facts without inventing not-in-party', () => {
   const partyText = readFixture('party', 'party-create-launch-member-connected.observed.log');
   const disconnectText = readFixture('spine', 'disconnect-frontend-clean-exit.observed.log');

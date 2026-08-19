@@ -87,7 +87,7 @@ taskname="OnClientEnteredGame" state=eCVS_InGame(17) status="Finished"
 Recommended derived events:
 
 1. `PuJoinRequested` from `<Join PU>` with matchmaking ID, shard, location ID, endpoint, and port.
-2. `GameServerConnectionEstablished` only after the matching remote channel completes.
+2. `PuReplicationConnectionEstablished` only after the matching remote channel completes.
 3. `PuEntered` only after the relevant `OnClientEnteredGame`/`eCVS_InGame` sequence completes under `SC_Default`.
 
 This avoids declaring a successful join when matchmaking returned an endpoint but loading failed.

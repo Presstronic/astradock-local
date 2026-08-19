@@ -151,13 +151,13 @@ export interface RendererScanResult {
 }
 
 export interface RendererLifecycleProjection {
-  version: 1;
+  version: 2;
   activeEnvironmentKey: string | null;
   environments: Readonly<Record<string, RendererEnvironmentLifecycle>>;
 }
 
 export interface RendererEnvironmentLifecycle {
-  version: 1;
+  version: 2;
   environmentKey: string;
   environment: {
     releaseChannel: string;
@@ -201,11 +201,12 @@ export interface RendererEnvironmentLifecycle {
     observedAt: string | null;
     confidence: string;
   };
-  serverConnection: {
+  replicationConnection: {
     state: 'unknown' | 'transitioning' | 'connected' | 'disconnected' | 'stale';
     endpoint: string | null;
     port: number | null;
-    nodeId: string | null;
+    observedNodeId: string | null;
+    hostType: 'Replicant' | null;
     gamerules: string | null;
     connectedAt: string | null;
     disconnectedAt: string | null;

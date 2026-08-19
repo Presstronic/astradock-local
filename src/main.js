@@ -641,6 +641,7 @@ function formatRuntimeEventLabel(event) {
     PartyCreated: 'Party Created',
     PartyLaunchInitiated: 'Party Launch',
     PartyMemberConnected: 'Party Member Connected',
+    PartyLeft: 'Party Left',
     JurisdictionEntered: 'Jurisdiction Entered',
     MonitoredSpaceEntered: 'Monitored Space',
     ArmisticeStateChanged: 'Armistice'
@@ -655,6 +656,8 @@ function formatRuntimeEventSummary(event) {
       return event.payload.message;
     case 'PartyMemberConnected':
       return `${event.payload.memberHandle} connected`;
+    case 'PartyLeft':
+      return 'Left party';
     case 'JurisdictionEntered':
       return `Entered ${event.payload.jurisdiction}`;
     case 'MonitoredSpaceEntered':

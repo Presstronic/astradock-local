@@ -7,7 +7,7 @@
   "sourceProfileId": "sc-4.9-live",
   "sourceProfileVersion": "draft-2026-08-11",
   "domain": "party",
-  "action": "controlled captures for invite, join, disconnect, reconnect, leave, removal, leader change, disband, and mid-party startup are missing",
+  "action": "controlled captures for invite, join, disconnect, reconnect, other-member leave, removal, leader change, disband, and mid-party startup are missing",
   "outcome": "unavailable",
   "provenance": "unavailable_evidence_annotation",
   "evidenceBasis": "docs/party-lifecycle-evidence-matrix.md#remaining-evidence-gaps",
@@ -38,10 +38,6 @@
     {
       "eventType": "PartyMemberReconnected",
       "reason": "No reconnect sequence was captured; repeated connection notifications require future dedupe rules."
-    },
-    {
-      "eventType": "PartyLeft",
-      "reason": "No local voluntary leave evidence was captured."
     },
     {
       "eventType": "PartyMemberLeft",

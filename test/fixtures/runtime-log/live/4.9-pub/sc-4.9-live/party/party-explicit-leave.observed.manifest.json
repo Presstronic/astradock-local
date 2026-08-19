@@ -1,0 +1,65 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/party/party-explicit-leave.observed",
+  "title": "Explicit local party leave after marker stream removal",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.12344265-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19",
+  "domain": "party",
+  "action": "local player returns to frontend and voluntarily leaves the party",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "owner-reviewed 2026-08-19 PUB capture; raw log remains ignored",
+  "logFile": "party-explicit-leave.observed.log",
+  "privacyClassification": ["social", "personal", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["partyId", "playerGeid", "markerId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Stable placeholders preserve local-player and party correlation."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "IdentityObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["characterName", "accountId", "characterGeid", "playerGeid", "nodeId", "clientSession"],
+      "payload": {
+        "characterName": "SYNTH_HANDLE_LOCAL",
+        "accountId": "SYNTH_ACCOUNT_LOCAL",
+        "characterGeid": "SYNTH_CHARACTER_GEID_LOCAL",
+        "playerGeid": "SYNTH_PLAYER_GEID_LOCAL",
+        "nodeId": "SYNTH_NODE_FRONTEND",
+        "clientSession": "SYNTH_CLIENT_SESSION_A"
+      },
+      "evidenceMarkers": ["<AccountLoginCharacterStatus_Character>", "<Expect Incoming Connection>"]
+    },
+    {
+      "eventType": "PartyLeft",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["partyId", "playerGeid", "reason"],
+      "payload": {
+        "partyId": "SYNTH_PARTY_A",
+        "playerGeid": "SYNTH_PLAYER_GEID_LOCAL",
+        "reason": "voluntary_leave"
+      },
+      "evidenceMarkers": ["<Leave group>"]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "PartyMarkerRemoved",
+      "reason": "Marker stream removal is not authoritative party-membership evidence."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "partyId+playerGeid+reason",
+    "sequence": ["IdentityObserved", "marker stream removal non-event", "PartyLeft"],
+    "notes": "Marker visibility does not mutate membership; the leave must match the observed local player identity."
+  },
+  "knownLimitations": ["This fixture proves voluntary local leave only; it does not prove remote member leave, removal, leadership change, or disband."],
+  "verificationNotes": "Party projection becomes not_in_party only after PartyLeft, not after marker stream removal."
+}

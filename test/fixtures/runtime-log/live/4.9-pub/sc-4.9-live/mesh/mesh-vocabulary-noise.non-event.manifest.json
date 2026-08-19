@@ -1,0 +1,51 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/mesh/mesh-vocabulary-noise.non-event",
+  "title": "Mesh-like vocabulary without mesh topology evidence",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.12344265-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19",
+  "domain": "mesh",
+  "action": "client logs quantum routing, local authority wording, and frontend hierarchy setup",
+  "outcome": "non-event",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "owner-reviewed 2026-08-19 PUB capture; raw log remains ignored",
+  "logFile": "mesh-vocabulary-noise.non-event.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["handle", "entityId", "zoneHost"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "All identity-bearing values use stable synthetic placeholders."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "ServerAuthorityTransferred",
+      "reason": "Generic authority vocabulary does not identify a server-authority handoff."
+    },
+    {
+      "eventType": "DgsChanged",
+      "reason": "Quantum routing and reroute messages do not identify a DGS reassignment."
+    },
+    {
+      "eventType": "UniverseHierarchyRegistered",
+      "reason": "The hierarchy is local frontend initialization because bNetRecvd is false."
+    },
+    {
+      "eventType": "PuTerritorySetupCompleted",
+      "reason": "Territory setup is for SC_Frontend rather than SC_Default."
+    },
+    {
+      "eventType": "PartyLeft",
+      "reason": "Marker streaming and unrelated mesh vocabulary do not prove a party leave."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "none",
+    "sequence": ["quantum routing noise", "authority noise", "frontend hierarchy and territory setup"],
+    "notes": "Vocabulary alone must not become server-mesh or PU lifecycle evidence."
+  },
+  "knownLimitations": ["The fixture does not represent a real authority transfer or QDSM reassignment."],
+  "verificationNotes": "No canonical event may be emitted; unknown evidence remains bounded and sanitized."
+}

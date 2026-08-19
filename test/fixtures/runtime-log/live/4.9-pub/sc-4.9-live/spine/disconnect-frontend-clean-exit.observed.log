@@ -1,5 +1,5 @@
-<2026-08-09T20:10:00.000Z> <Channel Disconnected> cause=SYNTH_CAUSE_REMOTE_IDLE reason="SYNTH_REASON_REMOTE_TIMEOUT" isRemote=1 viewState=eCVS_InGame gamerules="SC_Default" remoteAddr=game-server-alpha.example.invalid:64090 nickname="SYNTH_HANDLE_LOCAL" playerGEID=SYNTH_PLAYER_GEID_LOCAL uptime_secs=3900
-<2026-08-09T20:10:01.000Z> <Channel Process Disconnection> remoteAddr=game-server-alpha.example.invalid:64090 node_id=SYNTH_NODE_PU cause=SYNTH_CAUSE_REMOTE_IDLE
+<2026-08-09T20:10:00.000Z> <Channel Disconnected> cause=SYNTH_CAUSE_REMOTE_IDLE reason="SYNTH_REASON_REMOTE_TIMEOUT" isRemote=1 viewState=eCVS_InGame gamerules="SC_Default" remoteAddr=replicant-alpha.example.invalid:64090 nickname="SYNTH_HANDLE_LOCAL" playerGEID=SYNTH_PLAYER_GEID_LOCAL uptime_secs=3900
+<2026-08-09T20:10:01.000Z> <Channel Process Disconnection> remoteAddr=replicant-alpha.example.invalid:64090 node_id=SYNTH_OBSERVED_GATEWAY_NODE_PU cause=SYNTH_CAUSE_REMOTE_IDLE
 <2026-08-09T20:10:02.000Z> RequestFrontEndReason="OnLobbyPostGameUnload"
 <2026-08-09T20:10:03.000Z> <Channel Created> remoteAddr=frontend-gateway.example.invalid:64100 nickname="SYNTH_HANDLE_LOCAL" playerGEID=SYNTH_PLAYER_GEID_LOCAL node_id=SYNTH_NODE_FRONTEND session=SYNTH_CLIENT_SESSION_A
 <2026-08-09T20:20:00.000Z> <SystemQuit> cause=SYNTH_CAUSE_USER_EXIT, reason=SYNTH_REASON_NORMAL_QUIT, exitCode=0

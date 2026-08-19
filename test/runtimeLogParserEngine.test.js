@@ -192,6 +192,27 @@ test('fixture-backed promoted profiles emit canonical runtime-event/v1 payloads 
   }
 });
 
+test('mesh diagnostics require a completed network hierarchy and PU territory context', () => {
+  const result = parseRuntimeLogText([
+    '<2026-08-19T02:10:00.000Z> <RegisterUniverseHierarchy_Begin> bNetRecvd="0" nodeCount="1"',
+    '<2026-08-19T02:10:00.010Z> <RegisterUniverseHierarchy_End>',
+    '<2026-08-19T02:10:00.020Z> <ContextEstablisherTaskFinished> taskname="SetupTerritories" gamerules="SC_Frontend" status="Finished" runningTime=0.000010',
+    '<2026-08-19T02:10:01.000Z> <RegisterUniverseHierarchy_Begin> bNetRecvd="1" nodeCount="197018"'
+  ].join('\n') + '\n', LIVE_PROFILE_OPTIONS);
+
+  assert.deepEqual(result.events, []);
+});
+
+test('party leave is emitted only when the client GEID matches observed local identity', () => {
+  const result = parseRuntimeLogText([
+    '<2026-08-19T03:32:00.000Z> <AccountLoginCharacterStatus_Character> name SYNTH_HANDLE_LOCAL accountId SYNTH_ACCOUNT_LOCAL geid SYNTH_CHARACTER_GEID_LOCAL state Active',
+    '<2026-08-19T03:32:00.100Z> <Expect Incoming Connection> nickname="SYNTH_HANDLE_LOCAL" playerGEID=SYNTH_PLAYER_GEID_LOCAL node_id=SYNTH_NODE_FRONTEND session=SYNTH_CLIENT_SESSION_A',
+    '<2026-08-19T03:33:08.000Z> <Leave group> Client SYNTH_PLAYER_GEID_OTHER leave group SYNTH_PARTY_A'
+  ].join('\n') + '\n', LIVE_PROFILE_OPTIONS);
+
+  assert.deepEqual(result.events.map((event) => event.eventType), ['IdentityObserved']);
+});
+
 test('multiline continuation records produce one semantic notification event', () => {
   const result = parseRuntimeLogText([
     '<2026-08-09T19:52:00.000Z> <SHUDEvent_OnNotification> Add NotificationId[SYNTH_NOTIFICATION_MULTI] Type[Location]',

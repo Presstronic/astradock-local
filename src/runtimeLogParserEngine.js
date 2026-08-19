@@ -43,7 +43,10 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'matchmakingStatusObserved',
   'puJoinRequested',
   'rememberChannelCreated',
-  'gameServerConnectionEstablished',
+  'puReplicationConnectionEstablished',
+  'rememberUniverseHierarchyStart',
+  'universeHierarchyRegistered',
+  'puTerritorySetupCompleted',
   'puEntered',
   'puDisconnected',
   'rememberFrontendReason',
@@ -52,6 +55,7 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'partyCreated',
   'partyLaunchInitiated',
   'partyMemberConnected',
+  'partyLeft',
   'jurisdictionEntered',
   'monitoredSpaceEntered',
   'armisticeStateChanged'
@@ -65,7 +69,9 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   identityObserved: 'IdentityObserved',
   matchmakingStatusObserved: 'MatchmakingStatusObserved',
   puJoinRequested: 'PuJoinRequested',
-  gameServerConnectionEstablished: 'GameServerConnectionEstablished',
+  puReplicationConnectionEstablished: 'PuReplicationConnectionEstablished',
+  universeHierarchyRegistered: 'UniverseHierarchyRegistered',
+  puTerritorySetupCompleted: 'PuTerritorySetupCompleted',
   puEntered: 'PuEntered',
   puDisconnected: 'PuDisconnected',
   returnedToFrontend: 'ReturnedToFrontend',
@@ -73,6 +79,7 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   partyCreated: 'PartyCreated',
   partyLaunchInitiated: 'PartyLaunchInitiated',
   partyMemberConnected: 'PartyMemberConnected',
+  partyLeft: 'PartyLeft',
   jurisdictionEntered: 'JurisdictionEntered',
   monitoredSpaceEntered: 'MonitoredSpaceEntered',
   armisticeStateChanged: 'ArmisticeStateChanged'
@@ -339,7 +346,8 @@ class RuntimeLogParserEngine {
       identity: {},
       matchmakingByPort: new Map(),
       channelByEndpoint: new Map(),
-      frontendReason: null
+      frontendReason: null,
+      universeHierarchyStart: null
     };
     this.environment = this.buildEnvironment(new Date(0).toISOString(), ['parser-engine:initial']);
   }
@@ -423,6 +431,7 @@ class RuntimeLogParserEngine {
     this.state.matchmakingByPort.clear();
     this.state.channelByEndpoint.clear();
     this.state.frontendReason = null;
+    this.state.universeHierarchyStart = null;
     this.addDiagnostic({
       code: 'source_generation_changed',
       severity: 'warn',
@@ -639,17 +648,57 @@ class RuntimeLogParserEngine {
         if (channel.endpoint) this.state.channelByEndpoint.set(channel.endpoint, channel);
         return [];
       }
-      case 'gameServerConnectionEstablished': {
+      case 'puReplicationConnectionEstablished': {
         const connection = channelPayload(record.normalizedText);
         const created = this.state.channelByEndpoint.get(connection.endpoint);
-        return this.createEventIfComplete('GameServerConnectionEstablished', {
+        return this.createEventIfComplete('PuReplicationConnectionEstablished', {
           endpoint: connection.endpoint,
           port: connection.port,
-          nodeId: connection.nodeId || created?.nodeId,
+          observedNodeId: connection.observedNodeId || created?.observedNodeId,
           playerGeid: created?.playerGeid,
-          gamerules: connection.gamerules
+          gamerules: connection.gamerules,
+          hostType: connection.hostType || created?.hostType
         }, extractor, profile, record);
       }
+      case 'rememberUniverseHierarchyStart': {
+        const receivedFromNetwork = toBoolean(pickQuotedKeyValue(record.normalizedText, 'bNetRecvd'));
+        const nodeCount = toInteger(pickQuotedKeyValue(record.normalizedText, 'nodeCount'));
+        this.state.universeHierarchyStart = {
+          receivedFromNetwork,
+          nodeCount,
+          sourceTimestamp: parseSourceTimestamp(record.normalizedText),
+          startLineNumber: record.startLineNumber,
+          sourceByteOffset: record.sourceByteOffset,
+          sourceGeneration: record.sourceGeneration,
+          sourceChunkSequence: record.sourceChunkSequence
+        };
+        return [];
+      }
+      case 'universeHierarchyRegistered': {
+        const started = this.state.universeHierarchyStart;
+        this.state.universeHierarchyStart = null;
+        if (!started || started.receivedFromNetwork !== true || !started.sourceTimestamp) return [];
+        const completedAt = parseSourceTimestamp(record.normalizedText);
+        const durationMs = completedAt ? Math.max(0, Date.parse(completedAt) - Date.parse(started.sourceTimestamp)) : null;
+        const combinedRecord = {
+          ...record,
+          startLineNumber: started.startLineNumber,
+          sourceByteOffset: started.sourceByteOffset,
+          sourceGeneration: started.sourceGeneration,
+          sourceChunkSequence: started.sourceChunkSequence
+        };
+        return this.createEventIfComplete('UniverseHierarchyRegistered', {
+          receivedFromNetwork: started.receivedFromNetwork,
+          nodeCount: started.nodeCount,
+          durationMs
+        }, extractor, profile, combinedRecord);
+      }
+      case 'puTerritorySetupCompleted':
+        return this.createEventIfComplete('PuTerritorySetupCompleted', {
+          gamerules: pickKeyValue(record.normalizedText, 'gamerules'),
+          status: pickKeyValue(record.normalizedText, 'status'),
+          runningTimeSeconds: toNumber(pickKeyValue(record.normalizedText, 'runningTime'))
+        }, extractor, profile, record);
       case 'puEntered':
         return this.createEventIfComplete('PuEntered', {
           gamerules: pickKeyValue(record.normalizedText, 'rules'),
@@ -700,6 +749,17 @@ class RuntimeLogParserEngine {
         return this.createEventIfComplete('PartyMemberConnected', {
           notificationId: pickBracketValue(record.normalizedText, 'NotificationId'),
           memberHandle: member.groups.member
+        }, extractor, profile, record);
+      }
+      case 'partyLeft': {
+        const leave = record.normalizedText.match(/<Leave group>\s+Client\s+(?<playerGeid>\S+)\s+leave group\s+(?<partyId>\S+)/);
+        if (!leave) return [];
+        const playerGeid = cleanValue(leave.groups.playerGeid);
+        if (!this.state.identity.playerGeid || playerGeid !== this.state.identity.playerGeid) return [];
+        return this.createEventIfComplete('PartyLeft', {
+          partyId: cleanValue(leave.groups.partyId),
+          playerGeid,
+          reason: 'voluntary_leave'
         }, extractor, profile, record);
       }
       case 'jurisdictionEntered': {
@@ -1228,7 +1288,13 @@ function buildCorrelationIds(environmentKey, eventType, dedupeKey, payload = {})
   add('localAccountId', 'local_account', [payload.accountId]);
   add('clientSessionId', 'client_session', [payload.clientSession]);
   add('matchmakingRequestId', 'matchmaking_request', [payload.matchmakingRequestId]);
-  add('serverConnectionId', 'server_connection', [payload.endpoint, payload.port, payload.nodeId, payload.gamerules]);
+  add('replicationConnectionId', 'replication_connection', [
+    payload.endpoint,
+    payload.port,
+    payload.observedNodeId,
+    payload.gamerules,
+    payload.hostType
+  ]);
   add('partyId', 'party', [payload.partyId]);
   add('notificationId', 'notification', [payload.notificationId]);
   add('buildFingerprintId', 'build_fingerprint', [
@@ -1246,9 +1312,10 @@ function channelPayload(text) {
   return {
     endpoint: parsedEndpoint.endpoint,
     port: parsedEndpoint.port,
-    nodeId: pickKeyValue(text, 'node_id'),
+    observedNodeId: pickKeyValue(text, 'node_id'),
     playerGeid: pickKeyValue(text, 'playerGEID'),
-    gamerules: pickKeyValue(text, 'gamerules')
+    gamerules: pickKeyValue(text, 'gamerules'),
+    hostType: pickKeyValue(text, 'hostType')
   };
 }
 

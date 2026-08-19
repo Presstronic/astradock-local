@@ -17,11 +17,14 @@ const EVENT_FAMILY_POLICY_OVERRIDES = Object.freeze({
   AccountAuthenticated: { dedupeWindowMs: 30 * 60 * 1000 },
   IdentityObserved: { dedupeWindowMs: 30 * 60 * 1000 },
   PuJoinRequested: { dedupeWindowMs: 30 * 60 * 1000 },
-  GameServerConnectionEstablished: { dedupeWindowMs: 30 * 60 * 1000 },
+  PuReplicationConnectionEstablished: { dedupeWindowMs: 30 * 60 * 1000 },
+  UniverseHierarchyRegistered: { dedupeWindowMs: 30 * 60 * 1000 },
+  PuTerritorySetupCompleted: { dedupeWindowMs: 30 * 60 * 1000 },
   PuEntered: { dedupeWindowMs: 30 * 60 * 1000 },
   PuDisconnected: { dedupeWindowMs: 30 * 60 * 1000 },
   ReturnedToFrontend: { dedupeWindowMs: 30 * 60 * 1000 },
-  ApplicationExited: { dedupeWindowMs: 30 * 60 * 1000 }
+  ApplicationExited: { dedupeWindowMs: 30 * 60 * 1000 },
+  PartyLeft: { dedupeWindowMs: 30 * 60 * 1000 }
 });
 
 class RuntimeEventOrchestrator {

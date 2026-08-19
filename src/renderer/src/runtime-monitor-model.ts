@@ -231,19 +231,19 @@ function createInstruments(
     },
     {
       id: 'server',
-      label: 'Server connection',
-      value: formatConnectionState(lifecycle?.serverConnection.state),
-      state: snapshotInstrumentState(lifecycle?.serverConnection.state, Boolean(latestSession)),
-      detail: lifecycle?.serverConnection.disconnect
-        ? `${lifecycle.serverConnection.disconnect.origin} · ${lifecycle.serverConnection.disconnect.reason}`
-        : lifecycle?.serverConnection.connectedAt
-          ? formatFreshness(lifecycle.serverConnection.connectedAt, now)
+      label: 'PU replication connection',
+      value: formatConnectionState(lifecycle?.replicationConnection.state),
+      state: snapshotInstrumentState(lifecycle?.replicationConnection.state, Boolean(latestSession)),
+      detail: lifecycle?.replicationConnection.disconnect
+        ? `${lifecycle.replicationConnection.disconnect.origin} · ${lifecycle.replicationConnection.disconnect.reason}`
+        : lifecycle?.replicationConnection.connectedAt
+          ? formatFreshness(lifecycle.replicationConnection.connectedAt, now)
           : 'Monitor may have started mid-state',
-      provenance: lifecycle && lifecycle.serverConnection.state !== 'unknown' ? 'Observed canonical event' : 'Evidence absent',
-      drilldown: lifecycle?.serverConnection.endpoint
-        ? `Endpoint: ${lifecycle.serverConnection.endpoint}:${lifecycle.serverConnection.port}`
-        : lifecycle?.serverConnection.lastEndpoint
-          ? `Last endpoint: ${lifecycle.serverConnection.lastEndpoint}`
+      provenance: lifecycle && lifecycle.replicationConnection.state !== 'unknown' ? 'Observed canonical event' : 'Evidence absent',
+      drilldown: lifecycle?.replicationConnection.endpoint
+        ? `Replicant: ${lifecycle.replicationConnection.endpoint}:${lifecycle.replicationConnection.port}`
+        : lifecycle?.replicationConnection.lastEndpoint
+          ? `Last endpoint: ${lifecycle.replicationConnection.lastEndpoint}`
           : undefined
     },
     {

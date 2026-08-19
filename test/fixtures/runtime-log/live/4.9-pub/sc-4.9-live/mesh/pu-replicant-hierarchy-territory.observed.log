@@ -1,0 +1,4 @@
+<2026-08-19T02:10:53.715Z> [Notice] <RegisterUniverseHierarchy_Begin> bNetRecvd="1" nodeCount="197018" commonDataPrecached="false" [Team_EntitySystemTech][SolarSystem][Loading][Persistence]
+<2026-08-19T02:10:56.946Z> [Notice] <RegisterUniverseHierarchy_Mid> [Team_EntitySystemTech][SolarSystem][Loading][Persistence]
+<2026-08-19T02:11:02.862Z> [Notice] <RegisterUniverseHierarchy_End> [Team_EntitySystemTech][SolarSystem][Loading][Persistence]
+<2026-08-19T02:11:02.868Z> [Notice] <ContextEstablisherTaskFinished> establisher="CReplicationModel" message="CET completed" taskname="SetupTerritories" state=eCVS_ReadyToReplicate(8) status="Finished" runningTime=0.000013 timeoutOffset=0.000000 numRuns=1 map="megamap" gamerules="SC_Default" sessionId="SYNTH_REPLICATION_SESSION_A" [Team_Network][Network][Replication][Loading][Persistence]

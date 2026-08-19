@@ -112,12 +112,23 @@ export interface RuntimeEventPayloadMap {
     port: number;
     locationId: string;
   };
-  GameServerConnectionEstablished: {
+  PuReplicationConnectionEstablished: {
     endpoint: string;
     port: number;
-    nodeId: string;
+    observedNodeId: string;
     playerGeid: string;
     gamerules: string;
+    hostType: 'Replicant';
+  };
+  UniverseHierarchyRegistered: {
+    receivedFromNetwork: boolean;
+    nodeCount: number;
+    durationMs: number;
+  };
+  PuTerritorySetupCompleted: {
+    gamerules: 'SC_Default';
+    status: 'Finished';
+    runningTimeSeconds: number;
   };
   PuEntered: {
     gamerules: string;
@@ -150,6 +161,11 @@ export interface RuntimeEventPayloadMap {
   PartyMemberConnected: {
     notificationId: string;
     memberHandle: string;
+  };
+  PartyLeft: {
+    partyId: string;
+    playerGeid: string;
+    reason: 'voluntary_leave';
   };
   JurisdictionEntered: {
     notificationId: string;

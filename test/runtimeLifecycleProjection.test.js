@@ -54,10 +54,10 @@ test('fixture-backed lifecycle projection reaches clean exit without inventing u
   assert.equal(current.shard.shardLabel, 'SYNTH_SHARD_STANTON_US_EAST_A');
   assert.equal(current.shard.region.friendlyRegion, 'US');
   assert.equal(current.shard.state, 'disconnected');
-  assert.equal(current.serverConnection.state, 'disconnected');
-  assert.equal(current.serverConnection.endpoint, null);
-  assert.equal(current.serverConnection.lastEndpoint, 'game-server-alpha.example.invalid');
-  assert.equal(current.serverConnection.disconnect.origin, 'remote');
+  assert.equal(current.replicationConnection.state, 'disconnected');
+  assert.equal(current.replicationConnection.endpoint, null);
+  assert.equal(current.replicationConnection.lastEndpoint, 'replicant-alpha.example.invalid');
+  assert.equal(current.replicationConnection.disconnect.origin, 'remote');
   assert.equal(current.puSession.durationSeconds, 3900);
   assert.equal(current.puSession.durationSource, 'observed_connection_uptime');
 });
@@ -77,9 +77,9 @@ test('delayed disconnect for a prior endpoint does not disconnect or relabel the
   ]);
   assert.equal(current.shard.shardLabel, 'SYNTH_SHARD_EU_B');
   assert.equal(current.shard.state, 'transitioning');
-  assert.equal(current.serverConnection.endpoint, 'eu-game.example.invalid');
-  assert.equal(current.serverConnection.state, 'transitioning');
-  assert.equal(current.serverConnection.disconnect, null);
+  assert.equal(current.replicationConnection.endpoint, 'eu-game.example.invalid');
+  assert.equal(current.replicationConnection.state, 'transitioning');
+  assert.equal(current.replicationConnection.disconnect, null);
 });
 
 test('identity evidence remains additive and exposes conflicts without collapsing identifiers', () => {
@@ -113,9 +113,9 @@ test('renderer DTO redacts stable identifiers and retains permitted display name
   assert.equal(JSON.stringify(dto).includes('SYNTH_ACCOUNT_LOCAL'), false);
   assert.equal(JSON.stringify(dto).includes('SYNTH_PLAYER_GEID_LOCAL'), false);
   assert.equal(JSON.stringify(dto).includes('SYNTH_LOGIN_SESSION_LOCAL'), false);
-  assert.equal(JSON.stringify(dto).includes('game-server-alpha.example.invalid'), false);
+  assert.equal(JSON.stringify(dto).includes('replicant-alpha.example.invalid'), false);
   assert.equal(identity.accountId.value, 'SY…AL');
-  assert.equal(dto.environments[dto.activeEnvironmentKey].serverConnection.lastEndpoint, 'ga…ha.example.invalid');
+  assert.equal(dto.environments[dto.activeEnvironmentKey].replicationConnection.lastEndpoint, 're…ha.example.invalid');
 });
 
 test('region mappings use only versioned shard naming conventions and preserve unknowns', () => {
@@ -154,7 +154,7 @@ test('incomplete joins remain transitioning and do not claim successful entry', 
   const current = projected.environments[projected.activeEnvironmentKey];
 
   assert.equal(current.shard.state, 'transitioning');
-  assert.equal(current.serverConnection.state, 'transitioning');
+  assert.equal(current.replicationConnection.state, 'transitioning');
   assert.equal(current.puSession.state, 'connecting');
   assert.equal(current.puSession.matchmakingStatus, 'Queued');
   assert.equal(current.puSession.enteredAt, null);
@@ -162,7 +162,7 @@ test('incomplete joins remain transitioning and do not claim successful entry', 
 
 test('missing evidence stays unknown and freshness becomes stale at the approved health boundary', () => {
   assert.deepEqual(projectRuntimeLifecycle([], { now: '2026-08-09T19:00:00.000Z' }), {
-    version: 1,
+    version: 2,
     activeEnvironmentKey: null,
     environments: {}
   });
