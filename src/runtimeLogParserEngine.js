@@ -27,6 +27,7 @@ const DEFAULT_MAX_CONTINUATION_LINES = 8;
 const DEFAULT_DRIFT_MIN_RECORDS = 25;
 const DEFAULT_DRIFT_MIN_UNKNOWN_RECORDS = 15;
 const DEFAULT_DRIFT_UNKNOWN_RATIO = 0.75;
+const DEFAULT_PU_READY_WINDOW_MS = 5 * 60 * 1000;
 const UNKNOWN_SOURCE_LOCATION = 'UNKNOWN_SOURCE';
 const UNKNOWN_MATCHMAKING_REQUEST = 'UNKNOWN_MATCHMAKING_REQUEST';
 const VALID_EXTRACTOR_KINDS = new Set([
@@ -48,6 +49,8 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'universeHierarchyRegistered',
   'puTerritorySetupCompleted',
   'puEntered',
+  'rememberPuGameModeCreated',
+  'puEnteredFromLocalTelemetry',
   'puDisconnected',
   'rememberFrontendReason',
   'returnedToFrontend',
@@ -58,6 +61,7 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'partyLeft',
   'jurisdictionEntered',
   'monitoredSpaceEntered',
+  'monitoredSpaceExited',
   'armisticeStateChanged'
 ]);
 const EVENT_TYPE_BY_KIND = Object.freeze({
@@ -73,6 +77,7 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   universeHierarchyRegistered: 'UniverseHierarchyRegistered',
   puTerritorySetupCompleted: 'PuTerritorySetupCompleted',
   puEntered: 'PuEntered',
+  puEnteredFromLocalTelemetry: 'PuEntered',
   puDisconnected: 'PuDisconnected',
   returnedToFrontend: 'ReturnedToFrontend',
   applicationExited: 'ApplicationExited',
@@ -82,6 +87,7 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   partyLeft: 'PartyLeft',
   jurisdictionEntered: 'JurisdictionEntered',
   monitoredSpaceEntered: 'MonitoredSpaceEntered',
+  monitoredSpaceExited: 'MonitoredSpaceExited',
   armisticeStateChanged: 'ArmisticeStateChanged'
 });
 
@@ -347,7 +353,8 @@ class RuntimeLogParserEngine {
       matchmakingByPort: new Map(),
       channelByEndpoint: new Map(),
       frontendReason: null,
-      universeHierarchyStart: null
+      universeHierarchyStart: null,
+      puReadyCandidate: null
     };
     this.environment = this.buildEnvironment(new Date(0).toISOString(), ['parser-engine:initial']);
   }
@@ -432,6 +439,7 @@ class RuntimeLogParserEngine {
     this.state.channelByEndpoint.clear();
     this.state.frontendReason = null;
     this.state.universeHierarchyStart = null;
+    this.state.puReadyCandidate = null;
     this.addDiagnostic({
       code: 'source_generation_changed',
       severity: 'warn',
@@ -635,13 +643,26 @@ class RuntimeLogParserEngine {
       case 'puJoinRequested': {
         const port = toInteger(pickBracketValue(record.normalizedText, 'port'));
         const request = this.state.matchmakingByPort.get(String(port));
-        return this.createEventIfComplete('PuJoinRequested', {
+        const payload = {
           matchmakingRequestId: request?.id || UNKNOWN_MATCHMAKING_REQUEST,
           shard: pickBracketValue(record.normalizedText, 'shard'),
           endpoint: pickBracketValue(record.normalizedText, 'address'),
           port,
           locationId: pickBracketValue(record.normalizedText, 'locationId')
-        }, extractor, profile, record);
+        };
+        const events = this.createEventIfComplete('PuJoinRequested', payload, extractor, profile, record);
+        if (events.length === 0) return events;
+        const joinedAt = parseSourceTimestamp(record.normalizedText);
+        this.state.puReadyCandidate = {
+          environmentKey: this.environment.environmentKey,
+          joinedAt,
+          endpoint: payload.endpoint,
+          scope: [joinedAt, payload.shard, payload.endpoint, payload.port].join('|'),
+          territoryCompletedAt: null,
+          gameModeCreatedAt: null,
+          emitted: false
+        };
+        return events;
       }
       case 'rememberChannelCreated': {
         const channel = channelPayload(record.normalizedText);
@@ -693,27 +714,80 @@ class RuntimeLogParserEngine {
           durationMs
         }, extractor, profile, combinedRecord);
       }
-      case 'puTerritorySetupCompleted':
-        return this.createEventIfComplete('PuTerritorySetupCompleted', {
+      case 'puTerritorySetupCompleted': {
+        const payload = {
           gamerules: pickKeyValue(record.normalizedText, 'gamerules'),
           status: pickKeyValue(record.normalizedText, 'status'),
           runningTimeSeconds: toNumber(pickKeyValue(record.normalizedText, 'runningTime'))
-        }, extractor, profile, record);
-      case 'puEntered':
-        return this.createEventIfComplete('PuEntered', {
+        };
+        const candidate = this.state.puReadyCandidate;
+        if (candidate && payload.gamerules === 'SC_Default' && payload.status === 'Finished') {
+          candidate.territoryCompletedAt = parseSourceTimestamp(record.normalizedText);
+          candidate.gameModeCreatedAt = null;
+        }
+        return this.createEventIfComplete('PuTerritorySetupCompleted', payload, extractor, profile, {
+          ...record,
+          dedupeScope: candidate?.scope || null
+        });
+      }
+      case 'puEntered': {
+        if (pickKeyValue(record.normalizedText, 'rules') !== 'SC_Default') return [];
+        const events = this.createEventIfComplete('PuEntered', {
           gamerules: pickKeyValue(record.normalizedText, 'rules'),
           loadDurationSeconds: toNumber(pickKeyValue(record.normalizedText, 'elapsedSecs'))
-        }, extractor, profile, record);
+        }, extractor, profile, {
+          ...record,
+          dedupeScope: this.state.puReadyCandidate?.scope || null
+        });
+        if (events.length > 0 && this.state.puReadyCandidate) this.state.puReadyCandidate.emitted = true;
+        return events;
+      }
+      case 'rememberPuGameModeCreated': {
+        const candidate = this.state.puReadyCandidate;
+        if (!candidate || !candidate.territoryCompletedAt || candidate.emitted) return [];
+        const createdAt = parseSourceTimestamp(record.normalizedText);
+        if (!isOrderedWithin(candidate.territoryCompletedAt, createdAt, DEFAULT_PU_READY_WINDOW_MS)) return [];
+        candidate.gameModeCreatedAt = createdAt;
+        return [];
+      }
+      case 'puEnteredFromLocalTelemetry': {
+        const candidate = this.state.puReadyCandidate;
+        const telemetryAt = parseSourceTimestamp(record.normalizedText);
+        if (!candidate || candidate.emitted || candidate.environmentKey !== this.environment.environmentKey ||
+          !candidate.joinedAt || !candidate.territoryCompletedAt || !candidate.gameModeCreatedAt ||
+          !isOrderedWithin(candidate.joinedAt, candidate.territoryCompletedAt, DEFAULT_PU_READY_WINDOW_MS) ||
+          !isOrderedWithin(candidate.territoryCompletedAt, candidate.gameModeCreatedAt, DEFAULT_PU_READY_WINDOW_MS) ||
+          !isOrderedWithin(candidate.gameModeCreatedAt, telemetryAt, DEFAULT_PU_READY_WINDOW_MS)) {
+          this.addDiagnostic({
+            code: 'pu_ready_sequence_incomplete',
+            severity: 'info',
+            message: 'Local telemetry initialization did not complete a bounded PU-ready sequence.',
+            lineNumber: record.startLineNumber,
+            sourceByteOffset: record.sourceByteOffset,
+            details: { profileId: profile.id, extractorId: extractor.id }
+          });
+          return [];
+        }
+        candidate.emitted = true;
+        return this.createEventIfComplete('PuEntered', {
+          gamerules: 'SC_Default',
+          loadDurationSeconds: secondsBetween(candidate.joinedAt, telemetryAt)
+        }, extractor, profile, { ...record, dedupeScope: candidate.scope });
+      }
       case 'puDisconnected': {
         const disconnect = channelPayload(record.normalizedText);
         if (isFrontendChannel(disconnect)) return [];
-        return this.createEventIfComplete('PuDisconnected', {
+        const events = this.createEventIfComplete('PuDisconnected', {
           cause: pickKeyValue(record.normalizedText, 'cause'),
           reason: pickKeyValue(record.normalizedText, 'reason'),
           isRemote: toBoolean(pickKeyValue(record.normalizedText, 'isRemote')),
           endpoint: disconnect.endpoint,
           uptimeSeconds: toNumber(pickKeyValue(record.normalizedText, 'uptime_secs'))
         }, extractor, profile, record);
+        if (!this.state.puReadyCandidate || this.state.puReadyCandidate.endpoint === disconnect.endpoint) {
+          this.state.puReadyCandidate = null;
+        }
+        return events;
       }
       case 'rememberFrontendReason':
         this.state.frontendReason = pickKeyValue(record.normalizedText, 'RequestFrontEndReason');
@@ -721,17 +795,22 @@ class RuntimeLogParserEngine {
       case 'returnedToFrontend': {
         const channel = channelPayload(record.normalizedText);
         if (!channel.endpoint || !channel.endpoint.includes('frontend')) return [];
-        return this.createEventIfComplete('ReturnedToFrontend', {
+        const events = this.createEventIfComplete('ReturnedToFrontend', {
           reason: this.state.frontendReason
         }, extractor, profile, record);
+        this.state.puReadyCandidate = null;
+        return events;
       }
-      case 'applicationExited':
-        return this.createEventIfComplete('ApplicationExited', {
+      case 'applicationExited': {
+        const events = this.createEventIfComplete('ApplicationExited', {
           cause: pickKeyValue(record.normalizedText, 'cause'),
           reason: pickKeyValue(record.normalizedText, 'reason'),
           exitCode: toInteger(pickKeyValue(record.normalizedText, 'exitCode')),
           clean: toInteger(pickKeyValue(record.normalizedText, 'exitCode')) === 0
         }, extractor, profile, record);
+        this.state.puReadyCandidate = null;
+        return events;
+      }
       case 'partyCreated':
         return this.createEventIfComplete('PartyCreated', {
           partyId: pickBracketValue(record.normalizedText, 'partyId'),
@@ -763,22 +842,28 @@ class RuntimeLogParserEngine {
         }, extractor, profile, record);
       }
       case 'jurisdictionEntered': {
-        const message = pickNotificationMessage(record.normalizedText);
+        const notification = pickNotification(record.normalizedText);
+        const message = normalizeLocationNotificationMessage(notification.message);
         const jurisdiction = message && message.match(/^Entered (?<jurisdiction>.+?) Jurisdiction$/);
         if (!jurisdiction) return [];
         return this.createEventIfComplete('JurisdictionEntered', {
-          notificationId: pickBracketValue(record.normalizedText, 'NotificationId'),
+          notificationId: notification.id,
           jurisdiction: jurisdiction.groups.jurisdiction
         }, extractor, profile, record);
       }
       case 'monitoredSpaceEntered':
         return this.createEventIfComplete('MonitoredSpaceEntered', {
-          notificationId: pickBracketValue(record.normalizedText, 'NotificationId'),
+          notificationId: pickNotification(record.normalizedText).id,
           state: 'entered'
+        }, extractor, profile, record);
+      case 'monitoredSpaceExited':
+        return this.createEventIfComplete('MonitoredSpaceExited', {
+          notificationId: pickNotification(record.normalizedText).id,
+          state: 'exited'
         }, extractor, profile, record);
       case 'armisticeStateChanged':
         return this.createEventIfComplete('ArmisticeStateChanged', {
-          notificationId: pickBracketValue(record.normalizedText, 'NotificationId'),
+          notificationId: pickNotification(record.normalizedText).id,
           state: extractor.state
         }, extractor, profile, record);
       default:
@@ -821,7 +906,13 @@ class RuntimeLogParserEngine {
     }
 
     const policy = getRuntimeEventFamilyPolicy(eventType, extractor, this.options.orchestration);
-    const dedupeKey = buildDedupeKey(this.environment.environmentKey, eventType, payload, policy.dedupeFields);
+    const dedupeKey = buildDedupeKey(
+      this.environment.environmentKey,
+      eventType,
+      payload,
+      policy.dedupeFields,
+      record.dedupeScope || null
+    );
 
     const sourceTimestamp = parseSourceTimestamp(record.normalizedText) || this.environment.observedAt;
     const sourceLocation = this.state.sourceLocation || this.options.sourceLocation || UNKNOWN_SOURCE_LOCATION;
@@ -1338,6 +1429,31 @@ function pickNotificationMessage(text) {
   if (bracket) return bracket.replace(/^"|"$/g, '');
   const quoted = text.match(/\bMessage="(?<value>[^"]+)"/);
   return quoted?.groups?.value || null;
+}
+
+function pickNotification(text) {
+  const legacyId = pickBracketValue(text, 'NotificationId');
+  const legacyMessage = pickNotificationMessage(text);
+  if (legacyId || legacyMessage) return { id: legacyId, message: legacyMessage };
+  const current = text.match(/<SHUDEvent_OnNotification>\s+Added notification\s+"(?<message>[^"]*)"\s+\[(?<id>\d+)\]\s+to queue\./);
+  return {
+    id: current?.groups?.id || null,
+    message: current?.groups?.message || null
+  };
+}
+
+function normalizeLocationNotificationMessage(message) {
+  return message ? message.replace(/:\s*$/, '').trim() : null;
+}
+
+function isOrderedWithin(earlier, later, maximumMs) {
+  if (!earlier || !later) return false;
+  const elapsed = Date.parse(later) - Date.parse(earlier);
+  return Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= maximumMs;
+}
+
+function secondsBetween(earlier, later) {
+  return Math.max(0, (Date.parse(later) - Date.parse(earlier)) / 1000);
 }
 
 function pickBracketValue(text, key) {

@@ -97,6 +97,9 @@ Before approving a fixture PR, verify:
 | Destination/travel lifecycle gaps | `destination/destination-travel-transitions.unavailable`; see [`destination-travel-evidence-matrix.md`](destination-travel-evidence-matrix.md) |
 | Destination/travel false-positive guards | `destination/place-name-destination-noise.non-event`, `destination/temporal-proximity-route-noise.non-event`, `negative/object-container-ship-navigation.non-event` |
 | Jurisdiction/monitored-space/armistice | `zone/jurisdiction-monitored-armistice.observed` |
+| LIVE 4.9.188 quoted zone vocabulary | `zone/live-4-9-188-zone-notifications.observed` |
+| LIVE 4.9.188 repeated PU-ready sequence | `spine/live-4-9-188-repeated-pu-ready.observed` |
+| Frontend PU-ready vocabulary guard | `negative/live-4-9-188-frontend-ready-noise.non-event` |
 | Disconnect/frontend return/clean quit | `spine/disconnect-frontend-clean-exit.observed` |
 | Failure and transition gaps | `spine/failure-transition-evidence.unavailable` |
 | Attractive non-authoritative lines | `negative/object-container-ship-navigation.non-event`, `negative/mission-notification-ui-lifecycle.non-event` |

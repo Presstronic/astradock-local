@@ -116,6 +116,12 @@ Duplicate suppression never crosses `environmentKey`. A repeated action with the
 
 ## Runtime State Projections
 
+For LIVE 4.9.188, `PuEntered` has two supported terminal paths. The legacy completed `OnClientEnteredGame` record remains accepted only for `SC_Default`. The current path requires one active PU join followed, in order and within a bounded five-minute window, by completed `SC_Default` territory setup, game-mode creation, and local-player telemetry initialization. A new join replaces the pending candidate; disconnect, frontend return, application exit, or source-generation replacement clears it. Frontend, missing, misordered, duplicate, cross-session, and expired anchors cannot complete the sequence.
+
+Repeated PU sessions use the active join identity as bounded deduplication scope, so identical territory and entry payloads in two sessions remain distinct canonical events while duplicate physical records inside one session remain suppressed.
+
+The current 4.9.188 HUD notification shape is normalized alongside the legacy shape. Its bracket counter is treated only as a notification-scoped correlation value. Trailing colon text and armistice descriptions are normalized for supported event extraction; jurisdiction, monitored-space entry/exit, and armistice events retain observed-announcement provenance and do not assert authoritative physical containment.
+
 `parseLogFile` now projects promoted runtime events into renderer-safe current-state DTOs:
 
 - `rendererLifecycle` for game lifecycle, shard, PU Replicant connection, and PU session.

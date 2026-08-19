@@ -54,6 +54,7 @@ const EXPECTED_OBSERVED_EVENTS = new Set([
   'PartyLeft',
   'JurisdictionEntered',
   'MonitoredSpaceEntered',
+  'MonitoredSpaceExited',
   'ArmisticeStateChanged',
   'PuDisconnected',
   'ReturnedToFrontend',

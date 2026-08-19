@@ -250,9 +250,10 @@ function getRuntimeEventFamilyPolicy(eventType, extractor = {}, options = {}) {
   });
 }
 
-function buildDedupeKey(environmentKey, eventType, payload, fields = []) {
+function buildDedupeKey(environmentKey, eventType, payload, fields = [], scope = null) {
   return createPartitionedIdentity(environmentKey, 'dedupe', [
     eventType,
+    ...(scope ? [scope] : []),
     ...fields.map((field) => payload[field])
   ]);
 }

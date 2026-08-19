@@ -104,7 +104,7 @@ The registry currently promotes only event families backed by the accepted fixtu
 - PU, shard, and replication spine: `PuJoinRequested`, `PuReplicationConnectionEstablished`, `UniverseHierarchyRegistered`, `PuTerritorySetupCompleted`, `PuEntered`.
 - Disconnect and frontend/quit: `PuDisconnected`, `ReturnedToFrontend`, `ApplicationExited`.
 - Proven party events: `PartyCreated`, `PartyLaunchInitiated`, `PartyMemberConnected`, `PartyLeft`.
-- Validated zone events: `JurisdictionEntered`, `MonitoredSpaceEntered`, `ArmisticeStateChanged`.
+- Validated zone events: `JurisdictionEntered`, `MonitoredSpaceEntered`, `MonitoredSpaceExited`, `ArmisticeStateChanged`.
 
 The 2026-08-19 annotated capture provisionally supports future vehicle events `VehicleRetrieved`, `VehicleControlAcquired`, `VehicleControlReleased`, and `VehicleStored`, plus quantum target-selection/final-arrival events. They are not part of the registry until minimized sanitized fixtures, negative guards, payload definitions, and contract tests are accepted. See [`vehicle-lifecycle-evidence-matrix.md`](vehicle-lifecycle-evidence-matrix.md) and [`runtime-capture-findings-2026-08-19.md`](runtime-capture-findings-2026-08-19.md).
 

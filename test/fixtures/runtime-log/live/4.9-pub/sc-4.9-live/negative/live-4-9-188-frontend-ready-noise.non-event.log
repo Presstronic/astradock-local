@@ -1,0 +1,4 @@
+<2026-08-19T07:05:38.093Z> [Notice] <ContextEstablisherTaskFinished> taskname="SetupTerritories" gamerules="SC_Frontend" status="Finished" runningTime=0.000016
+<2026-08-19T07:05:38.161Z> [Notice] <[GameRules] GameRulesActionEvent_GameModeCreated> Game mode created
+<2026-08-19T07:05:39.510Z> [Notice] <ContextEstablisherTaskFinished> taskname="OnClientEnteredGame" state=eCVS_InGame(17) status="Finished" gamerules="SC_Frontend"
+<2026-08-19T07:05:40.000Z> [Notice] <Initializing Game Telemetry> Initializing game telemetry component of local player

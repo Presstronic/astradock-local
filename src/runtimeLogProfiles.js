@@ -1,5 +1,5 @@
 const PROFILE_SCHEMA_VERSION = 1;
-const SC_49_PROFILE_VERSION = 'draft-2026-08-19.1';
+const SC_49_PROFILE_VERSION = 'draft-2026-08-19.2';
 
 const SC_49_FIELD_ALIASES = Object.freeze({
   accountId: ['accountId', 'account_id', 'citizenId'],
@@ -211,6 +211,23 @@ const SC_49_EXTRACTORS = Object.freeze([
     dedupeFields: ['gamerules', 'loadDurationSeconds']
   },
   {
+    id: 'pu.game-mode-created',
+    kind: 'rememberPuGameModeCreated',
+    literals: ['GameRulesActionEvent_GameModeCreated', 'Game mode created'],
+    evidenceMarkers: ['GameRulesActionEvent_GameModeCreated', 'Game mode created']
+  },
+  {
+    id: 'pu.entered-local-telemetry',
+    kind: 'puEnteredFromLocalTelemetry',
+    eventType: 'PuEntered',
+    literals: ['<Initializing Game Telemetry>', 'local player'],
+    requiredFields: ['gamerules', 'loadDurationSeconds'],
+    confidence: 'high',
+    sensitivity: 'local',
+    evidenceMarkers: ['SetupTerritories', 'GameModeCreated', 'Initializing Game Telemetry', 'local player'],
+    dedupeFields: ['gamerules', 'loadDurationSeconds']
+  },
+  {
     id: 'disconnect.channel',
     kind: 'puDisconnected',
     eventType: 'PuDisconnected',
@@ -313,6 +330,17 @@ const SC_49_EXTRACTORS = Object.freeze([
     confidence: 'high',
     sensitivity: 'local',
     evidenceMarkers: ['Entered Monitored Space'],
+    dedupeFields: ['notificationId', 'state']
+  },
+  {
+    id: 'zone.monitored-exited',
+    kind: 'monitoredSpaceExited',
+    eventType: 'MonitoredSpaceExited',
+    literals: ['<SHUDEvent_OnNotification>', 'Exited Monitored Space'],
+    requiredFields: ['notificationId', 'state'],
+    confidence: 'high',
+    sensitivity: 'local',
+    evidenceMarkers: ['Exited Monitored Space'],
     dedupeFields: ['notificationId', 'state']
   },
   {

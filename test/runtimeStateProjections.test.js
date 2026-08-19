@@ -111,6 +111,24 @@ test('location snapshot projects independent jurisdiction, monitored-space, and 
   assert.equal(location.exactLocation.state, 'unsupported');
 });
 
+test('current notification vocabulary projects monitored-space exit independently', () => {
+  const result = parseRuntimeLogText(
+    readFixture('zone', 'live-4-9-188-zone-notifications.observed.log'),
+    { ...LIVE_PROFILE_OPTIONS, sourceProfileVersion: 'draft-2026-08-19.2', gameBuild: '4.9.188.23497' }
+  );
+  const snapshot = toRendererLocationSnapshot(projectRuntimeLocation(result.events, {
+    activeEnvironmentKey: result.events.at(-1).environmentKey,
+    now: '2026-08-19T07:12:55.000Z',
+    staleAfterMs: 60 * 60 * 1000
+  }));
+  const location = snapshot.environments[snapshot.activeEnvironmentKey];
+
+  assert.equal(location.monitoredSpace.value, false);
+  assert.equal(location.monitoredSpace.state, 'exited');
+  assert.equal(location.jurisdiction.value, 'SYNTH_JURISDICTION_CURRENT');
+  assert.equal(location.armistice.value, false);
+});
+
 test('negative location fixtures cannot mutate location state', () => {
   const logText = [
     readFixture('negative', 'object-container-ship-navigation.non-event.log'),

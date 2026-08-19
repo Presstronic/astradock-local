@@ -632,7 +632,7 @@ function toRendererRuntimeEventRow(event) {
 
 function runtimeEventCategory(eventType) {
   if (String(eventType).startsWith('Party')) return 'party';
-  if (['JurisdictionEntered', 'MonitoredSpaceEntered', 'ArmisticeStateChanged'].includes(eventType)) return 'zone';
+  if (['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged'].includes(eventType)) return 'zone';
   return 'runtime';
 }
 
@@ -644,6 +644,7 @@ function formatRuntimeEventLabel(event) {
     PartyLeft: 'Party Left',
     JurisdictionEntered: 'Jurisdiction Entered',
     MonitoredSpaceEntered: 'Monitored Space',
+    MonitoredSpaceExited: 'Monitored Space',
     ArmisticeStateChanged: 'Armistice'
   })[event.eventType] || event.eventType;
 }
@@ -662,6 +663,8 @@ function formatRuntimeEventSummary(event) {
       return `Entered ${event.payload.jurisdiction}`;
     case 'MonitoredSpaceEntered':
       return 'Entered monitored space';
+    case 'MonitoredSpaceExited':
+      return 'Exited monitored space';
     case 'ArmisticeStateChanged':
       return event.payload.state === 'entered' ? 'Entered armistice zone' : 'Left armistice zone';
     default:

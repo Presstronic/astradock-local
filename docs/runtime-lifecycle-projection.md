@@ -39,7 +39,7 @@ The ADR-0004 15-second objective applies to detecting and surfacing an actual mo
 
 Parser compatibility is reported separately as `compatible`, `unverified_build`, `unsupported_profile`, or `suspected_drift` under [`runtime-profile-compatibility-policy.md`](runtime-profile-compatibility-policy.md). Unknown or future release tags remain unknown; `PUB`, `PU`, and `LIVE` are never treated as aliases.
 
-LIVE 4.9.188 evidence also requires an alternative bounded `SC_Default` ready sequence because `OnClientEnteredGame` is absent. The profile must require the accepted game-mode/territory/local-player terminal conjunction and negative fixtures for frontend or incomplete loading before emitting `PuEntered`.
+LIVE 4.9.188 uses an alternative bounded `SC_Default` ready sequence because `OnClientEnteredGame` is absent. The implemented profile requires an active PU join followed by completed territory setup, game-mode creation, and local-player telemetry initialization, in order within five minutes. Frontend, incomplete, misordered, cross-session, duplicate, and expired sequences cannot emit `PuEntered`; the legacy completed `SC_Default` terminal remains supported for older accepted 4.9 fixtures.
 
 ## Verification
 

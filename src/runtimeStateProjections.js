@@ -4,7 +4,7 @@ const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 const SNAPSHOT_VERSION = 1;
 const DEFAULT_SNAPSHOT_STALE_AFTER_MS = 15_000;
 const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected', 'PartyLeft']);
-const LOCATION_EVENT_TYPES = Object.freeze(['JurisdictionEntered', 'MonitoredSpaceEntered', 'ArmisticeStateChanged']);
+const LOCATION_EVENT_TYPES = Object.freeze(['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged']);
 const SESSION_BOUNDARY_EVENT_TYPES = Object.freeze(['PuDisconnected', 'ReturnedToFrontend', 'ApplicationExited']);
 
 function projectRuntimeParty(events, options = {}) {
@@ -51,6 +51,13 @@ function projectRuntimeLocation(events, options = {}) {
       projection.monitoredSpace = fact({
         state: 'entered',
         value: true,
+        event
+      });
+      projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
+    } else if (event.eventType === 'MonitoredSpaceExited') {
+      projection.monitoredSpace = fact({
+        state: 'exited',
+        value: false,
         event
       });
       projection.lastChangedAt = laterTimestamp(projection.lastChangedAt, event.sourceTimestamp);
