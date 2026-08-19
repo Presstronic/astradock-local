@@ -129,6 +129,8 @@ Profile changes require accepted positive or negative fixtures before an extract
 
 Breaking profile changes require a new profile version. Breaking changes include changing event mappings, required fields, dedupe identity, compatibility scope, or the meaning of an alias. Future profile versions should preserve old versions for replay until the persistence layer has a migration/quarantine policy.
 
+The `sc-4.9-live` profile version `draft-2026-08-19.1` recognizes both the reviewed `4.9.0-LIVE.*` fixture form and the directly observed LIVE executable-version family `4.9.188.*`. Compatibility still requires the LIVE channel. Numerically adjacent future families and PTU 4.10 remain unsupported until separately reviewed; the matcher must not collapse the rule to a broad `4.9.*` prefix.
+
 ## Failure Handling
 
 Malformed UTF-8 is reported and decoded with replacement so monitoring can continue. Oversized complete lines are quarantined. Oversized incomplete lines are discarded until the next newline. Incomplete trailing bytes are retained by default and reported on `end()` unless the caller explicitly asks to emit incomplete lines.
