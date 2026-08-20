@@ -93,8 +93,6 @@ export interface DetailState {
 }
 
 const QUIET_AFTER_MS = 60_000;
-const MAX_STREAM_ROWS = 100;
-
 export function createRuntimeMonitorViewModel(input: {
   loading: boolean;
   fatalError: string | null;
@@ -108,7 +106,7 @@ export function createRuntimeMonitorViewModel(input: {
   const state = classifyWorkspaceState(input);
   const scan = input.scan;
   const source = input.activeSource || input.snapshot?.source || scan?.source || null;
-  const streamEvents = createStreamEvents(scan, input.now).slice(0, MAX_STREAM_ROWS);
+  const streamEvents = createStreamEvents(scan, input.now);
   const environment = scan?.environment;
   const lifecycle = activeLifecycle(scan);
   const monitor = input.snapshot?.monitor ?? null;
