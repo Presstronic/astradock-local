@@ -17,6 +17,9 @@ import {
   type DetailState,
   type DrawerPlacement,
   type InstrumentState,
+  type PartyMemberViewState,
+  type PartyTransitionViewState,
+  type PartyViewState,
   type StreamEvent,
   type StreamView
 } from './runtime-monitor-model';
@@ -71,6 +74,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [search, setSearch] = useState('');
   const [eventStream, setEventStream] = useState(() => createSharedEventStreamState({ view: preferences.streamView }));
   const [selected, setSelected] = useState<StreamEvent | null>(null);
+  const [partyAnnouncement, setPartyAnnouncement] = useState('');
   const [detail, setDetail] = useState<DetailState>({
     status: 'empty',
     selected: null,
@@ -79,6 +83,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   });
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
   const lastSelectionTrigger = useRef<HTMLElement | null>(null);
+  const lastPartyTransitionId = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -156,6 +161,19 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   useEffect(() => {
     setEventStream((current) => updateStreamQuery(current, { search }));
   }, [search]);
+
+  useEffect(() => {
+    const latest = viewModel.party.transitions[0];
+    if (!latest) return;
+    if (lastPartyTransitionId.current === null) {
+      lastPartyTransitionId.current = latest.id;
+      return;
+    }
+    if (latest.id !== lastPartyTransitionId.current) {
+      lastPartyTransitionId.current = latest.id;
+      setPartyAnnouncement(`Party update: ${latest.label}${latest.subjectLabel ? `, ${latest.subjectLabel}` : ''}.`);
+    }
+  }, [viewModel.party.transitions]);
 
   const visibleEvents = useMemo(() => getStreamWindow(eventStream), [eventStream]);
 
@@ -334,8 +352,19 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             ))}
           </section>
 
-          <SemanticPanel state={viewModel.party.state} title={viewModel.party.title} label={viewModel.party.label} detail={viewModel.party.detail} />
+          <PartySection
+            party={viewModel.party}
+            onSelect={(evidenceEventId, trigger, fallback) => {
+              const event = viewModel.streamEvents.find((candidate) => candidate.id === evidenceEventId);
+              if (event) {
+                void openEvidence(event, trigger);
+                return;
+              }
+              openPartyFallback(fallback, trigger);
+            }}
+          />
           <SemanticPanel state={viewModel.mission.state} title={viewModel.mission.title} label={viewModel.mission.label} detail={viewModel.mission.detail} />
+          <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{partyAnnouncement}</p>
         </aside>
 
         <section id="runtime-stream" className="stream-workspace" aria-label="Runtime event stream">
@@ -448,6 +477,19 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         instrument.provenance,
         instrument.drilldown
       ].filter(Boolean).join(' · ')
+    });
+    window.requestAnimationFrame(() => detailHeadingRef.current?.focus());
+  }
+
+  function openPartyFallback(message: string, trigger: HTMLElement) {
+    lastSelectionTrigger.current = trigger;
+    setSelected(null);
+    setEventStream((current) => selectStreamEvent(current, null));
+    setDetail({
+      status: 'retention-removed',
+      selected: null,
+      detail: null,
+      message
     });
     window.requestAnimationFrame(() => detailHeadingRef.current?.focus());
   }
@@ -592,6 +634,82 @@ function SemanticPanel({ title, state, label, detail }: { title: string; state: 
       <h2><span>{title}</span></h2>
       <div className="semantic-empty"><strong>{label}</strong><p>{detail}</p></div>
     </section>
+  );
+}
+
+function PartySection({
+  party,
+  onSelect
+}: {
+  party: PartyViewState;
+  onSelect: (evidenceEventId: string, trigger: HTMLElement, fallback: string) => void;
+}) {
+  const countLabel = party.confirmedCount === null
+    ? party.overallLabel
+    : `${party.confirmedCount} confirmed${party.possibleCount ? ` · ${party.possibleCount} possible` : ''}`;
+
+  return (
+    <section className="semantic-panel party-panel" data-state={party.state} aria-labelledby="party-heading">
+      <h2 id="party-heading">
+        <span>Party</span>
+        <small>{countLabel}</small>
+      </h2>
+      <div className="party-summary">
+        <div><span>Overall</span><strong>{party.overallLabel}</strong></div>
+        <div><span>Freshness</span><strong title={formatInstantContext(party.exactFreshness)}>{party.freshnessLabel}</strong></div>
+      </div>
+      {party.members.length ? (
+        <div className="party-members" role="list" aria-label="Known party members">
+          {party.members.map((member) => <PartyMember key={member.id} member={member} onSelect={onSelect} />)}
+        </div>
+      ) : (
+        <div className="semantic-empty"><strong>{party.label}</strong><p>{party.detail}</p></div>
+      )}
+      {party.transitions.length ? (
+        <div className="party-transitions" aria-label="Recent party alerts">
+          <h3>Recent changes</h3>
+          <div role="list">
+            {party.transitions.map((transition) => <PartyTransition key={transition.id} transition={transition} onSelect={onSelect} />)}
+          </div>
+        </div>
+      ) : null}
+      <p className="party-limitation">{party.limitation} Social telemetry stays on this device.</p>
+    </section>
+  );
+}
+
+function PartyMember({ member, onSelect }: {
+  member: PartyMemberViewState;
+  onSelect: (evidenceEventId: string, trigger: HTMLElement, fallback: string) => void;
+}) {
+  const fallback = `${member.handle}: ${member.membershipLabel} membership; ${member.connectionLabel} connection; ${member.transitionLabel}; ${member.freshnessLabel}; confidence ${member.confidence}. The referenced evidence is no longer in the retained stream.`;
+  return (
+    <button
+      type="button"
+      role="listitem"
+      className="party-member"
+      data-leader={member.isLeader || undefined}
+      data-membership={member.membershipState}
+      onClick={(event) => onSelect(member.evidenceEventId || member.id, event.currentTarget, fallback)}
+      aria-label={`${member.handle}, ${member.isLeader ? 'leader, ' : ''}${member.membershipLabel} membership, ${member.connectionLabel} connection, ${member.freshnessLabel}`}
+    >
+      <span className="party-member-heading"><strong title={member.handle}>{member.handle}</strong>{member.isLeader ? <em>Leader</em> : null}{member.isLocalPlayer ? <em>You</em> : null}</span>
+      <span className="party-member-facts"><span>{member.membershipLabel}</span><span data-state={member.connectionState}>{member.connectionLabel}</span><time title={formatInstantContext(member.observedAt)}>{member.freshnessLabel}</time></span>
+      <small>{member.transitionLabel} · Observed · Confidence {member.confidence}</small>
+    </button>
+  );
+}
+
+function PartyTransition({ transition, onSelect }: {
+  transition: PartyTransitionViewState;
+  onSelect: (evidenceEventId: string, trigger: HTMLElement, fallback: string) => void;
+}) {
+  const fallback = `${transition.label}${transition.subjectLabel ? `: ${transition.subjectLabel}` : ''}; ${transition.freshnessLabel}; confidence ${transition.confidence}. The referenced evidence is no longer in the retained stream.`;
+  return (
+    <button type="button" role="listitem" className="party-transition" onClick={(event) => onSelect(transition.evidenceEventId, event.currentTarget, fallback)}>
+      <span><strong>{transition.label}</strong>{transition.subjectLabel ? <small>{transition.subjectLabel}</small> : null}</span>
+      <time title={formatInstantContext(transition.observedAt)}>{transition.freshnessLabel}</time>
+    </button>
   );
 }
 
