@@ -141,6 +141,16 @@ Implemented shell semantics include:
 
 Full release accessibility qualification remains tracked by #46, and the automated coverage deferred from this implementation is tracked by #67.
 
+## Runtime Notification Overlay
+
+Runtime Monitor health and action notifications are presentation-layer overlays within the central stream workspace. The status footer remains in normal layout flow and provides the bottom boundary; the overlay is positioned above it, so notification appearance, stacking, and removal do not change stream dimensions, row positions, scroll offset, or detail-dock geometry.
+
+Notifications retain the existing alert card styling and use stable alert IDs for reconciliation. Critical alerts sort above warnings; equal-severity alerts retain first-seen order. The visible stack is bounded to four cards. Additional active alerts are represented by a readable overflow row instead of covering the stream indefinitely. The overlay is scoped to the stream workspace and uses the `--layer-stream-overlay` token, leaving application-level surfaces free to layer above it.
+
+Condition-backed alerts use a persistent lifetime and remain until their source condition clears. Action failures are transient and use a five-second minimum readable duration, estimated from message length and capped at twelve seconds. Hover and keyboard focus pause transient expiry; focusable cards expose their complete text without making keyboard interaction dismiss them. Removed cards remain for 180ms to animate downward toward the footer, and a reappearing alert with the same ID cancels that exit.
+
+Each card is its own live region: critical alerts use assertive alert semantics and warnings use polite status semantics. The stack itself is not a live region, which prevents unchanged cards from being re-announced on ordinary monitor refreshes. The reduced-motion media query removes sliding animation while retaining the same placement and lifecycle. The overlay respects the central workspace clipping boundary, right/bottom detail docks, narrow widths, and short workspaces.
+
 ## Build, Packaging, and Offline Assets
 
 The renderer is built with Vite into `dist/renderer`. Electron loads `dist/renderer/index.html`, and electron-builder includes `dist/renderer/**/*` in packaged artifacts. The application `start`, `build`, and `dist` scripts build the renderer before launching or packaging.

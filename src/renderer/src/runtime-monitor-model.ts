@@ -6,6 +6,9 @@ import type {
   RendererScanResult
 } from './astradock-api';
 import { compareInstants, instantMilliseconds } from './time';
+import type { AlertState } from './runtime-notification-model';
+
+export type { AlertState } from './runtime-notification-model';
 
 export type WorkspaceState =
   | 'loading'
@@ -80,13 +83,6 @@ export interface PanelState {
   state: 'empty' | 'unknown' | 'unsupported' | 'ready';
   label: string;
   detail: string;
-}
-
-export interface AlertState {
-  id: string;
-  severity: 'warning' | 'critical';
-  title: string;
-  message: string;
 }
 
 export interface DetailState {
@@ -558,7 +554,8 @@ function createAlerts(
       id: 'storage-error',
       severity: storage.recoverable === false ? 'critical' : 'warning',
       title: 'Encrypted telemetry storage unavailable',
-      message: `Live monitoring can continue, but canonical events are not durable (${storage.errorCode || 'unknown storage error'}).`
+      message: `Live monitoring can continue, but canonical events are not durable (${storage.errorCode || 'unknown storage error'}).`,
+      lifetime: 'persistent'
     });
   }
   if (state === 'fatal') {
@@ -566,7 +563,8 @@ function createAlerts(
       id: 'fatal',
       severity: 'critical',
       title: 'Runtime Monitor could not initialize',
-      message: fatalError || 'Runtime Monitor could not initialize safely.'
+      message: fatalError || 'Runtime Monitor could not initialize safely.',
+      lifetime: 'persistent'
     });
   }
   if (actionError && state !== 'fatal') {
@@ -574,24 +572,26 @@ function createAlerts(
       id: 'action-error',
       severity: 'warning',
       title: 'Action could not complete',
-      message: actionError
+      message: actionError,
+      lifetime: 'transient'
     });
   }
   if (state === 'degraded' || state === 'recovering' || state === 'paused') {
-    alerts.push({ id: 'degraded', severity: 'warning', title: 'Monitor recovering', message: 'Monitoring is active but health is degraded.' });
+    alerts.push({ id: 'degraded', severity: 'warning', title: 'Monitor recovering', message: 'Monitoring is active but health is degraded.', lifetime: 'persistent' });
   }
   if (state === 'stale') {
-    alerts.push({ id: 'stale', severity: 'warning', title: 'Monitor health stale', message: 'Expected monitor health signals exceeded the fault-visibility window.' });
+    alerts.push({ id: 'stale', severity: 'warning', title: 'Monitor health stale', message: 'Expected monitor health signals exceeded the fault-visibility window.', lifetime: 'persistent' });
   }
   if (source && source.validation?.isValid === false) {
-    alerts.push({ id: 'source', severity: 'critical', title: 'Source disconnected', message: source.validation.message });
+    alerts.push({ id: 'source', severity: 'critical', title: 'Source disconnected', message: source.validation.message, lifetime: 'persistent' });
   }
   if (scan?.parserCompatibility?.status === 'suspected_drift') {
     alerts.push({
       id: 'parser-drift',
       severity: 'warning',
       title: 'Parser vocabulary drift suspected',
-      message: 'The source remains available, but some current log vocabulary is not recognized by this profile.'
+      message: 'The source remains available, but some current log vocabulary is not recognized by this profile.',
+      lifetime: 'persistent'
     });
   }
   if (scan?.parserCompatibility?.status === 'unverified_build') {
@@ -599,7 +599,8 @@ function createAlerts(
       id: 'unverified-build',
       severity: 'warning',
       title: 'Unverified game build',
-      message: 'This patch belongs to a known profile family but lacks exact fixture-backed approval; semantic events are suppressed.'
+      message: 'This patch belongs to a known profile family but lacks exact fixture-backed approval; semantic events are suppressed.',
+      lifetime: 'persistent'
     });
   }
   for (const diagnostic of scan?.environmentDiagnostics || []) {
@@ -607,7 +608,8 @@ function createAlerts(
       id: `diagnostic-${alerts.length}`,
       severity: 'warning',
       title: 'Environment diagnostic',
-      message: typeof diagnostic === 'string' ? diagnostic : 'Environment evidence requires review.'
+      message: typeof diagnostic === 'string' ? diagnostic : 'Environment evidence requires review.',
+      lifetime: 'persistent'
     });
   }
   return alerts;

@@ -61,6 +61,12 @@
   --tabs-height: 34px;
   --toolbar-height: 38px;
   --statusbar-height: 24px;
+  --notification-inset: 8px;
+  --notification-gap: 6px;
+  --notification-max-width: 720px;
+  --notification-max-visible: 4;
+  --layer-stream-overlay: 20;
+  --motion-notification: 180ms;
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Hanken Grotesk", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -625,6 +631,7 @@ h2,
 }
 
 .stream-workspace {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -744,12 +751,53 @@ input {
 }
 
 .attention-region {
+  position: absolute;
+  z-index: var(--layer-stream-overlay);
+  right: var(--notification-inset);
+  bottom: calc(var(--statusbar-height) + var(--notification-inset));
+  left: var(--notification-inset);
+  max-height: calc(100% - var(--toolbar-height) - var(--statusbar-height) - (var(--notification-inset) * 2));
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.notification-stack {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding: 0;
-  border-bottom: 1px solid var(--border);
+  align-items: flex-end;
+  gap: var(--notification-gap);
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.notification-stack__item,
+.notification-overflow {
+  width: min(100%, var(--notification-max-width));
+  pointer-events: auto;
+}
+
+.notification-stack__item {
+  animation: notification-enter var(--motion-notification) ease-out both;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+
+.notification-stack__item[data-exiting="true"] {
+  animation: notification-exit var(--motion-notification) ease-in both;
+}
+
+.notification-stack__item[data-paused="true"] {
+  animation-play-state: paused;
+}
+
+.notification-overflow {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-muted);
   background: var(--surface-chrome);
+  padding: 7px 14px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .alert {
@@ -779,6 +827,16 @@ input {
 .alert p {
   color: var(--text-bright);
   font-size: 12.5px;
+}
+
+@keyframes notification-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes notification-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(10px); }
 }
 
 .stream-mode {
@@ -1331,5 +1389,11 @@ input {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .notification-stack__item,
+  .notification-stack__item[data-exiting="true"] {
+    animation: none;
+    transform: none;
   }
 }

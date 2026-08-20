@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
-  AlertTriangle,
   CircleHelp,
   Table2,
   TerminalSquare
@@ -21,6 +20,7 @@ import {
   type StreamEvent,
   type StreamView
 } from './runtime-monitor-model';
+import { RuntimeNotificationStack } from './runtime-notification-stack';
 import { formatInstantContext, formatLocalClock } from './time';
 
 interface RuntimeMonitorAppProps {
@@ -368,17 +368,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             </div>
           </div>
 
-          {viewModel.alerts.length ? <section className="attention-region" aria-label="Attention and warnings" aria-live="polite">
-            {viewModel.alerts.map((alert) => (
-              <article className="alert" data-severity={alert.severity} key={alert.id}>
-                <AlertTriangle aria-hidden="true" />
-                <div>
-                  <strong>{alert.title}</strong>
-                  <p>{alert.message}</p>
-                </div>
-              </article>
-            ))}
-          </section> : null}
+          <RuntimeNotificationStack alerts={viewModel.alerts} />
 
           <div className="stream-mode" aria-live="polite">
             <span><i data-state={viewModel.workspaceState} />{snapshot?.monitor.active ? 'Live' : viewModel.monitorLabel}</span>
