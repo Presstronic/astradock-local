@@ -46,6 +46,15 @@ describe('Runtime Monitor design-system conformance', () => {
     expect(css).toContain('border-bottom: 1px dotted #1e2836;');
   });
 
+  it('defines a bounded, tokenized stream notification overlay', () => {
+    expect(css).toContain('position: absolute;');
+    expect(css).toContain('bottom: calc(var(--statusbar-height) + var(--notification-inset));');
+    expect(css).toContain('z-index: var(--layer-stream-overlay);');
+    expect(css).toContain('--notification-max-visible: 4;');
+    expect(css).toContain('@keyframes notification-enter');
+    expect(css).toContain('@keyframes notification-exit');
+  });
+
   it.each([
     ['.product-name', 'font-size: 14px'],
     ['.workspace-name', 'font-size: 9px'],

@@ -156,7 +156,8 @@ describe('Runtime Monitor action errors', () => {
       id: 'action-error',
       severity: 'warning',
       title: 'Action could not complete',
-      message: 'Selected file is not a validated Star Citizen game.log.'
+      message: 'Selected file is not a validated Star Citizen game.log.',
+      lifetime: 'transient'
     });
   });
 });
