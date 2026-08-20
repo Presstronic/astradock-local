@@ -32,6 +32,7 @@ const { RuntimeLogTailer } = require('./runtimeLogTailer');
 const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 const { CanonicalEventStore } = require('./persistence/canonicalEventStore');
 const { createElectronStorageKeyProvider } = require('./persistence/storageKeyProvider');
+const { createDiagnosticLogger } = require('./diagnosticLogger');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -58,6 +59,7 @@ const sourceRegistry = new Map();
 let activeSourceId = null;
 let eventStore = null;
 let eventStoreHealth = { status: 'initializing', errorCode: null, recoverable: true };
+let diagnosticLogger = null;
 const subscriptions = new SubscriptionHub({ channel: CHANNELS.subscriptionEvent, maxSubscribers: 8 });
 
 installAppSecurityPolicy({ app, session, rendererUrl });
@@ -80,8 +82,26 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  try {
+    diagnosticLogger = createDiagnosticLogger({ directory: path.join(app.getPath('userData'), 'logs') });
+    diagnosticLogger.info('application_ready', { packaged: app.isPackaged, platform: process.platform, arch: process.arch });
+  } catch (error) {
+    // Diagnostics are best effort and must not prevent the app from starting.
+    console.error('AstraDock diagnostic logger could not start.', error?.message || error);
+  }
   await initializeEventStore();
   createWindow();
+}).catch((error) => {
+  diagnosticLogger?.error('application_start_failed', error);
+  throw error;
+});
+
+process.on('uncaughtException', (error) => {
+  diagnosticLogger?.error('uncaught_exception', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  diagnosticLogger?.error('unhandled_rejection', reason instanceof Error ? reason : { reason });
 });
 
 app.on('window-all-closed', async () => {
@@ -91,9 +111,11 @@ app.on('window-all-closed', async () => {
 
 app.on('before-quit', async () => {
   shuttingDown = true;
+  diagnosticLogger?.info('application_shutdown');
   await stopMonitor('application_shutdown');
   eventStore?.close();
   eventStore = null;
+  diagnosticLogger?.close();
 });
 
 app.on('activate', () => {
@@ -228,6 +250,7 @@ function register(channel, handler) {
       const data = await handler(validatedPayload, event);
       return ok(data, correlationId);
     } catch (error) {
+      diagnosticLogger?.error('ipc_request_failed', { channel, code: error?.code || 'internal_error', message: error?.message });
       return fail(error, correlationId);
     }
   });
