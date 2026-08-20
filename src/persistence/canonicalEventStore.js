@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const Database = require('better-sqlite3-multiple-ciphers');
+const { normalizeAbsoluteInstant } = require('../time');
 const {
   createRuntimeEventOrderKey,
   deserializeRuntimeEvent,
@@ -463,9 +464,9 @@ function requireNonEmptyString(value, field) {
 }
 
 function normalizeTimestamp(value) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.valueOf())) throw new CanonicalEventStoreError('invalid_timestamp', 'Timestamp must be a valid ISO-compatible value.', { recoverable: false });
-  return date.toISOString();
+  const instant = normalizeAbsoluteInstant(value);
+  if (!instant) throw new CanonicalEventStoreError('invalid_timestamp', 'Timestamp must be a valid offset-bearing instant.', { recoverable: false });
+  return instant;
 }
 
 function normalizeLimit(value) {

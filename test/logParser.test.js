@@ -31,17 +31,17 @@ test('parses shard id and name on one line', () => {
 
 test('dedupes repeated shard sightings', () => {
   const entries = parseShardEntries(`
-2026-07-23 19:12:10 ShardID=210 ShardName=Stanton-US
-2026-07-23 20:12:10 ShardID=210 ShardName=Stanton-US
+<2026-07-23T19:12:10Z> ShardID=210 ShardName=Stanton-US
+<2026-07-23T20:12:10Z> ShardID=210 ShardName=Stanton-US
 `);
 
   assert.equal(entries.length, 1);
-  assert.equal(entries[0].lastSeen, '2026-07-23 20:12:10');
+  assert.equal(entries[0].lastSeen, '2026-07-23T20:12:10.000Z');
 });
 
 test('parses json-like shard lines', () => {
   const entries = parseShardEntries(`
-2026-07-23 19:12:10 {"shardId":"mesh-987","shardName":"Stanton EU","region":"eu"}
+<2026-07-23T19:12:10Z> {"shardId":"mesh-987","shardName":"Stanton EU","region":"eu"}
 `);
 
   assert.equal(entries.length, 1);
@@ -149,7 +149,7 @@ test('promotes accepted PU disconnect evidence to a visible server leave action'
 
   assert.equal(result.userActivity.sessions.length, 1);
   assert.equal(result.userActivity.sessions[0].endLineNumber, 5);
-  assert.equal(result.userActivity.sessions[0].endedAt, '2026-08-09 20:10:00');
+  assert.equal(result.userActivity.sessions[0].endedAt, '2026-08-09T20:10:00.000Z');
   assert.deepEqual(
     result.userActivity.actions.map((action) => action.eventLabel),
     ['Server Leave', 'Server Join']
@@ -218,6 +218,18 @@ test('conflicting same-line environment evidence is quarantined without leaking 
   assert.equal(timeline.diagnostics[0].code, 'conflicting_environment_evidence');
   assert.equal(JSON.stringify(timeline.diagnostics).includes(sourcePath), false);
   assert.equal(timeline.activeEnvironment.releaseChannel, 'UNKNOWN');
+});
+
+test('ambiguous environment evidence time stays unknown instead of becoming local or epoch time', () => {
+  const timeline = parseEnvironmentTimeline([
+    '<2026-08-19T23:10:50.145> <Init> Environment[PUB] Tag[LIVE] Config[Shipping]'
+  ]);
+
+  assert.equal(timeline.diagnostics[0].code, 'timestamp_ambiguous');
+  assert.equal(timeline.diagnostics[0].sourceTimestamp, null);
+  assert.equal(timeline.switches.length, 1);
+  assert.equal(timeline.switches[0].sourceTimestamp, null);
+  assert.equal(JSON.stringify(timeline.diagnostics).includes('2026-08-19T23:10:50.145'), false);
 });
 
 test('parseLogFile supports abortable reads for monitor cancellation', async () => {

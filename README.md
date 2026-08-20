@@ -39,3 +39,4 @@ The parser is intentionally heuristic because Star Citizen log formats vary betw
 Source discovery, validation states, privacy-safe DTOs, and local preference behavior are documented in [`docs/source-discovery.md`](docs/source-discovery.md).
 The hardened Electron lifecycle and renderer API are documented in [`docs/hardened-electron-boundary.md`](docs/hardened-electron-boundary.md).
 The resilient incremental monitor tailer is documented in [`docs/runtime-log-tailer.md`](docs/runtime-log-tailer.md).
+Telemetry timestamp parsing, normalization, ordering, duration, persistence, and local display are governed by [`docs/time-contract.md`](docs/time-contract.md).

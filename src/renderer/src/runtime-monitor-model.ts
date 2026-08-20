@@ -5,6 +5,7 @@ import type {
   RendererEvidenceRow,
   RendererScanResult
 } from './astradock-api';
+import { compareInstants, instantMilliseconds } from './time';
 
 export type WorkspaceState =
   | 'loading'
@@ -179,8 +180,8 @@ export function classifyWorkspaceState(input: {
 
 export function classifyActivity(observedAt: string | null, now: Date): ActivityState {
   if (!observedAt) return 'none';
-  const observedMs = Date.parse(observedAt);
-  if (Number.isNaN(observedMs)) return 'none';
+  const observedMs = instantMilliseconds(observedAt);
+  if (observedMs === null) return 'none';
   return now.getTime() - observedMs > QUIET_AFTER_MS ? 'quiet' : 'recent';
 }
 
@@ -204,7 +205,13 @@ export function classifySourceHealth(
 export function createStreamEvents(scan: RendererScanResult | null, now: Date): StreamEvent[] {
   return createAllEvents(scan)
     .map(({ kind, row }) => toStreamEvent(kind, row, now))
-    .sort((left, right) => compareNullableDate(right.timestamp, left.timestamp));
+    .sort(compareStreamEvents);
+}
+
+function compareStreamEvents(left: StreamEvent, right: StreamEvent): number {
+  return compareInstants(right.timestamp, left.timestamp)
+    || (right.sourceLine ?? -1) - (left.sourceLine ?? -1)
+    || left.id.localeCompare(right.id);
 }
 
 function createAllEvents(scan: RendererScanResult | null): Array<{ kind: StreamEvent['kind']; row: RendererEvidenceRow }> {
@@ -424,9 +431,9 @@ function currentSessionDuration(
   if (session.durationSeconds !== null) return session.durationSeconds;
   const startedAt = session.enteredAt || session.requestedAt;
   if (!startedAt) return null;
-  const startedMs = Date.parse(startedAt);
-  const endedMs = session.endedAt ? Date.parse(session.endedAt) : now.getTime();
-  if (Number.isNaN(startedMs) || Number.isNaN(endedMs) || endedMs < startedMs) return null;
+  const startedMs = instantMilliseconds(startedAt);
+  const endedMs = session.endedAt ? instantMilliseconds(session.endedAt) : now.getTime();
+  if (startedMs === null || endedMs === null || endedMs < startedMs) return null;
   return Math.floor((endedMs - startedMs) / 1_000);
 }
 
@@ -656,10 +663,9 @@ export function formatSourceState(source: PublicRuntimeSource): string {
 }
 
 export function formatFreshness(value: string | null | undefined, now: Date): string {
-  if (!value) return 'Unknown';
-  const then = new Date(value);
-  if (Number.isNaN(then.valueOf())) return 'Unknown';
-  const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - then.getTime()) / 1000));
+  const then = instantMilliseconds(value);
+  if (then === null) return 'Unknown';
+  const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - then) / 1000));
   if (elapsedSeconds < 5) return 'Now';
   if (elapsedSeconds < 60) return `${elapsedSeconds}s`;
   const elapsedMinutes = Math.floor(elapsedSeconds / 60);
@@ -669,10 +675,9 @@ export function formatFreshness(value: string | null | undefined, now: Date): st
 }
 
 function formatDurationSince(value: string | null | undefined, now: Date): string {
-  if (!value) return 'Unknown';
-  const then = new Date(value);
-  if (Number.isNaN(then.valueOf())) return 'Unknown';
-  const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - then.getTime()) / 60000));
+  const then = instantMilliseconds(value);
+  if (then === null) return 'Unknown';
+  const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - then) / 60000));
   const hours = Math.floor(elapsedMinutes / 60);
   const minutes = elapsedMinutes % 60;
   return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
@@ -683,10 +688,4 @@ function firstString(...values: unknown[]): string | null {
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
   return null;
-}
-
-function compareNullableDate(left: string | null, right: string | null): number {
-  const leftTime = left ? new Date(left).getTime() : 0;
-  const rightTime = right ? new Date(right).getTime() : 0;
-  return (Number.isFinite(leftTime) ? leftTime : 0) - (Number.isFinite(rightTime) ? rightTime : 0);
 }
