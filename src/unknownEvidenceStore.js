@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { earlierInstant, laterInstant, normalizeAbsoluteInstant, toEpochMilliseconds } = require('./time');
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_UNKNOWN_EVIDENCE_POLICY = Object.freeze({
@@ -512,26 +513,19 @@ function normalizeLineRange(value) {
 }
 
 function normalizeTimestamp(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? null : date.toISOString();
+  return normalizeAbsoluteInstant(value);
 }
 
 function timestampMs(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? 0 : date.valueOf();
+  return toEpochMilliseconds(value) ?? 0;
 }
 
 function minTimestamp(left, right) {
-  if (!left) return right || null;
-  if (!right) return left;
-  return timestampMs(left) <= timestampMs(right) ? left : right;
+  return earlierInstant(left, right);
 }
 
 function maxTimestamp(left, right) {
-  if (!left) return right || null;
-  if (!right) return left;
-  return timestampMs(left) >= timestampMs(right) ? left : right;
+  return laterInstant(left, right);
 }
 
 function truncateUtf8(value, maxBytes) {

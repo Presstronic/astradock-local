@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { parseAbsoluteInstant, toEpochMilliseconds } = require('../time');
 
 const CONTRACT_VERSION = 'runtime-event/v1';
 const UNKNOWN_ENVIRONMENT_VALUE = 'UNKNOWN';
@@ -1116,12 +1117,13 @@ function validateEnvelopeFields(event, path, errors) {
 }
 
 function validateTimestamp(value, path, errors) {
-  if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) {
+  const parsed = parseAbsoluteInstant(value);
+  if (!parsed.ok) {
     errors.push(error('invalid_timestamp', path, 'Timestamp must be a valid ISO-8601 string'));
     return;
   }
 
-  if (new Date(value).toISOString() !== value) {
+  if (parsed.instant !== value) {
     errors.push(error('nondeterministic_timestamp', path, 'Timestamp must be normalized UTC ISO-8601 with milliseconds'));
   }
 }
@@ -1386,8 +1388,7 @@ function deriveEnvironmentConfidence(value) {
 }
 
 function timestampToMillis(value) {
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return toEpochMilliseconds(value) ?? 0;
 }
 
 function padOrderNumber(value) {

@@ -1,5 +1,6 @@
 const { compareRuntimeEventOrder } = require('./contracts/runtimeEvents');
 const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
+const { laterInstant, toEpochMilliseconds } = require('./time');
 
 const SNAPSHOT_VERSION = 1;
 const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected', 'PartyLeft']);
@@ -492,16 +493,11 @@ function sanitizeDisplayText(value, maxLength = 80) {
 }
 
 function laterTimestamp(left, right) {
-  if (!left) return right || null;
-  if (!right) return left;
-  return (toTime(right) ?? 0) >= (toTime(left) ?? 0) ? right : left;
+  return laterInstant(left, right);
 }
 
 function toTime(value) {
-  if (value instanceof Date) return Number.isNaN(value.valueOf()) ? null : value.valueOf();
-  if (typeof value !== 'string') return null;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? null : parsed;
+  return toEpochMilliseconds(value);
 }
 
 module.exports = {

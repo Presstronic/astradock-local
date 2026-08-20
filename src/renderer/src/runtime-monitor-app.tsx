@@ -21,6 +21,7 @@ import {
   type StreamEvent,
   type StreamView
 } from './runtime-monitor-model';
+import { formatInstantContext, formatLocalClock } from './time';
 
 interface RuntimeMonitorAppProps {
   client: RuntimeMonitorClient;
@@ -465,7 +466,7 @@ function TerminalStream({
           key={event.id}
           onClick={(domEvent) => void onSelect(event, domEvent.currentTarget)}
         >
-          <span className="mono time">{formatAbsoluteTime(event.timestamp)}</span>
+          <span className="mono time" title={formatInstantContext(event.timestamp)} aria-label={formatInstantContext(event.timestamp)}>{formatLocalClock(event.timestamp)}</span>
           <span className="kind-tag">{event.kind}</span>
           <span className="urgency-mark" aria-label={`Urgency ${event.urgency}`}>{event.urgency === 'normal' ? '·' : event.urgency === 'warning' ? '▲' : '■'}</span>
           <strong>{event.summary}</strong>
@@ -499,7 +500,7 @@ function TableStream({
           <span>{event.summary}</span>
           <span><b className="attribute-chip">Conf {event.confidence}</b></span>
           <span>{event.context}</span>
-          <span>{event.ageLabel}</span>
+          <span title={formatInstantContext(event.timestamp)} aria-label={`${event.ageLabel}; ${formatInstantContext(event.timestamp)}`}>{event.ageLabel}</span>
         </button>
       ))}
     </div>
@@ -537,6 +538,7 @@ function DetailDock({
           <div><dt>Event ID</dt><dd>{detail.selected.id}</dd></div>
           <div><dt>Kind</dt><dd>{detail.selected.kind}</dd></div>
           <div><dt>Source line</dt><dd>{detail.selected.sourceLine ?? 'Unknown'}</dd></div>
+          <div><dt>Event time</dt><dd>{formatInstantContext(detail.selected.timestamp)}</dd></div>
           <div><dt>Evidence</dt><dd>{detail.selected.evidenceAvailable ? 'Available locally' : 'Redacted or absent'}</dd></div>
         </dl>
       ) : null}
@@ -579,13 +581,6 @@ function SemanticPanel({ title, state, label, detail }: { title: string; state: 
 
 function formatInstrumentState(state: InstrumentState['state']): string {
   return state.replace('-', ' ');
-}
-
-function formatAbsoluteTime(timestamp: string | null): string {
-  if (!timestamp) return 'UNKNOWN';
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return 'UNKNOWN';
-  return [date.getHours(), date.getMinutes(), date.getSeconds()].map((value) => String(value).padStart(2, '0')).join(':');
 }
 
 function StatusPill({ state, label }: { state: string; label: string }) {

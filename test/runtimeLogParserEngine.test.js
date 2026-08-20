@@ -204,6 +204,18 @@ test('mesh diagnostics require a completed network hierarchy and PU territory co
   assert.deepEqual(result.events, []);
 });
 
+test('matched evidence with an offset-less timestamp is diagnosed and not promoted', () => {
+  const result = parseRuntimeLogText(
+    '<2026-08-19T23:10:50.145> [Notice] <SHUDEvent_OnNotification> Added notification "Entered Monitored Space: " [0] to queue. New queue size: 1, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: []\n',
+    LIVE_PROFILE_OPTIONS
+  );
+
+  assert.deepEqual(result.events, []);
+  assert.ok(result.diagnostics.some((diagnostic) => diagnostic.code === 'timestamp_ambiguous'));
+  assert.ok(result.unknownEvidence.some((evidence) => evidence.reason === 'timestamp_ambiguous'));
+  assert.equal(JSON.stringify(result.diagnostics).includes('2026-08-19T23:10:50.145'), false);
+});
+
 test('4.9.188 alternative PU-ready sequence is ordered, bounded, and idempotent', () => {
   const valid = parseRuntimeLogText([
     '<2026-08-19T07:06:05.000Z> <Join PU> address[replicant-ready.example.invalid] port[64332] shard[SYNTH_SHARD_READY] locationId[SYNTH_LOCATION_READY]',

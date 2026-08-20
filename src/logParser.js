@@ -23,18 +23,14 @@ const {
   deriveEnvironmentContext,
   deriveSourceInstallationId
 } = require('./contracts/runtimeEvents');
+const { compareAbsoluteInstants, normalizeAbsoluteInstant, parseGameLogTimestamp } = require('./time');
 
 const CONTEXT_RADIUS = 6;
 const UNKNOWN_SOURCE_LOCATION = 'UNKNOWN_SOURCE';
 
 function parseLogTimestamp(line) {
-  const iso = line.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(?:[.,]\d+)?/);
-  if (iso) return `${iso[1]} ${iso[2]}`;
-
-  const bracket = line.match(/<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)>/);
-  if (bracket) return bracket[1];
-
-  return null;
+  const result = parseGameLogTimestamp(line);
+  return result.ok ? result.instant : null;
 }
 
 function pickValue(line, patterns) {
@@ -67,10 +63,7 @@ function cleanValue(value) {
 }
 
 function normalizeIsoTimestamp(value) {
-  if (!value) return new Date(0).toISOString();
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) return new Date(0).toISOString();
-  return parsed.toISOString();
+  return normalizeAbsoluteInstant(value);
 }
 
 function normalizeReleaseChannel(value) {
@@ -185,15 +178,29 @@ function parseEnvironmentTimeline(lines, options = {}) {
   const diagnostics = [];
   const switches = [];
   const partitions = new Map();
+  const contextObservedAt = normalizeAbsoluteInstant(options.scannedAt || options.observedAt) || new Date(0).toISOString();
   let activeContext = buildEnvironmentContext(facts, {
-    observedAt: new Date(0).toISOString(),
+    observedAt: contextObservedAt,
     confidence: initialChannel ? 'medium' : 'unknown',
     markers: initialChannel ? ['sourceLocationChannel'] : ['unknownSource'],
     sourceSequence: 0
   });
 
   lines.forEach((line, index) => {
-    const sourceTimestamp = normalizeIsoTimestamp(parseLogTimestamp(line));
+    const sourceTime = parseGameLogTimestamp(line);
+    const sourceTimestamp = sourceTime.ok ? sourceTime.instant : null;
+    if (!sourceTime.ok && /^<\d{4}-\d{2}-\d{2}T/.test(line)) {
+      diagnostics.push(createEnvironmentDiagnostic({
+        code: sourceTime.code,
+        severity: 'warn',
+        message: 'Source timestamp was not a supported offset-bearing instant.',
+        lineNumber: index + 1,
+        sourceTimestamp: null,
+        environmentKey: activeContext.environmentKey,
+        evidenceMarkers: ['sourceTimestamp'],
+        details: { resolution: 'unknown' }
+      }));
+    }
     const extracted = extractEnvironmentEvidenceFromLine(line);
 
     if (!extracted) {
@@ -239,7 +246,7 @@ function parseEnvironmentTimeline(lines, options = {}) {
     }));
 
     const nextContext = buildEnvironmentContext(facts, {
-      observedAt: sourceTimestamp,
+      observedAt: sourceTimestamp || contextObservedAt,
       confidence: extracted.evidence.rawEnvironmentTag || extracted.evidence.gameEnvironmentTag ? 'high' : undefined,
       markers: extracted.markers,
       sourceSequence: index + 1
@@ -726,9 +733,7 @@ function dedupeEntries(entries) {
   }
 
   return Array.from(byShard.values()).sort((left, right) => {
-    const leftTime = Date.parse(left.lastSeen || '') || 0;
-    const rightTime = Date.parse(right.lastSeen || '') || 0;
-    return rightTime - leftTime || right.lineNumber - left.lineNumber;
+    return compareAbsoluteInstants(right.lastSeen, left.lastSeen) || right.lineNumber - left.lineNumber;
   });
 }
 

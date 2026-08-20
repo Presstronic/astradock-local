@@ -198,8 +198,12 @@ test('contract validation fails safely for missing fields, malformed timestamps,
   assert.ok(validationCodes(validateRuntimeEvent(missingField)).has('missing_payload_field'));
 
   const timestampCandidate = clone(RUNTIME_EVENT_EXAMPLES.PuJoinRequested);
-  timestampCandidate.sourceTimestamp = '2026-08-09 12:00:00Z';
+  timestampCandidate.sourceTimestamp = '2026-08-09T12:00:00.000+00:00';
   assert.ok(validationCodes(validateRuntimeEvent(timestampCandidate)).has('nondeterministic_timestamp'));
+
+  const malformedTimestamp = clone(RUNTIME_EVENT_EXAMPLES.PuJoinRequested);
+  malformedTimestamp.sourceTimestamp = '2026-08-09 12:00:00Z';
+  assert.ok(validationCodes(validateRuntimeEvent(malformedTimestamp)).has('invalid_timestamp'));
 
   const unsupportedVersion = clone(RUNTIME_EVENT_EXAMPLES.PuJoinRequested);
   unsupportedVersion.contractVersion = 'runtime-event/v2';

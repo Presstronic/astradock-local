@@ -15,6 +15,7 @@ const {
   deriveSourceInstallationId,
   validateRuntimeEvent
 } = require('./contracts/runtimeEvents');
+const { elapsedMilliseconds, parseGameLogTimestamp } = require('./time');
 const {
   RuntimeEventOrchestrator,
   buildDedupeKey,
@@ -774,7 +775,8 @@ class RuntimeLogParserEngine {
         this.state.universeHierarchyStart = null;
         if (!started || started.receivedFromNetwork !== true || !started.sourceTimestamp) return [];
         const completedAt = parseSourceTimestamp(record.normalizedText);
-        const durationMs = completedAt ? Math.max(0, Date.parse(completedAt) - Date.parse(started.sourceTimestamp)) : null;
+        const elapsed = completedAt ? elapsedMilliseconds(started.sourceTimestamp, completedAt) : null;
+        const durationMs = elapsed === null ? null : Math.max(0, elapsed);
         const combinedRecord = {
           ...record,
           startLineNumber: started.startLineNumber,
@@ -1101,6 +1103,23 @@ class RuntimeLogParserEngine {
       return [];
     }
 
+    const sourceTime = parseGameLogTimestamp(record.normalizedText);
+    if (!sourceTime.ok) {
+      this.addDiagnostic({
+        code: sourceTime.code,
+        severity: 'warn',
+        message: 'Matched evidence did not contain a supported absolute source timestamp.',
+        lineNumber: record.startLineNumber,
+        sourceByteOffset: record.sourceByteOffset,
+        details: { profileId: profile.id, extractorId: extractor.id, eventType }
+      });
+      this.addUnknownEvidence(record, profile, sourceTime.code, {
+        evidenceMarkers: extractor.evidenceMarkers,
+        sensitivity: extractor.sensitivity || 'local'
+      });
+      return [];
+    }
+
     const policy = getRuntimeEventFamilyPolicy(eventType, extractor, this.options.orchestration);
     const dedupeKey = buildDedupeKey(
       this.environment.environmentKey,
@@ -1110,7 +1129,7 @@ class RuntimeLogParserEngine {
       record.dedupeScope || null
     );
 
-    const sourceTimestamp = parseSourceTimestamp(record.normalizedText) || this.environment.observedAt;
+    const sourceTimestamp = sourceTime.instant;
     const sourceLocation = this.state.sourceLocation || this.options.sourceLocation || UNKNOWN_SOURCE_LOCATION;
     const sourceId = deriveSourceInstallationId(sourceLocation);
     const event = {
@@ -1723,13 +1742,13 @@ function normalizeLocationNotificationMessage(message) {
 }
 
 function isOrderedWithin(earlier, later, maximumMs) {
-  if (!earlier || !later) return false;
-  const elapsed = Date.parse(later) - Date.parse(earlier);
-  return Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= maximumMs;
+  const elapsed = elapsedMilliseconds(earlier, later);
+  return elapsed !== null && elapsed >= 0 && elapsed <= maximumMs;
 }
 
 function secondsBetween(earlier, later) {
-  return Math.max(0, (Date.parse(later) - Date.parse(earlier)) / 1000);
+  const elapsed = elapsedMilliseconds(earlier, later);
+  return elapsed === null ? 0 : Math.max(0, elapsed / 1000);
 }
 
 function parseLocalHangarVehicleAnchor(text) {
@@ -1822,10 +1841,8 @@ function pickQuotedKeyValue(text, key) {
 }
 
 function parseSourceTimestamp(text) {
-  const match = String(text).match(/<(?<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)>/);
-  if (!match) return null;
-  const parsed = new Date(match.groups.timestamp.endsWith('Z') ? match.groups.timestamp : `${match.groups.timestamp}Z`);
-  return Number.isNaN(parsed.valueOf()) ? null : parsed.toISOString();
+  const result = parseGameLogTimestamp(text);
+  return result.ok ? result.instant : null;
 }
 
 function normalizeRecordText(text) {

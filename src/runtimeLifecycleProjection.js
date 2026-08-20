@@ -1,5 +1,6 @@
 const { compareRuntimeEventOrder } = require('./contracts/runtimeEvents');
 const { mapShardRegion } = require('./runtimeRegionMappings');
+const { laterInstant, toEpochMilliseconds } = require('./time');
 
 const PROJECTION_VERSION = 3;
 const IDENTITY_FIELDS = Object.freeze([
@@ -367,16 +368,11 @@ function lifecycleReason(event) {
 }
 
 function laterTimestamp(left, right) {
-  if (!left) return right || null;
-  if (!right) return left;
-  return (toTime(right) ?? 0) >= (toTime(left) ?? 0) ? right : left;
+  return laterInstant(left, right);
 }
 
 function toTime(value) {
-  if (value instanceof Date) return Number.isNaN(value.valueOf()) ? null : value.valueOf();
-  if (typeof value !== 'string') return null;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? null : parsed;
+  return toEpochMilliseconds(value);
 }
 
 module.exports = {

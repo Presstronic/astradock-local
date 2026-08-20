@@ -3,6 +3,7 @@ const {
   createRuntimeEvent,
   createRuntimeEventOrderKey
 } = require('./contracts/runtimeEvents');
+const { toEpochMilliseconds } = require('./time');
 
 const DEFAULT_DEDUPE_WINDOW_MS = 10 * 60 * 1000;
 const DEFAULT_CORRELATION_WINDOW_MS = 15 * 60 * 1000;
@@ -273,8 +274,7 @@ function compareCandidate(left, right) {
 }
 
 function timestampMs(value) {
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return toEpochMilliseconds(value) ?? 0;
 }
 
 function positiveInteger(value, fallback) {
