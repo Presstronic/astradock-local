@@ -4,6 +4,15 @@
 
 The Windows x64 standalone build lets an AstraDock maintainer copy the application to a known test machine and run it without an installer. It is a test artifact only. All AstraDock releases continue to use the artifacts approved by [ADR-0002](architecture/adr-0002-mvp-platform-packaging-and-update-policy.md); the standalone executable must not be published, attached to a GitHub Release, advertised to users, or used as installer qualification evidence by itself.
 
+## Diagnostic log
+
+Standalone Windows and Linux runs write a privacy-safe structured diagnostic log to Electron's per-user application-data directory:
+
+- Windows: `%APPDATA%\\astradock-local\\logs\\astradock.log`
+- Linux: `$XDG_CONFIG_HOME/astradock-local/logs/astradock.log` (normally `~/.config/astradock-local/logs/astradock.log`)
+
+The logger records lifecycle, IPC failure, and startup/shutdown information only. It does not record raw game-log lines, credentials, account identifiers, or source paths. The active file is capped at 5 MiB with three rotated files (`astradock.log.1` through `.3`); files are owner-readable where the platform supports permissions. Include the log files when reporting a standalone test failure, after reviewing them for any locally meaningful metadata.
+
 Electron Builder calls the underlying target `portable`. In AstraDock documentation and artifact names, use **standalone test artifact** to avoid implying that it is a supported portable release or that application data travels with the executable.
 
 ## Build
