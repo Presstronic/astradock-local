@@ -593,6 +593,214 @@ h2,
   overflow-wrap: anywhere;
 }
 
+.party-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 168px;
+  max-height: 42vh;
+  padding-top: var(--strip-height);
+}
+
+.party-panel h2 small {
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: .06em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--line-inner);
+}
+
+.party-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 12px;
+}
+
+.party-summary div + div {
+  border-left: 1px solid var(--line-inner);
+}
+
+.party-summary span,
+.party-transitions h3,
+.party-limitation {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.party-summary strong {
+  overflow: hidden;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-members,
+.party-transitions > div {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.party-members {
+  flex: 1 1 auto;
+}
+
+.party-member,
+.party-transition {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line-inner);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-body);
+  text-align: left;
+}
+
+.party-member {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 54px;
+  padding: 7px 12px;
+}
+
+.party-member:hover,
+.party-transition:hover {
+  background: var(--surface-hover);
+}
+
+.party-member[data-leader="true"] {
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+.party-member-heading,
+.party-member-facts,
+.party-transition,
+.party-transition > span {
+  display: flex;
+  align-items: center;
+}
+
+.party-member-heading {
+  gap: 5px;
+  min-width: 0;
+}
+
+.party-member-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-member-heading em {
+  flex-shrink: 0;
+  border: 1px solid var(--primary-border);
+  padding: 1px 4px;
+  color: var(--primary-hover);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-style: normal;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.party-member-facts {
+  gap: 7px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.party-member-facts span + span::before {
+  content: "·";
+  margin-right: 7px;
+}
+
+.party-member-facts time {
+  margin-left: auto;
+}
+
+.party-member > small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-transitions {
+  flex: 0 1 116px;
+  min-height: 54px;
+  border-top: 1px solid var(--border);
+}
+
+.party-transitions h3 {
+  padding: 6px 12px 4px;
+}
+
+.party-transition {
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding: 5px 12px;
+}
+
+.party-transition > span {
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.party-transition strong,
+.party-transition small,
+.party-transition time {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-transition strong {
+  max-width: 170px;
+  color: var(--text-body);
+  font-size: 9.5px;
+}
+
+.party-transition small,
+.party-transition time {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.party-limitation {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-top: 1px solid var(--line-inner);
+  line-height: 1.45;
+  letter-spacing: .03em;
+  text-transform: none;
+}
+
 .instrument small {
   color: var(--text-dim);
   font-family: var(--font-mono);
@@ -628,6 +836,10 @@ h2,
 .instrument[data-state="unsupported"],
 .semantic-panel[data-state="unsupported"] {
   border-color: var(--border);
+}
+
+.semantic-panel[data-state="error"] {
+  color: var(--danger-prose);
 }
 
 .stream-workspace {

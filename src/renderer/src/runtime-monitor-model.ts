@@ -58,7 +58,7 @@ export interface RuntimeMonitorViewModel {
   retainedCount: number;
   sourceCandidates: readonly PublicRuntimeSource[];
   instruments: readonly InstrumentState[];
-  party: PanelState;
+  party: PartyViewState;
   mission: PanelState;
   alerts: readonly AlertState[];
   storageLabel: string;
@@ -80,9 +80,46 @@ export interface InstrumentState {
 
 export interface PanelState {
   title: string;
-  state: 'empty' | 'unknown' | 'unsupported' | 'ready';
+  state: 'empty' | 'unknown' | 'unsupported' | 'ready' | 'error';
   label: string;
   detail: string;
+}
+
+export interface PartyMemberViewState {
+  id: string;
+  handle: string;
+  membershipLabel: string;
+  membershipState: 'confirmed' | 'possible' | 'stale' | 'unknown';
+  connectionLabel: string;
+  connectionState: 'connected' | 'disconnected' | 'stale' | 'unknown';
+  isLeader: boolean;
+  isLocalPlayer: boolean;
+  transitionLabel: string;
+  freshnessLabel: string;
+  observedAt: string | null;
+  confidence: string;
+  evidenceEventId: string | null;
+}
+
+export interface PartyTransitionViewState {
+  id: string;
+  label: string;
+  subjectLabel: string | null;
+  freshnessLabel: string;
+  observedAt: string;
+  confidence: string;
+  evidenceEventId: string;
+}
+
+export interface PartyViewState extends PanelState {
+  overallLabel: string;
+  freshnessLabel: string;
+  exactFreshness: string | null;
+  confirmedCount: number | null;
+  possibleCount: number | null;
+  members: readonly PartyMemberViewState[];
+  transitions: readonly PartyTransitionViewState[];
+  limitation: string;
 }
 
 export interface DetailState {
@@ -133,7 +170,7 @@ export function createRuntimeMonitorViewModel(input: {
     retainedCount: createAllEvents(scan).length,
     sourceCandidates: input.sources,
     instruments: createInstruments(scan, input.now),
-    party: createPartyPanel(scan),
+    party: createPartyPanel(scan, input.now, state),
     mission: createMissionPanel(scan),
     alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null, input.snapshot?.monitor.storage || null),
     storageLabel: formatStorageLabel(input.snapshot?.monitor.storage || null)
@@ -488,38 +525,89 @@ function formatLifecycleState(state: string | undefined): string {
   } as Record<string, string>)[state || 'unknown'] || 'Unknown';
 }
 
-function createPartyPanel(scan: RendererScanResult | null): PanelState {
+function createPartyPanel(scan: RendererScanResult | null, now: Date, workspaceState: WorkspaceState): PartyViewState {
   const party = activeParty(scan);
+  const base = {
+    title: 'Party',
+    freshnessLabel: formatFreshness(party?.lastChangedAt, now),
+    exactFreshness: party?.lastChangedAt || null,
+    confirmedCount: party ? party.confirmedMemberCount : null,
+    possibleCount: party ? party.possibleMemberCount : null,
+    members: party?.members.map((member) => ({
+      id: member.evidenceEventId || `party-member:${member.handle}`,
+      handle: member.handle,
+      membershipLabel: formatPartyFact(member.membershipState),
+      membershipState: normalizePartyMemberState(member.membershipState),
+      connectionLabel: formatPartyFact(member.connectionState),
+      connectionState: normalizePartyConnectionState(member.connectionState),
+      isLeader: member.isLeader && party.leader.status === 'known',
+      isLocalPlayer: member.isLocalPlayer,
+      transitionLabel: member.latestTransition || 'No recent transition',
+      freshnessLabel: formatFreshness(member.observedAt, now),
+      observedAt: member.observedAt,
+      confidence: member.confidence || 'unknown',
+      evidenceEventId: member.evidenceEventId
+    })) || [],
+    transitions: party?.recentTransitions.map((transition) => ({
+      id: transition.evidenceEventId,
+      label: transition.label,
+      subjectLabel: transition.subjectHandle,
+      freshnessLabel: formatFreshness(transition.observedAt, now),
+      observedAt: transition.observedAt,
+      confidence: transition.confidence || 'unknown',
+      evidenceEventId: transition.evidenceEventId
+    })) || [],
+    limitation: party?.limitation || 'Only promoted, direct party lifecycle evidence is presented.'
+  };
+  if (workspaceState === 'fatal') {
+    return { ...base, state: 'error', label: 'Error', overallLabel: 'Error', detail: 'Party telemetry is unavailable because the Runtime Monitor could not initialize safely.' };
+  }
   if (!scan) {
-    return { title: 'Party', state: 'unknown', label: 'Unknown', detail: 'Telemetry has not been collected in this session.' };
+    return { ...base, state: 'unknown', label: 'Unknown', overallLabel: 'Unknown', detail: 'Telemetry has not been collected in this session.' };
   }
   if (['unsupported_profile', 'unverified_build'].includes(scan.parserCompatibility?.status || '')) {
-    return { title: 'Party', state: 'unsupported', label: 'Unsupported', detail: 'Parser profile does not support party evidence.' };
+    return { ...base, state: 'unsupported', label: 'Unsupported', overallLabel: 'Unsupported', detail: 'Parser profile does not support party evidence for this build.' };
   }
   if (!party || party.state === 'unknown') {
-    return { title: 'Party', state: 'unknown', label: 'Unknown', detail: 'No supported party lifecycle evidence observed in this environment.' };
+    return { ...base, state: 'unknown', label: 'Unknown', overallLabel: 'Unknown', detail: 'No supported party lifecycle evidence observed in this environment. Monitoring may have started mid-party.' };
   }
   if (party.state === 'not_in_party') {
-    return { title: 'Party', state: 'empty', label: 'Not in a party', detail: 'Terminal no-party evidence observed.' };
+    return { ...base, state: 'empty', label: 'Not in a party', overallLabel: 'Not in party', detail: 'Direct terminal no-party evidence was observed.' };
   }
   if (party.state === 'stale') {
     return {
+      ...base,
       title: 'Party',
       state: 'unknown',
       label: 'Stale',
+      overallLabel: 'Stale',
       detail: `Last evidence ${party.lastChangedAt || 'unknown'} · ${party.limitation}`
     };
   }
   return {
+    ...base,
     title: 'Party',
     state: 'ready',
     label: 'In party',
+    overallLabel: 'In party',
     detail: [
       `${party.confirmedMemberCount} confirmed`,
       `${party.possibleMemberCount} possible`,
       party.leader.handle ? `leader ${party.leader.handle}` : null
     ].filter(Boolean).join(' · ')
   };
+}
+
+function formatPartyFact(value: string): string {
+  return value.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function normalizePartyMemberState(value: string): PartyMemberViewState['membershipState'] {
+  return value === 'confirmed' || value === 'possible' || value === 'stale' ? value : 'unknown';
+}
+
+function normalizePartyConnectionState(value: string): PartyMemberViewState['connectionState'] {
+  return value === 'connected' || value === 'disconnected' || value === 'stale' ? value : 'unknown';
 }
 
 function createMissionPanel(scan: RendererScanResult | null): PanelState {

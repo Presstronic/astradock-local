@@ -68,6 +68,8 @@ The scan DTO now carries `partySnapshot` and `locationSnapshot` alongside the li
 
 Party state is intentionally conservative. The supported profile projects only `PartyCreated`, `PartyLaunchInitiated`, and `PartyMemberConnected`; marker-only records do not add members, remove members, change leader, disband, or change party size. `PartyCreated` confirms the local leader/member. A named connection notification marks the other handle as possible membership with connected state, not a proven join. Session boundaries and stale windows stale known party facts rather than inventing `not_in_party`.
 
+The dedicated Party section's display, interaction, accessibility, privacy, state, and evidence-limitation contract is documented in [`runtime-monitor-party-section.md`](runtime-monitor-party-section.md).
+
 Location state is an evidence-backed set of independent facts. `JurisdictionEntered` updates latest confirmed jurisdiction, `MonitoredSpaceEntered` sets monitored-space entered without inventing a false clear state, and `ArmisticeStateChanged` supports both entered and left. Exact location, destination, and travel remain unsupported for this profile; object-container, place-name, and route noise must not mutate location state.
 
 Promoted party and zone runtime events are exposed as sanitized stream rows. Detail requests for these rows return local-only event summary, confidence, evidence markers, and payload rather than raw log lines.
