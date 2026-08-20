@@ -19,7 +19,9 @@ test('diagnostic logger writes privacy-safe structured records and rotates bound
   assert.match(content, /"event":"startup"/);
   assert.match(content, /\[path\]/);
   assert.doesNotMatch(content, /game\.log|private\.log|must-not-be-logged/);
-  for (const name of files) assert.equal(fs.statSync(path.join(directory, name)).mode & 0o077, 0);
+  if (process.platform !== 'win32') {
+    for (const name of files) assert.equal(fs.statSync(path.join(directory, name)).mode & 0o077, 0);
+  }
 });
 
 test('diagnostic logger rejects relative directories', () => {
