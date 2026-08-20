@@ -122,7 +122,7 @@ Unknown values render as `Unknown`; unsupported values render as `Unsupported`; 
 - Freshness renders as compact elapsed duration and preserves exact timestamp in the header metric `title`.
 - Warning count renders only when non-zero.
 - Stream rows use immutable renderer evidence IDs for selection.
-- Stream display is bounded to 100 visible rows until the dedicated virtualization/live-follow issue replaces this interim bound.
+- Terminal and Table consume the shared event-stream contract in [`shared-event-stream.md`](shared-event-stream.md). Rendering is bounded to 80 rows by default and 200 at most, while query, selection, browse anchor, unseen count, and live/replay health mode remain shared across views.
 - Raw evidence is never present in default scan rows. Detail requests use `events.getEvidenceDetail({ kind, id })` and show only bounded local evidence returned by the main-process gateway.
 - Examples and labels use synthetic generic values only.
 

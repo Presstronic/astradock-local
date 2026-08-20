@@ -21,6 +21,17 @@ import {
   type StreamView
 } from './runtime-monitor-model';
 import { RuntimeNotificationStack } from './runtime-notification-stack';
+import {
+  browseFrom,
+  createSharedEventStreamState,
+  getStreamWindow,
+  pageStreamWindow,
+  reconcileStreamEvents,
+  returnToLive,
+  selectStreamEvent,
+  switchStreamView,
+  updateStreamQuery
+} from './shared-event-stream-model';
 import { formatInstantContext, formatLocalClock } from './time';
 
 interface RuntimeMonitorAppProps {
@@ -58,6 +69,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
   const [now, setNow] = useState<Date>(() => clock());
   const [search, setSearch] = useState('');
+  const [eventStream, setEventStream] = useState(() => createSharedEventStreamState({ view: preferences.streamView }));
   const [selected, setSelected] = useState<StreamEvent | null>(null);
   const [detail, setDetail] = useState<DetailState>({
     status: 'empty',
@@ -137,17 +149,15 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     now
   }), [actionError, activeSource, fatalError, loading, now, scan, snapshot, sources]);
 
-  const visibleEvents = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return viewModel.streamEvents;
-    return viewModel.streamEvents.filter((event) => [
-      event.kind,
-      event.summary,
-      event.context,
-      event.environment,
-      event.confidence
-    ].some((value) => value.toLowerCase().includes(term)));
-  }, [search, viewModel.streamEvents]);
+  useEffect(() => {
+    setEventStream((current) => reconcileStreamEvents(current, viewModel.streamEvents, viewModel.workspaceState, Boolean(snapshot?.monitor.active)));
+  }, [snapshot?.monitor.active, viewModel.streamEvents, viewModel.workspaceState]);
+
+  useEffect(() => {
+    setEventStream((current) => updateStreamQuery(current, { search }));
+  }, [search]);
+
+  const visibleEvents = useMemo(() => getStreamWindow(eventStream), [eventStream]);
 
   const currentDensity = preferences.streamView === 'terminal' ? preferences.terminalDensity : preferences.tableDensity;
   const storedPlacement = preferences.streamView === 'terminal' ? preferences.terminalDrawer : preferences.tableDrawer;
@@ -216,6 +226,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
   async function openEvidence(event: StreamEvent, trigger: HTMLElement | null) {
     setSelected(event);
+    setEventStream((current) => selectStreamEvent(current, event.id));
     lastSelectionTrigger.current = trigger;
     setDetail({
       status: event.evidenceAvailable ? 'loading' : 'redacted',
@@ -248,6 +259,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
   function closeDetail() {
     setSelected(null);
+    setEventStream((current) => selectStreamEvent(current, null));
     setDetail({
       status: 'empty',
       selected: null,
@@ -330,10 +342,10 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           <div className="stream-toolbar">
             <div className="stream-controls" aria-label="Stream controls">
               <div className="segmented" role="group" aria-label="Stream view">
-                <button type="button" aria-pressed={preferences.streamView === 'terminal'} onClick={() => updatePreference({ streamView: 'terminal' })}>
+                <button type="button" aria-pressed={preferences.streamView === 'terminal'} onClick={() => { updatePreference({ streamView: 'terminal' }); setEventStream((current) => switchStreamView(current, 'terminal')); }}>
                   <TerminalSquare aria-hidden="true" /> Terminal
                 </button>
-                <button type="button" aria-pressed={preferences.streamView === 'table'} onClick={() => updatePreference({ streamView: 'table' })}>
+                <button type="button" aria-pressed={preferences.streamView === 'table'} onClick={() => { updatePreference({ streamView: 'table' }); setEventStream((current) => switchStreamView(current, 'table')); }}>
                   <Table2 aria-hidden="true" /> Table
                 </button>
               </div>
@@ -371,8 +383,17 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           <RuntimeNotificationStack alerts={viewModel.alerts} />
 
           <div className="stream-mode" aria-live="polite">
-            <span><i data-state={viewModel.workspaceState} />{snapshot?.monitor.active ? 'Live' : viewModel.monitorLabel}</span>
-            <span>{visibleEvents.length} shown · {viewModel.retainedCount} retained</span>
+            <span><i data-state={viewModel.workspaceState} />{formatStreamMode(eventStream.mode)}</span>
+            <span>{visibleEvents.length} shown · {eventStream.totalCount} matching{eventStream.unseenCount ? ` · ${eventStream.unseenCount} unseen` : ''}</span>
+            {eventStream.mode === 'browsing' ? <button type="button" className="button secondary" onClick={() => setEventStream(returnToLive)}>Return to live</button> : null}
+            {eventStream.mode === 'browsing' && eventStream.windowStart > 0 ? <button type="button" className="button secondary" onClick={() => setEventStream((current) => pageStreamWindow(current, 'newer'))}>Newer events</button> : null}
+            {eventStream.mode === 'browsing' && eventStream.windowStart + eventStream.windowSize < eventStream.events.length ? <button type="button" className="button secondary" onClick={() => setEventStream((current) => pageStreamWindow(current, 'older'))}>Older events</button> : null}
+            {eventStream.events.length > eventStream.windowSize && eventStream.mode !== 'browsing' ? (
+              <button type="button" className="button secondary" onClick={() => {
+                const anchor = visibleEvents.at(-1);
+                if (anchor) setEventStream((current) => browseFrom(current, anchor.id));
+              }}>Browse older</button>
+            ) : null}
           </div>
 
           {preferences.streamView === 'terminal' ? (
@@ -403,6 +424,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           </footer>
         </section>
 
+        {eventStream.selectionUnavailable && detail.status !== 'empty' ? <p className="visually-hidden" role="status">Selected event is no longer available because it was removed by retention or the current filter.</p> : null}
         {detail.status !== 'empty' ? <DetailDock
           detail={detail}
           placement={effectivePlacement}
@@ -429,6 +451,10 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     });
     window.requestAnimationFrame(() => detailHeadingRef.current?.focus());
   }
+}
+
+function formatStreamMode(mode: import('./shared-event-stream-model').StreamMode): string {
+  return mode.charAt(0).toUpperCase() + mode.slice(1);
 }
 
 function TerminalStream({
