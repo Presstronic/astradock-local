@@ -328,6 +328,13 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           <Metric label="Last activity" value={viewModel.freshnessLabel} title={viewModel.exactFreshness || undefined} />
           <Metric label="Parser" value={viewModel.compatibilityState.replaceAll('_', ' ')} />
           <Metric label="Source" value={viewModel.source?.displayLabel || 'Awaiting source'} />
+          {viewModel.headerTelemetry.map((instrument) => (
+            <HeaderTelemetryMetric
+              key={instrument.id}
+              instrument={instrument}
+              onSelect={openSyntheticDetail}
+            />
+          ))}
           {viewModel.warningCount > 0 ? <Metric label="Warnings" value={String(viewModel.warningCount)} /> : null}
         </section>
         <div className="global-actions" aria-label="Monitor actions">
@@ -788,6 +795,30 @@ function Metric({ label, value, title }: { label: string; value: string; title?:
       <small>{label}</small>
       <strong>{value}</strong>
     </span>
+  );
+}
+
+function HeaderTelemetryMetric({
+  instrument,
+  onSelect
+}: {
+  instrument: InstrumentState;
+  onSelect: (instrument: InstrumentState, trigger: HTMLElement) => void;
+}) {
+  const accessibleValue = [instrument.value, instrument.detail].filter(Boolean).join(' · ');
+  return (
+    <button
+      type="button"
+      className="header-metric header-telemetry-metric"
+      data-state={instrument.state}
+      title={accessibleValue}
+      aria-label={`${instrument.label}: ${accessibleValue}`}
+      onClick={(event) => onSelect(instrument, event.currentTarget)}
+    >
+      <small>{instrument.label}</small>
+      <strong>{instrument.value}</strong>
+      <span className="header-metric-detail">{instrument.detail}</span>
+    </button>
   );
 }
 

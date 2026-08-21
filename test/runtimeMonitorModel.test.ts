@@ -74,6 +74,43 @@ describe('PU session duration formatting', () => {
   });
 });
 
+describe('promoted header telemetry', () => {
+  it('keeps shard/session telemetry in header order and removes it from the rail', () => {
+    const model = createRuntimeMonitorViewModel({
+      loading: false,
+      fatalError: null,
+      sources: [],
+      activeSource: { validation: { isValid: true } } as never,
+      snapshot: null,
+      scan: {
+        parserCompatibility: { status: 'compatible' },
+        entries: [{ id: 'shard-1', shardId: '210', shardName: 'Stanton-US', region: 'US', evidenceAvailable: true }],
+        userActivity: { actions: [], sessions: [] },
+        promotedRuntimeEvents: [],
+        environmentDiagnostics: [],
+        rendererLifecycle: null,
+        partySnapshot: null,
+        locationSnapshot: null,
+        destinationSnapshot: null
+      } as never,
+      now: new Date('2026-08-21T12:00:00.000Z')
+    });
+
+    expect(model.headerTelemetry.map((instrument) => instrument.id)).toEqual([
+      'shard', 'server', 'pu-duration', 'application-duration'
+    ]);
+    expect(model.instruments.map((instrument) => instrument.id)).not.toEqual(expect.arrayContaining([
+      'shard', 'server', 'pu-duration', 'application-duration'
+    ]));
+    expect(model.headerTelemetry.find((instrument) => instrument.id === 'shard')).toMatchObject({
+      label: 'Shard and region', value: '210'
+    });
+    expect(model.headerTelemetry.find((instrument) => instrument.id === 'application-duration')).toMatchObject({
+      value: 'Unknown', state: 'unknown'
+    });
+  });
+});
+
 describe('vehicle live telemetry', () => {
   it('labels the controlled vehicle without claiming aboard state or ownership', () => {
     const environmentKey = 'LIVE::PU::4.9.188.23497::UNKNOWN::SOURCE';
