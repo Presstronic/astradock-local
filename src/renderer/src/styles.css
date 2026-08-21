@@ -642,6 +642,117 @@ h2,
   text-transform: uppercase;
 }
 
+.mission-destination-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 190px;
+  padding-top: var(--strip-height);
+}
+
+.mission-destination-panel h2 small {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: .06em;
+}
+
+.mission-destination-domains {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.mission-destination-domains > section {
+  min-width: 0;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line-inner);
+  border-left: 2px solid transparent;
+}
+
+.mission-destination-domains > section + section {
+  border-left-width: 1px;
+  border-left-color: var(--line-inner);
+}
+
+.mission-destination-domains > section[data-state="unknown"],
+.mission-destination-domains > section[data-state="stale"] {
+  box-shadow: inset 2px 0 0 var(--warning);
+}
+
+.mission-destination-domains h3 {
+  margin: 0 0 5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.mission-destination-domains strong,
+.mission-destination-domains p,
+.destination-transition strong,
+.destination-transition small,
+.destination-transition time {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mission-destination-domains strong {
+  white-space: nowrap;
+}
+
+.mission-destination-domains p {
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.destination-transition {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-bottom: 1px solid var(--line-inner);
+  border-radius: 0;
+  background: transparent;
+  padding: 7px 12px;
+  color: var(--text-body);
+  text-align: left;
+}
+
+.destination-transition:hover {
+  background: var(--surface-hover);
+}
+
+.destination-transition > span {
+  min-width: 0;
+}
+
+.destination-transition > span:last-child {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.destination-transition strong {
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.destination-transition small,
+.destination-transition time {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
 .party-summary strong {
   overflow: hidden;
   color: var(--text-bright);
