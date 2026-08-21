@@ -68,7 +68,7 @@ The scan DTO now carries `partySnapshot` and `locationSnapshot` alongside the li
 
 Party state is intentionally conservative. The supported profile projects only `PartyCreated`, `PartyLaunchInitiated`, and `PartyMemberConnected`; marker-only records do not add members, remove members, change leader, disband, or change party size. `PartyCreated` confirms the local leader/member. A named connection notification marks the other handle as possible membership with connected state, not a proven join. Session boundaries and stale windows stale known party facts rather than inventing `not_in_party`.
 
-The dedicated Party section's display, interaction, accessibility, privacy, state, and evidence-limitation contract is documented in [`runtime-monitor-party-section.md`](runtime-monitor-party-section.md).
+The dedicated Party section's display, interaction, accessibility, privacy, state, and evidence-limitation contract is documented in [`runtime-monitor-party-section.md`](runtime-monitor-party-section.md). The corresponding Mission / destination contract is documented in [`runtime-monitor-mission-destination-section.md`](runtime-monitor-mission-destination-section.md).
 
 Location state is an evidence-backed set of independent facts. `JurisdictionEntered` updates latest confirmed jurisdiction, `MonitoredSpaceEntered` sets monitored-space entered without inventing a false clear state, and `ArmisticeStateChanged` supports both entered and left. Exact location, destination, and travel remain unsupported for this profile; object-container, place-name, and route noise must not mutate location state.
 
@@ -115,7 +115,7 @@ unsupported
 error
 ```
 
-Unknown values render as `Unknown`; unsupported values render as `Unsupported`; empty Party state renders as `Not in a party`; Mission state remains explicitly unsupported until evidence gates are closed by later issues.
+Unknown values render as `Unknown`; unsupported values render as `Unsupported`; empty Party state renders as `Not in a party`. Mission state remains explicitly unsupported until evidence gates are closed, independently of the destination/travel state supported by the compatible 4.9.188 profile.
 
 ## Formatting and Privacy Rules
 

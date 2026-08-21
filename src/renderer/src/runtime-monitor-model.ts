@@ -59,7 +59,7 @@ export interface RuntimeMonitorViewModel {
   sourceCandidates: readonly PublicRuntimeSource[];
   instruments: readonly InstrumentState[];
   party: PartyViewState;
-  mission: PanelState;
+  mission: MissionDestinationViewState;
   alerts: readonly AlertState[];
   storageLabel: string;
 }
@@ -122,6 +122,29 @@ export interface PartyViewState extends PanelState {
   limitation: string;
 }
 
+export interface DestinationTransitionViewState {
+  id: string;
+  label: string;
+  destinationLabel: string;
+  freshnessLabel: string;
+  observedAt: string;
+  confidence: string;
+  evidenceEventId: string;
+}
+
+export interface MissionDestinationViewState extends PanelState {
+  missionState: 'unsupported' | 'unknown' | 'error';
+  missionLabel: string;
+  missionDetail: string;
+  destinationState: 'unsupported' | 'unknown' | 'target-selected' | 'arrived' | 'stale' | 'error';
+  destinationLabel: string;
+  destinationDetail: string;
+  freshnessLabel: string;
+  exactFreshness: string | null;
+  transition: DestinationTransitionViewState | null;
+  limitation: string;
+}
+
 export interface DetailState {
   status: 'empty' | 'loading' | 'ready' | 'not-found' | 'retention-removed' | 'redacted' | 'unsupported' | 'error';
   selected: StreamEvent | null;
@@ -171,7 +194,7 @@ export function createRuntimeMonitorViewModel(input: {
     sourceCandidates: input.sources,
     instruments: createInstruments(scan, input.now),
     party: createPartyPanel(scan, input.now, state),
-    mission: createMissionPanel(scan),
+    mission: createMissionPanel(scan, input.now, state),
     alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null, input.snapshot?.monitor.storage || null),
     storageLabel: formatStorageLabel(input.snapshot?.monitor.storage || null)
   };
@@ -610,20 +633,51 @@ function normalizePartyConnectionState(value: string): PartyMemberViewState['con
   return value === 'connected' || value === 'disconnected' || value === 'stale' ? value : 'unknown';
 }
 
-function createMissionPanel(scan: RendererScanResult | null): PanelState {
+function createMissionPanel(
+  scan: RendererScanResult | null,
+  now: Date,
+  workspaceState: WorkspaceState
+): MissionDestinationViewState {
   const destination = activeDestination(scan);
-  if (destination?.currentTarget) {
-    return { title: 'Destination', state: 'ready', label: destination.currentTarget.targetObservedId || 'Selected', detail: `Quantum target selected · ${destination.currentTarget.vehicleClassName || 'vehicle unknown'}` };
-  }
-  if (destination?.lastArrival) {
-    return { title: 'Destination', state: 'ready', label: destination.lastArrival.targetObservedId || 'Arrived', detail: `Final quantum arrival observed · ${destination.lastArrival.vehicleClassName || 'vehicle unknown'}` };
-  }
-  return {
+  const fact = destination?.currentTarget || destination?.lastArrival || null;
+  const transition = fact ? {
+    id: fact.evidenceEventId,
+    label: destination?.currentTarget ? 'Quantum target selected' : 'Final quantum arrival',
+    destinationLabel: fact.targetObservedId || 'Observed target',
+    freshnessLabel: formatFreshness(fact.observedAt, now),
+    observedAt: fact.observedAt,
+    confidence: fact.confidence || 'unknown',
+    evidenceEventId: fact.evidenceEventId
+  } : null;
+  const base = {
     title: 'Mission / destination',
-    state: 'unsupported',
-    label: 'Unsupported',
-    detail: 'Mission lifecycle evidence is not promoted into MVP current state yet.'
+    missionState: 'unsupported' as const,
+    missionLabel: 'Unsupported',
+    missionDetail: 'No mission lifecycle signals are promoted for this parser profile.',
+    freshnessLabel: formatFreshness(destination?.lastChangedAt, now),
+    exactFreshness: destination?.lastChangedAt || null,
+    transition,
+    limitation: destination?.limitation || 'Only fixture-approved, locally correlated destination evidence is presented.'
   };
+  if (workspaceState === 'fatal') {
+    return { ...base, state: 'error', label: 'Error', detail: 'Mission and destination telemetry is unavailable because the Runtime Monitor could not initialize safely.', missionState: 'error', missionLabel: 'Error', missionDetail: 'Mission capability could not be evaluated safely.', destinationState: 'error', destinationLabel: 'Error', destinationDetail: 'Destination capability could not be evaluated safely.' };
+  }
+  if (!scan) {
+    return { ...base, state: 'unknown', label: 'Unavailable', detail: 'Telemetry has not been collected in this session.', destinationState: 'unknown', destinationLabel: 'Unknown', destinationDetail: 'No destination evidence is available yet.' };
+  }
+  if (['unsupported_profile', 'unverified_build'].includes(scan.parserCompatibility?.status || '')) {
+    return { ...base, state: 'unsupported', label: 'Unavailable', detail: 'This build does not have a compatible evidence profile.', destinationState: 'unsupported', destinationLabel: 'Unsupported', destinationDetail: 'Parser profile does not support destination evidence for this build.' };
+  }
+  if (destination?.state === 'target_selected' && destination.currentTarget) {
+    return { ...base, title: 'Destination', state: 'ready', label: destination.currentTarget.targetObservedId || 'Observed target', detail: 'A locally correlated quantum target is selected.', destinationState: 'target-selected', destinationLabel: destination.currentTarget.targetObservedId || 'Observed target', destinationDetail: `Target selected · ${destination.currentTarget.vehicleClassName || 'vehicle unknown'}` };
+  }
+  if (destination?.state === 'arrived' && destination.lastArrival) {
+    return { ...base, title: 'Destination', state: 'ready', label: destination.lastArrival.targetObservedId || 'Observed target', detail: 'A locally correlated final quantum arrival was observed.', destinationState: 'arrived', destinationLabel: destination.lastArrival.targetObservedId || 'Observed target', destinationDetail: `Arrived · ${destination.lastArrival.vehicleClassName || 'vehicle unknown'}` };
+  }
+  if (destination?.state === 'stale') {
+    return { ...base, state: 'unknown', label: 'Stale', detail: 'Last-confirmed destination evidence belongs to an ended or changed session.', destinationState: 'stale', destinationLabel: 'Stale', destinationDetail: 'Previous destination evidence is retained only as stale context.' };
+  }
+  return { ...base, state: 'unknown', label: 'Unknown', detail: 'No supported destination transition has been observed; this is not a confirmed empty state.', destinationState: 'unknown', destinationLabel: 'Unknown', destinationDetail: 'Monitoring may have started without an observable destination transition.' };
 }
 
 function createAlerts(

@@ -17,6 +17,7 @@ import {
   type DetailState,
   type DrawerPlacement,
   type InstrumentState,
+  type MissionDestinationViewState,
   type PartyMemberViewState,
   type PartyTransitionViewState,
   type PartyViewState,
@@ -75,6 +76,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [eventStream, setEventStream] = useState(() => createSharedEventStreamState({ view: preferences.streamView }));
   const [selected, setSelected] = useState<StreamEvent | null>(null);
   const [partyAnnouncement, setPartyAnnouncement] = useState('');
+  const [destinationAnnouncement, setDestinationAnnouncement] = useState('');
   const [detail, setDetail] = useState<DetailState>({
     status: 'empty',
     selected: null,
@@ -84,6 +86,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
   const lastSelectionTrigger = useRef<HTMLElement | null>(null);
   const lastPartyTransitionId = useRef<string | null>(null);
+  const lastDestinationTransitionId = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -174,6 +177,19 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       setPartyAnnouncement(`Party update: ${latest.label}${latest.subjectLabel ? `, ${latest.subjectLabel}` : ''}.`);
     }
   }, [viewModel.party.transitions]);
+
+  useEffect(() => {
+    const latest = viewModel.mission.transition;
+    if (!latest) return;
+    if (lastDestinationTransitionId.current === null) {
+      lastDestinationTransitionId.current = latest.id;
+      return;
+    }
+    if (latest.id !== lastDestinationTransitionId.current) {
+      lastDestinationTransitionId.current = latest.id;
+      setDestinationAnnouncement(`Destination update: ${latest.label}, ${latest.destinationLabel}.`);
+    }
+  }, [viewModel.mission.transition]);
 
   const visibleEvents = useMemo(() => getStreamWindow(eventStream), [eventStream]);
 
@@ -363,8 +379,19 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
               openPartyFallback(fallback, trigger);
             }}
           />
-          <SemanticPanel state={viewModel.mission.state} title={viewModel.mission.title} label={viewModel.mission.label} detail={viewModel.mission.detail} />
+          <MissionDestinationSection
+            value={viewModel.mission}
+            onSelect={(evidenceEventId, trigger, fallback) => {
+              const event = viewModel.streamEvents.find((candidate) => candidate.id === evidenceEventId);
+              if (event) {
+                void openEvidence(event, trigger);
+                return;
+              }
+              openPartyFallback(fallback, trigger);
+            }}
+          />
           <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{partyAnnouncement}</p>
+          <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{destinationAnnouncement}</p>
         </aside>
 
         <section id="runtime-stream" className="stream-workspace" aria-label="Runtime event stream">
@@ -710,6 +737,40 @@ function PartyTransition({ transition, onSelect }: {
       <span><strong>{transition.label}</strong>{transition.subjectLabel ? <small>{transition.subjectLabel}</small> : null}</span>
       <time title={formatInstantContext(transition.observedAt)}>{transition.freshnessLabel}</time>
     </button>
+  );
+}
+
+function MissionDestinationSection({ value, onSelect }: {
+  value: MissionDestinationViewState;
+  onSelect: (evidenceEventId: string, trigger: HTMLElement, fallback: string) => void;
+}) {
+  const transition = value.transition;
+  const fallback = transition
+    ? `${transition.label}: ${transition.destinationLabel}; ${transition.freshnessLabel}; confidence ${transition.confidence}. The referenced evidence is no longer in the retained stream.`
+    : '';
+  return (
+    <section className="semantic-panel mission-destination-panel" data-state={value.state} aria-labelledby="mission-destination-heading">
+      <h2 id="mission-destination-heading"><span>Mission / destination</span><small title={formatInstantContext(value.exactFreshness)}>{value.freshnessLabel}</small></h2>
+      <div className="mission-destination-domains">
+        <section aria-labelledby="mission-capability-heading" data-state={value.missionState}>
+          <h3 id="mission-capability-heading">Mission</h3>
+          <strong>{value.missionLabel}</strong>
+          <p>{value.missionDetail}</p>
+        </section>
+        <section aria-labelledby="destination-capability-heading" data-state={value.destinationState}>
+          <h3 id="destination-capability-heading">Destination / travel</h3>
+          <strong title={value.destinationLabel}>{value.destinationLabel}</strong>
+          <p>{value.destinationDetail}</p>
+        </section>
+      </div>
+      {transition ? (
+        <button type="button" className="destination-transition" onClick={(event) => onSelect(transition.evidenceEventId, event.currentTarget, fallback)}>
+          <span><strong>{transition.label}</strong><small title={transition.destinationLabel}>{transition.destinationLabel}</small></span>
+          <span><time title={formatInstantContext(transition.observedAt)}>{transition.freshnessLabel}</time><small>Observed · Confidence {transition.confidence}</small></span>
+        </button>
+      ) : null}
+      <p className="party-limitation">{value.limitation} Raw telemetry stays on this device.</p>
+    </section>
   );
 }
 
