@@ -57,6 +57,7 @@ export interface RuntimeMonitorViewModel {
   streamEvents: StreamEvent[];
   retainedCount: number;
   sourceCandidates: readonly PublicRuntimeSource[];
+  headerTelemetry: readonly InstrumentState[];
   instruments: readonly InstrumentState[];
   party: PartyViewState;
   mission: MissionDestinationViewState;
@@ -175,6 +176,8 @@ export function createRuntimeMonitorViewModel(input: {
   const activityState = classifyActivity(lastObservedAt, input.now);
   const warningCount = countWarnings(state, scan);
 
+  const instruments = createInstruments(scan, input.now);
+
   return {
     workspaceState: state,
     source,
@@ -192,13 +195,16 @@ export function createRuntimeMonitorViewModel(input: {
     streamEvents,
     retainedCount: createAllEvents(scan).length,
     sourceCandidates: input.sources,
-    instruments: createInstruments(scan, input.now),
+    headerTelemetry: instruments.filter((instrument) => PROMOTED_INSTRUMENT_IDS.has(instrument.id)),
+    instruments: instruments.filter((instrument) => !PROMOTED_INSTRUMENT_IDS.has(instrument.id)),
     party: createPartyPanel(scan, input.now, state),
     mission: createMissionPanel(scan, input.now, state),
     alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null, input.snapshot?.monitor.storage || null),
     storageLabel: formatStorageLabel(input.snapshot?.monitor.storage || null)
   };
 }
+
+const PROMOTED_INSTRUMENT_IDS = new Set(['shard', 'server', 'pu-duration', 'application-duration']);
 
 export function classifyWorkspaceState(input: {
   loading: boolean;

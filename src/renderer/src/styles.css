@@ -169,7 +169,8 @@ h2,
   display: flex;
   gap: 0;
   align-items: stretch;
-  height: var(--header-height);
+  min-height: var(--header-height);
+  height: auto;
   padding: 0;
   border-bottom: 1px solid var(--border);
   background: var(--surface-chrome);
@@ -272,8 +273,10 @@ h2,
 .source-strip {
   gap: 0;
   min-width: 0;
-  flex: 1;
-  overflow: hidden;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-content: stretch;
+  overflow: visible;
 }
 
 .header-metric,
@@ -284,6 +287,31 @@ h2,
   border-left: 0;
   background: transparent;
   padding: 0 15px;
+  white-space: nowrap;
+}
+
+.header-telemetry-metric {
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.header-telemetry-metric:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.header-metric-detail {
+  max-width: 20ch;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1686,9 +1714,8 @@ input {
     padding-inline: 8px;
   }
 
-  .header-metric:nth-of-type(2),
-  .header-metric:nth-of-type(5) {
-    display: none;
+  .source-strip {
+    align-content: center;
   }
 
   .runtime-shell[data-has-detail="true"][data-detail-placement="right"] .runtime-main {
