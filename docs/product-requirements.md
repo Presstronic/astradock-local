@@ -852,7 +852,7 @@ Current evidence does not justify presenting exact player position, shard popula
 
 The approved interim shell includes:
 
-- A persistent environment/source/status header.
+- A persistent environment/source/status header. On the product-logo row, shard and friendly region, PU replication connection, PU duration, and application duration shall be added immediately after the existing Source field, in that order. They are peer fields in the same header information strip as Source health, Last activity, Parser, and Source—not a separately styled telemetry strip—and shall match that existing treatment's box structure, label/value hierarchy, density, alignment, and state behavior. These promoted values shall not be duplicated in the current-state rail.
 - Tabs for Runtime Monitor plus visible but unavailable post-MVP Data Operations and History & Analytics areas.
 - A compact current-state rail with dedicated Instruments, Party, and Mission sections.
 - A prioritized warning/attention area that appears only when actionable.
@@ -880,6 +880,10 @@ The cluster shall prioritize:
 - Current mission state when direct evidence exists.
 - Session/connection duration and monitor freshness.
 - Active critical warnings requiring attention.
+
+Shard and friendly region, PU replication connection, PU duration, and application duration are promoted from the rail's generic instrument group into the persistent header. They remain current-state projections governed by this instrument contract, including state, freshness, provenance, confidence, supporting evidence, and shared-drilldown behavior. This placement change does not merge shard identity with replication-connection identity, and it does not make endpoint or exact start-time diagnostics default header content.
+
+Within the existing header information strip, shard and region are one paired field. PU replication connection, PU duration, and application duration are three separate fields. Their left-to-right order follows that sequence after Source. The new fields must be visually indistinguishable in component treatment from the existing Source health, Last activity, Parser, and Source fields; only their labels, values, semantic states, and field widths may differ. Labels and values must remain understandable without color, must not collapse `Unknown`, `Transitioning`, `Disconnected`, `Stale`, or `Unsupported` into an empty value, and may expose exact or diagnostic detail through the existing shared drilldown.
 
 Party and Mission shall have dedicated live sections rather than being represented only as generic status instruments:
 
