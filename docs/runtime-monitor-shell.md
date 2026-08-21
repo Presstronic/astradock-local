@@ -50,8 +50,8 @@ The renderer does not import Node.js, Electron, filesystem modules, package mana
 
 The shell opens directly to Runtime Monitor and includes:
 
-- Header landmark with product/workspace name, active Runtime Monitor tab, unavailable post-MVP workspace controls, monitor state, environment, build, freshness, optional warning count, and global monitor actions.
-- Current-state rail with source health, current-state instruments, dedicated Party section, and dedicated Mission section.
+- Header landmark with product/workspace name, active Runtime Monitor tab, unavailable post-MVP workspace controls, monitor state, environment, build, freshness, optional warning count, and global monitor actions. On the product-logo row, the existing header information strip retains Source health, Last activity, Parser, and Source, then adds peer fields for shard and region (paired), PU replication connection, PU duration, and application duration in that order. The added fields reuse the existing header metric treatment exactly: the same box structure, label/value hierarchy, density, alignment, typography roles, borders/background, and interaction states. They are not a separately styled telemetry group.
+- Current-state rail with the remaining current-state instruments, dedicated Party section, and dedicated Mission section. Header information fields are not duplicated in the rail.
 - Stream workspace with Terminal/Table view switch, density control, per-view drawer placement control, bounded literal search, result count, attention/warnings region, and empty state.
 - Shared detail dock for stream rows, instruments, Party, Mission, and alerts. The current implementation supports right and bottom push placements and preserves the stored placement preference separately for Terminal and Table.
 - Status bar with monitor state, local-only indicator, bounded stream statement, search/filter state, alert state, and local view preference state.
@@ -122,6 +122,9 @@ Unknown values render as `Unknown`; unsupported values render as `Unsupported`; 
 - Environment values render as uppercase channel labels plus environment/build detail when available.
 - Build values remain opaque strings.
 - Freshness renders as compact elapsed duration and preserves exact timestamp in the header metric `title`.
+- Shard and region share one header box but remain separately labeled values: the opaque shard label and uppercase friendly-region enum or `Unknown`.
+- PU replication connection uses an explicit text state such as `Connecting`, `Connected`, `Disconnected`, `Unknown`, `Stale`, or `Unsupported`; endpoint and port remain available only in permitted detail.
+- PU and application durations use monotonic compact duration formatting while active. An unavailable start boundary renders an explicit semantic state rather than a fabricated zero; exact start timestamps remain in detail.
 - Warning count renders only when non-zero.
 - Stream rows use immutable renderer evidence IDs for selection.
 - Terminal and Table consume the shared event-stream contract in [`shared-event-stream.md`](shared-event-stream.md). Rendering is bounded to 80 rows by default and 200 at most, while query, selection, browse anchor, unseen count, and live/replay health mode remain shared across views.
@@ -139,7 +142,7 @@ Implemented shell semantics include:
 - Terminal view uses listbox/option semantics; Table view uses native table semantics.
 - Detail opening moves focus to the detail heading and close restores focus to the initiating control.
 - Reduced-motion media query disables transitions/animations.
-- Minimum effective window contract is aligned to `1024x640`; `1280x720` and larger use the full shell layout. Compact responsive layout moves the detail dock to the bottom when right dock space would be constrained.
+- Minimum effective window contract is aligned to `1024x640`; `1280x720` and larger use the full shell layout. Compact responsive layout moves the detail dock to the bottom when right dock space would be constrained. At compact widths or supported text scaling, the existing header information strip may wrap or move to additional header rows while preserving field order, all existing and promoted values, keyboard order, readable labels, and access to detail. The promoted fields must continue to use the same treatment as Source health, Last activity, Parser, and Source; they must not overlap, silently disappear, become a visually separate panel, or return to the rail as duplicates.
 
 Full release accessibility qualification remains tracked by #46, and the automated coverage deferred from this implementation is tracked by #67.
 
