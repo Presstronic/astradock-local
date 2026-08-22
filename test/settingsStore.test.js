@@ -20,7 +20,7 @@ test('settings store persists supported local preferences and retention', async 
   assert.equal(saved.streamView, 'table');
   assert.equal(saved.retentionDays, 14);
   assert.deepEqual(await loadRendererSettings(filePath), saved);
-  assert.equal((await fs.stat(filePath)).mode & 0o777, 0o600);
+  if (process.platform !== 'win32') assert.equal((await fs.stat(filePath)).mode & 0o777, 0o600);
 });
 
 test('invalid, unknown, and corrupt settings fall back to least-sensitive defaults', async () => {
