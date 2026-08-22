@@ -1078,6 +1078,17 @@ input {
   font-size: 11px;
 }
 
+/* Filter selects are compact stream chrome, not body-sized form fields. */
+.search-control select {
+  min-width: 112px;
+  max-width: 170px;
+  padding: 4px 22px 4px 8px;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 16px;
+}
+
 .toolbar-spacer {
   flex: 1;
 }
