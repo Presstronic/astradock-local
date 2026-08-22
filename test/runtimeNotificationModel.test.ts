@@ -5,7 +5,9 @@ import {
   MAX_VISIBLE_NOTIFICATIONS,
   NOTIFICATION_EXIT_DURATION_MS,
   reconcileNotificationStack,
-  setNotificationPaused
+  setNotificationPaused,
+  createAlertLifecycleState,
+  reconcileAlertLifecycle
 } from '../src/renderer/src/runtime-notification-model';
 
 const alert = (id: string, severity: 'warning' | 'critical' = 'warning', lifetime: 'persistent' | 'transient' = 'persistent') => ({
@@ -50,5 +52,14 @@ describe('runtime notification presentation lifecycle', () => {
     expect(getTransientDuration('short')).toBeGreaterThanOrEqual(5_000);
     expect(getTransientDuration('x'.repeat(10_000))).toBeLessThanOrEqual(12_000);
     expect(MAX_VISIBLE_NOTIFICATIONS).toBe(4);
+  });
+
+  it('creates one active alert per semantic transition and records clears', () => {
+    const initial = reconcileAlertLifecycle(createAlertLifecycleState(), [alert('disconnect')]);
+    const repeated = reconcileAlertLifecycle(initial, [alert('disconnect')]);
+    expect(Object.keys(repeated.active)).toEqual(['disconnect']);
+    const cleared = reconcileAlertLifecycle(repeated, []);
+    expect(cleared.active).toEqual({});
+    expect(cleared.history).toEqual([expect.objectContaining({ id: 'disconnect', state: 'cleared' })]);
   });
 });

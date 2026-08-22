@@ -85,4 +85,26 @@ describe('shared event stream model', () => {
     state = pageStreamWindow(state, 'newer');
     expect(state).toMatchObject({ mode: 'live', windowStart: 0 });
   });
+
+  it('applies literal operational filters to the shared query', () => {
+    const party = event('party', 4);
+    party.kind = 'party';
+    party.row = { ...party.row, shardId: 'S1', endpoint: 'server-a', provenance: 'observed', eventCategory: 'party' };
+    const diagnostic = event('diagnostic', 3);
+    diagnostic.kind = 'diagnostic';
+    diagnostic.confidence = 'low';
+    diagnostic.row = { ...diagnostic.row, shardId: 'S1', endpoint: 'server-b', provenance: 'inferred' };
+    let state = reconcileStreamEvents(createSharedEventStreamState(), [party, diagnostic], 'ready', true);
+    state = updateStreamQuery(state, {
+      shard: 'S1', server: 'server-a', party: 'involved', provenance: 'observed', confidence: 'high', diagnostics: 'hide', search: 'PARTY'
+    });
+    expect(state.events.map(({ id }) => id)).toEqual(['party']);
+    expect(updateStreamQuery(state, { search: '.*' }).events).toEqual([]);
+  });
+
+  it('does not execute regex and bounds pathological search work', () => {
+    let state = reconcileStreamEvents(createSharedEventStreamState(), [event('a', 1)], 'ready', true);
+    state = updateStreamQuery(state, { search: 'a'.repeat(10_000) });
+    expect(state.events).toEqual([]);
+  });
 });

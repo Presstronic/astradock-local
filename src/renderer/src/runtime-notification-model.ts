@@ -7,6 +7,9 @@ export interface AlertState {
   title: string;
   message: string;
   lifetime: NotificationLifetime;
+  evidenceEventId?: string | null;
+  reason?: string;
+  state?: 'active' | 'cleared' | 'acknowledged';
 }
 
 export const MAX_VISIBLE_NOTIFICATIONS = 4;
@@ -25,6 +28,27 @@ export interface NotificationStackState {
   entries: NotificationEntry[];
   overflowCount: number;
   dismissed: Record<string, string>;
+}
+
+export interface AlertLifecycleState {
+  active: Record<string, AlertState>;
+  history: AlertState[];
+}
+
+export function createAlertLifecycleState(): AlertLifecycleState {
+  return { active: {}, history: [] };
+}
+
+/** Reconciles semantic conditions, so repeated physical lines do not repeat alerts. */
+export function reconcileAlertLifecycle(previous: AlertLifecycleState, incoming: readonly AlertState[]): AlertLifecycleState {
+  const nextActive: Record<string, AlertState> = {};
+  const incomingIds = new Set(incoming.map((alert) => alert.id));
+  const history = [...previous.history];
+  for (const [id, prior] of Object.entries(previous.active)) {
+    if (!incomingIds.has(id)) history.push({ ...prior, state: 'cleared' });
+  }
+  for (const alert of incoming) nextActive[alert.id] = { ...alert, state: 'active' };
+  return { active: nextActive, history: history.slice(-200) };
 }
 
 export function createNotificationStackState(): NotificationStackState {

@@ -6,6 +6,14 @@ export interface StreamQuery {
   environmentKey: string | null;
   sessionId: string | null;
   search: string;
+  kinds: readonly StreamEvent['kind'][];
+  shard: string | null;
+  server: string | null;
+  party: 'any' | 'involved' | 'not-involved';
+  provenance: string | null;
+  confidence: string | null;
+  diagnostics: 'show' | 'hide' | 'only';
+  since: string | null;
 }
 
 export interface StreamAnchor {
@@ -38,7 +46,7 @@ export function createSharedEventStreamState(options: {
   query?: Partial<StreamQuery>;
 } = {}): SharedEventStreamState {
   return {
-    query: { environmentKey: null, sessionId: null, search: '', ...options.query },
+    query: { environmentKey: null, sessionId: null, search: '', kinds: [], shard: null, server: null, party: 'any', provenance: null, confidence: null, diagnostics: 'show', since: null, ...options.query },
     view: options.view || 'terminal',
     mode: 'replay',
     sourceEvents: [],
@@ -152,15 +160,53 @@ export function getStreamWindow(state: SharedEventStreamState): readonly StreamE
 }
 
 function filterAndOrder(events: readonly StreamEvent[], query: StreamQuery): StreamEvent[] {
-  const term = query.search.trim().toLowerCase();
+  const term = query.search.trim().slice(0, MAX_SEARCH_LENGTH).toLowerCase();
   return deduplicateAndOrder(events.filter((event) => {
     if (query.environmentKey && event.row.environmentKey !== query.environmentKey) return false;
     const sessionId = typeof event.row.sessionId === 'string' ? event.row.sessionId : null;
     if (query.sessionId && sessionId !== query.sessionId) return false;
+    if (query.kinds.length && !query.kinds.includes(event.kind)) return false;
+    if (query.shard && !matchesField(event.row, query.shard, ['shardId', 'shardName', 'region'])) return false;
+    if (query.server && !matchesField(event.row, query.server, ['server', 'serverId', 'endpoint', 'host', 'address'])) return false;
+    const partyEvent = event.kind === 'party' || event.row.eventCategory === 'party' || Boolean(event.row.partyId);
+    if (query.party === 'involved' && !partyEvent) return false;
+    if (query.party === 'not-involved' && partyEvent) return false;
+    if (query.provenance && String(event.row.provenance || '').toLowerCase() !== query.provenance.toLowerCase()) return false;
+    if (query.confidence && event.confidence.toLowerCase() !== query.confidence.toLowerCase()) return false;
+    if (query.diagnostics === 'only' && event.kind !== 'diagnostic') return false;
+    if (query.diagnostics === 'hide' && event.kind === 'diagnostic') return false;
+    if (query.since && (!event.timestamp || event.timestamp < query.since)) return false;
     if (term && ![event.kind, event.summary, event.context, event.environment, event.confidence]
       .some((value) => value.toLowerCase().includes(term))) return false;
     return true;
   }));
+}
+
+export const MAX_SEARCH_LENGTH = 160;
+
+function matchesField(row: StreamEvent['row'], expected: string, fields: readonly string[]): boolean {
+  const wanted = expected.toLowerCase();
+  return fields.some((field) => String(row[field] ?? '').toLowerCase() === wanted);
+}
+
+export function getStreamFilterCounts(state: SharedEventStreamState): {
+  kinds: Record<string, number>;
+  shards: Record<string, number>;
+  servers: Record<string, number>;
+} {
+  const counts = { kinds: {} as Record<string, number>, shards: {} as Record<string, number>, servers: {} as Record<string, number> };
+  for (const event of state.sourceEvents) {
+    counts.kinds[event.kind] = (counts.kinds[event.kind] || 0) + 1;
+    for (const field of ['shardId', 'shardName', 'region']) {
+      const value = String(event.row[field] ?? '');
+      if (value) counts.shards[value] = (counts.shards[value] || 0) + 1;
+    }
+    for (const field of ['server', 'serverId', 'endpoint', 'host', 'address']) {
+      const value = String(event.row[field] ?? '');
+      if (value) counts.servers[value] = (counts.servers[value] || 0) + 1;
+    }
+  }
+  return counts;
 }
 
 function deduplicateAndOrder(events: readonly StreamEvent[]): StreamEvent[] {

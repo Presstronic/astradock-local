@@ -76,6 +76,16 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [now, setNow] = useState<Date>(() => clock());
   const [search, setSearch] = useState('');
+  const [streamFilters, setStreamFilters] = useState<{
+    kind: StreamEvent['kind'] | 'all';
+    party: 'any' | 'involved' | 'not-involved';
+    provenance: string;
+    confidence: string;
+    diagnostics: 'show' | 'hide' | 'only';
+    sessionId: string;
+    shard: string;
+    server: string;
+  }>({ kind: 'all', party: 'any', provenance: 'all', confidence: 'all', diagnostics: 'show', sessionId: 'all', shard: 'all', server: 'all' });
   const [eventStream, setEventStream] = useState(() => createSharedEventStreamState({ view: preferences.streamView }));
   const [selected, setSelected] = useState<StreamEvent | null>(null);
   const [partyAnnouncement, setPartyAnnouncement] = useState('');
@@ -175,8 +185,18 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   }, [snapshot?.monitor.active, viewModel.streamEvents, viewModel.workspaceState]);
 
   useEffect(() => {
-    setEventStream((current) => updateStreamQuery(current, { search }));
-  }, [search]);
+    setEventStream((current) => updateStreamQuery(current, {
+      search,
+      kinds: streamFilters.kind === 'all' ? [] : [streamFilters.kind],
+      party: streamFilters.party,
+      provenance: streamFilters.provenance === 'all' ? null : streamFilters.provenance,
+      confidence: streamFilters.confidence === 'all' ? null : streamFilters.confidence,
+      diagnostics: streamFilters.diagnostics,
+      sessionId: streamFilters.sessionId === 'all' ? null : streamFilters.sessionId,
+      shard: streamFilters.shard === 'all' ? null : streamFilters.shard,
+      server: streamFilters.server === 'all' ? null : streamFilters.server
+    }));
+  }, [search, streamFilters]);
 
   useEffect(() => {
     const latest = viewModel.party.transitions[0];
@@ -205,6 +225,15 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   }, [viewModel.mission.transition]);
 
   const visibleEvents = useMemo(() => getStreamWindow(eventStream), [eventStream]);
+  const filterValues = useMemo(() => {
+    const unique = (values: string[]) => [...new Set(values.filter(Boolean))].sort();
+    return {
+      sessions: unique(eventStream.sourceEvents.map((event) => typeof event.row.sessionId === 'string' ? event.row.sessionId : '')),
+      shards: unique(eventStream.sourceEvents.flatMap((event) => ['shardId', 'shardName', 'region'].map((field) => String(event.row[field] ?? '')))),
+      servers: unique(eventStream.sourceEvents.flatMap((event) => ['server', 'serverId', 'endpoint', 'host', 'address'].map((field) => String(event.row[field] ?? '')))),
+      provenances: unique(eventStream.sourceEvents.map((event) => String(event.row.provenance ?? '')))
+    };
+  }, [eventStream.sourceEvents]);
 
   const currentDensity = preferences.streamView === 'terminal' ? preferences.terminalDensity : preferences.tableDensity;
   const storedPlacement = preferences.streamView === 'terminal' ? preferences.terminalDrawer : preferences.tableDrawer;
@@ -455,8 +484,25 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
               </div>
               <label className="search-control">
                 <span>Search</span>
-                <input value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="literal match" />
+                <input value={search} maxLength={160} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="literal match" aria-describedby="stream-filter-status" />
               </label>
+              <label className="search-control"><span>Kind</span><select value={streamFilters.kind} onChange={(event) => setStreamFilters((current) => ({ ...current, kind: event.currentTarget.value as typeof current.kind }))}>
+                <option value="all">All event kinds</option>
+                {(['shard', 'action', 'session', 'party', 'zone', 'vehicle', 'navigation', 'runtime', 'diagnostic'] as const).map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+              </select></label>
+              <label className="search-control"><span>Party</span><select value={streamFilters.party} onChange={(event) => setStreamFilters((current) => ({ ...current, party: event.currentTarget.value as typeof current.party }))}>
+                <option value="any">Any party context</option><option value="involved">Party involved</option><option value="not-involved">No party context</option>
+              </select></label>
+              <label className="search-control"><span>Confidence</span><select value={streamFilters.confidence} onChange={(event) => setStreamFilters((current) => ({ ...current, confidence: event.currentTarget.value }))}>
+                <option value="all">Any confidence</option>{['confirmed', 'high', 'medium', 'low', 'unknown'].map((value) => <option key={value} value={value}>{value}</option>)}
+              </select></label>
+              <label className="search-control"><span>Diagnostics</span><select value={streamFilters.diagnostics} onChange={(event) => setStreamFilters((current) => ({ ...current, diagnostics: event.currentTarget.value as typeof current.diagnostics }))}>
+                <option value="show">Include diagnostics</option><option value="hide">Hide diagnostics</option><option value="only">Diagnostics only</option>
+              </select></label>
+              <label className="search-control"><span>Session</span><select value={streamFilters.sessionId} onChange={(event) => setStreamFilters((current) => ({ ...current, sessionId: event.currentTarget.value }))}><option value="all">All sessions</option>{filterValues.sessions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+              <label className="search-control"><span>Shard</span><select value={streamFilters.shard} onChange={(event) => setStreamFilters((current) => ({ ...current, shard: event.currentTarget.value }))}><option value="all">All shards</option>{filterValues.shards.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+              <label className="search-control"><span>Server</span><select value={streamFilters.server} onChange={(event) => setStreamFilters((current) => ({ ...current, server: event.currentTarget.value }))}><option value="all">All servers</option>{filterValues.servers.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+              <label className="search-control"><span>Provenance</span><select value={streamFilters.provenance} onChange={(event) => setStreamFilters((current) => ({ ...current, provenance: event.currentTarget.value }))}><option value="all">All provenance</option>{filterValues.provenances.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
               <span className="toolbar-spacer" />
               <div className="control-cluster"><span>Rows</span><div className="segmented" role="group" aria-label="Row density">
                 {(['compact', 'default', 'relaxed'] as const).map((density) => (
@@ -484,7 +530,13 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             </div>
           </div>
 
-          <RuntimeNotificationStack alerts={viewModel.alerts} />
+          <RuntimeNotificationStack
+            alerts={viewModel.alerts}
+            onEvidence={(eventId) => {
+              const event = viewModel.streamEvents.find((candidate) => candidate.id === eventId);
+              if (event) void openEvidence(event, null);
+            }}
+          />
 
           <div className="stream-mode" aria-live="polite">
             <span><i data-state={viewModel.workspaceState} />{formatStreamMode(eventStream.mode)}</span>
@@ -498,6 +550,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
                 if (anchor) setEventStream((current) => browseFrom(current, anchor.id));
               }}>Browse older</button>
             ) : null}
+            <span id="stream-filter-status" role="status">{eventStream.totalCount} matching events in the active environment</span>
           </div>
 
           {preferences.streamView === 'terminal' ? (
