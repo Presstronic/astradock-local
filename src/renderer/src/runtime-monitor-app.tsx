@@ -38,6 +38,7 @@ import {
   updateStreamQuery
 } from './shared-event-stream-model';
 import { formatInstantContext, formatLocalClock } from './time';
+import { formatTerminalEvent } from './terminal-event-format';
 
 interface RuntimeMonitorAppProps {
   client: RuntimeMonitorClient;
@@ -554,9 +555,19 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           </div>
 
           {preferences.streamView === 'terminal' ? (
-            <TerminalStream events={visibleEvents} emptyReason={search ? 'no-matches' : 'no-telemetry'} selectedId={selected?.id || null} onSelect={openEvidence} />
+            <TerminalStream
+              events={visibleEvents}
+              emptyReason={eventStream.sourceEvents.length === 0 ? 'no-telemetry' : 'no-matches'}
+              selectedId={selected?.id || null}
+              onSelect={openEvidence}
+            />
           ) : (
-            <TableStream events={visibleEvents} emptyReason={search ? 'no-matches' : 'no-telemetry'} selectedId={selected?.id || null} onSelect={openEvidence} />
+            <TableStream
+              events={visibleEvents}
+              emptyReason={eventStream.sourceEvents.length === 0 ? 'no-telemetry' : 'no-matches'}
+              selectedId={selected?.id || null}
+              onSelect={openEvidence}
+            />
           )}
 
           <footer className="status-bar" aria-label="Runtime Monitor status">
@@ -638,28 +649,61 @@ function TerminalStream({
   selectedId: string | null;
   onSelect: (event: StreamEvent, trigger: HTMLElement | null) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
   if (events.length === 0) return <EmptyStream reason={emptyReason} />;
+  const activeIndex = Math.max(0, selectedId ? events.findIndex((event) => event.id === selectedId) : 0);
+  const activeEventId = events[activeIndex]?.id;
+
+  function moveSelection(index: number) {
+    const event = events[Math.max(0, Math.min(index, events.length - 1))];
+    if (!event) return;
+    onSelect(event, null);
+    window.requestAnimationFrame(() => document.getElementById(`terminal-event-${CSS.escape(event.id)}`)?.focus());
+  }
+
   return (
-    <div className="terminal-stream" role="listbox" aria-label="Terminal runtime events">
-      {events.map((event) => (
+    <div
+      ref={listRef}
+      className="terminal-stream"
+      role="listbox"
+      aria-label="Terminal runtime events"
+      aria-activedescendant={activeEventId ? `terminal-event-${CSS.escape(activeEventId)}` : undefined}
+      tabIndex={0}
+      onKeyDown={(keyboardEvent) => {
+        if (keyboardEvent.key === 'ArrowDown') { keyboardEvent.preventDefault(); moveSelection(activeIndex + 1); }
+        if (keyboardEvent.key === 'ArrowUp') { keyboardEvent.preventDefault(); moveSelection(activeIndex - 1); }
+        if (keyboardEvent.key === 'Home') { keyboardEvent.preventDefault(); moveSelection(0); }
+        if (keyboardEvent.key === 'End') { keyboardEvent.preventDefault(); moveSelection(events.length - 1); }
+        if ((keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') && events[activeIndex]) {
+          keyboardEvent.preventDefault(); onSelect(events[activeIndex], listRef.current);
+        }
+      }}
+    >
+      {events.map((event) => {
+        const line = formatTerminalEvent(event);
+        return (
         <button
           type="button"
           role="option"
+          id={`terminal-event-${CSS.escape(event.id)}`}
+          tabIndex={-1}
           aria-selected={event.id === selectedId}
+          aria-label={line.accessibleLabel}
           className="terminal-row"
           data-kind={event.kind}
           data-urgency={event.urgency}
           key={event.id}
           onClick={(domEvent) => void onSelect(event, domEvent.currentTarget)}
         >
-          <span className="mono time" title={formatInstantContext(event.timestamp)} aria-label={formatInstantContext(event.timestamp)}>{formatLocalClock(event.timestamp)}</span>
-          <span className="kind-tag">{event.kind}</span>
-          <span className="urgency-mark" aria-label={`Urgency ${event.urgency}`}>{event.urgency === 'normal' ? '·' : event.urgency === 'warning' ? '▲' : '■'}</span>
-          <strong>{event.summary}</strong>
-          <span>{event.context}</span>
-          <span className="confidence">{event.confidence}</span>
+          <span className="mono time" title={line.timeLabel}>{line.time}</span>
+          <span className="kind-tag">{line.kind}</span>
+          <span className="urgency-mark" aria-label={`Urgency ${line.urgency}`}>{event.urgency === 'normal' ? '·' : event.urgency === 'warning' ? '▲' : '■'} <span className="visually-hidden">{line.urgency}</span></span>
+          <strong title={line.summary}>{line.summary}</strong>
+          <span title={line.context}>{line.context}</span>
+          <span className="confidence" title={line.qualification}>{line.qualification}</span>
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }
