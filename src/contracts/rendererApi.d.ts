@@ -460,19 +460,42 @@ export interface EventPage {
 }
 
 export interface EvidenceDetailRequest {
-  kind: 'shard' | 'action' | 'session' | 'runtime';
-  id: string;
+  environmentKey: string;
+  eventId: string;
 }
 
 export interface EvidenceDetail {
   kind: 'shard' | 'action' | 'session' | 'runtime';
-  id: string;
-  sensitivity: 'local';
+  eventId: string;
+  eventType: string;
+  summary: string;
+  sourceTimestamp: string | null;
+  ingestedAt: string | null;
+  environmentKey: string;
+  gameChannel: string | null;
+  gameBuild: string | null;
+  sessionId: string | null;
+  provenance: string;
+  confidence: string;
+  sensitivity: 'public' | 'local' | 'personal' | 'social' | 'secret';
+  parserVersion: string | null;
+  sourceProfileVersion: string | null;
+  payload: Readonly<Record<string, unknown>>;
+  correlations: Readonly<Record<string, string>>;
+  retention: 'retained' | 'removed' | 'unknown';
   evidence: {
+    availability: 'available' | 'redacted' | 'unsupported' | 'removed';
     rawContext: readonly string[];
+    markers: readonly string[];
     lineNumber: number | null;
     environmentKey: string | null;
   };
+  related: readonly {
+    eventId: string;
+    eventType: string;
+    relationship: 'contributor' | 'correlated';
+    sourceTimestamp: string | null;
+  }[];
 }
 
 export interface RendererSettings {

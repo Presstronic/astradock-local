@@ -69,6 +69,17 @@ describe('shared event stream model', () => {
     expect(reconcileStreamEvents(state, [], 'ready', false).mode).toBe('replay');
   });
 
+  it('counts only newly ingested immutable events after the selected event', () => {
+    let state = reconcileStreamEvents(createSharedEventStreamState(), [event('a', 1)], 'ready', true);
+    state = selectStreamEvent(state, 'a');
+    state = reconcileStreamEvents(state, [event('b', 2), event('a', 1)], 'ready', true);
+    expect(state.selectedEventId).toBe('a');
+    expect(state.eventsSinceSelection).toBe(1);
+    state = switchStreamView(state, 'table');
+    expect(state.eventsSinceSelection).toBe(1);
+    expect(selectStreamEvent(state, null).eventsSinceSelection).toBe(0);
+  });
+
   it('scopes one logical query by environment and session and clamps window size', () => {
     let state = createSharedEventStreamState({ windowSize: 10_000 });
     state = reconcileStreamEvents(state, [event('a', 1), event('b', 2, 'PTU:PU'), event('c', 3, 'LIVE:PU', 'session-b')], 'ready', true);

@@ -61,7 +61,7 @@ test('IPC boundary accepts only bounded monitor command payloads', () => {
   );
 });
 
-test('IPC boundary constrains event query pagination and evidence request kinds', () => {
+test('IPC boundary constrains event query pagination and environment-scoped evidence requests', () => {
   assert.deepEqual(validatePayload(CHANNELS.eventsQuery, {
     kind: 'actions',
     cursor: 10,
@@ -81,7 +81,18 @@ test('IPC boundary constrains event query pagination and evidence request kinds'
     /request payload/i
   );
   assert.throws(
-    () => validatePayload(CHANNELS.evidenceGet, { kind: 'file', id: 'x' }),
+    () => validatePayload(CHANNELS.evidenceGet, { environmentKey: 'LIVE:PU' }),
+    /request payload/i
+  );
+  assert.deepEqual(validatePayload(CHANNELS.evidenceGet, {
+    environmentKey: 'LIVE:PU',
+    eventId: 'runtime-event-1'
+  }), {
+    environmentKey: 'LIVE:PU',
+    eventId: 'runtime-event-1'
+  });
+  assert.throws(
+    () => validatePayload(CHANNELS.evidenceGet, { environmentKey: 'PTU:PU', eventId: 'x\ninvalid' }),
     /request payload/i
   );
 });

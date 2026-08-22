@@ -88,7 +88,6 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     server: string;
   }>({ kind: 'all', party: 'any', provenance: 'all', confidence: 'all', diagnostics: 'show', sessionId: 'all', shard: 'all', server: 'all' });
   const [eventStream, setEventStream] = useState(() => createSharedEventStreamState({ view: preferences.streamView }));
-  const [selected, setSelected] = useState<StreamEvent | null>(null);
   const [partyAnnouncement, setPartyAnnouncement] = useState('');
   const [destinationAnnouncement, setDestinationAnnouncement] = useState('');
   const [detail, setDetail] = useState<DetailState>({
@@ -99,6 +98,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   });
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
   const lastSelectionTrigger = useRef<HTMLElement | null>(null);
+  const detailRequest = useRef(0);
   const lastPartyTransitionId = useRef<string | null>(null);
   const lastDestinationTransitionId = useRef<string | null>(null);
 
@@ -169,6 +169,17 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     const timer = window.setInterval(() => setNow(clock()), 1_000);
     return () => window.clearInterval(timer);
   }, [clock]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && detail.status !== 'empty') {
+        event.preventDefault();
+        closeDetail();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [detail.status]);
 
   const viewModel = useMemo(() => createRuntimeMonitorViewModel({
     loading,
@@ -302,7 +313,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   }
 
   async function openEvidence(event: StreamEvent, trigger: HTMLElement | null) {
-    setSelected(event);
+    const requestNumber = ++detailRequest.current;
     setEventStream((current) => selectStreamEvent(current, event.id));
     lastSelectionTrigger.current = trigger;
     setDetail({
@@ -317,7 +328,11 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     if (!event.evidenceAvailable) return;
 
     try {
-      const evidence = await client.events.getEvidenceDetail({ kind: toEvidenceKind(event.kind), id: event.id });
+      const evidence = await client.events.getEvidenceDetail({
+        environmentKey: String(event.row.environmentKey || snapshot?.scan?.environmentKey || ''),
+        eventId: event.id
+      });
+      if (requestNumber !== detailRequest.current) return;
       setDetail({
         status: 'ready',
         selected: event,
@@ -325,8 +340,9 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         message: 'Permitted local evidence detail loaded.'
       });
     } catch (error) {
+      if (requestNumber !== detailRequest.current) return;
       setDetail({
-        status: 'not-found',
+        status: error && typeof error === 'object' && 'code' in error && error.code === 'evidence_not_found' ? 'retention-removed' : 'error',
         selected: event,
         detail: null,
         message: error instanceof Error ? error.message : 'Evidence detail is no longer retained.'
@@ -335,7 +351,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   }
 
   function closeDetail() {
-    setSelected(null);
+    detailRequest.current += 1;
     setEventStream((current) => selectStreamEvent(current, null));
     setDetail({
       status: 'empty',
@@ -558,14 +574,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             <TerminalStream
               events={visibleEvents}
               emptyReason={eventStream.sourceEvents.length === 0 ? 'no-telemetry' : 'no-matches'}
-              selectedId={selected?.id || null}
+              selectedId={eventStream.selectedEventId}
               onSelect={openEvidence}
             />
           ) : (
             <TableStream
               events={visibleEvents}
               emptyReason={eventStream.sourceEvents.length === 0 ? 'no-telemetry' : 'no-matches'}
-              selectedId={selected?.id || null}
+              selectedId={eventStream.selectedEventId}
               onSelect={openEvidence}
             />
           )}
@@ -595,6 +611,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         {eventStream.selectionUnavailable && detail.status !== 'empty' ? <p className="visually-hidden" role="status">Selected event is no longer available because it was removed by retention or the current filter.</p> : null}
         {detail.status !== 'empty' ? <DetailDock
           detail={detail}
+          eventsSinceSelection={eventStream.eventsSinceSelection}
+          onRelated={(eventId) => void openRelatedEvidence(eventId)}
           placement={effectivePlacement}
           storedPlacement={storedPlacement}
           headingRef={detailHeadingRef}
@@ -622,7 +640,6 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
   function openPartyFallback(message: string, trigger: HTMLElement) {
     lastSelectionTrigger.current = trigger;
-    setSelected(null);
     setEventStream((current) => selectStreamEvent(current, null));
     setDetail({
       status: 'retention-removed',
@@ -631,6 +648,30 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       message
     });
     window.requestAnimationFrame(() => detailHeadingRef.current?.focus());
+  }
+
+  async function openRelatedEvidence(eventId: string) {
+    const environmentKey = detail.detail?.environmentKey || snapshot?.scan?.environmentKey || '';
+    if (!environmentKey) return;
+    try {
+      const related = await client.events.getEvidenceDetail({ environmentKey, eventId });
+      await openEvidence({
+        id: related.eventId,
+        kind: related.kind === 'shard' || related.kind === 'action' || related.kind === 'session' ? related.kind : 'runtime',
+        urgency: 'normal',
+        summary: related.summary,
+        context: related.eventType,
+        environment: related.environmentKey,
+        timestamp: related.sourceTimestamp,
+        ageLabel: 'selected',
+        confidence: related.confidence,
+        evidenceAvailable: related.evidence.availability === 'available',
+        sourceLine: related.evidence.lineNumber,
+        row: { id: related.eventId, eventId: related.eventId, environmentKey: related.environmentKey, evidenceAvailable: related.evidence.availability === 'available' }
+      }, null);
+    } catch (error) {
+      setDetail((current) => ({ ...current, status: 'error', message: error instanceof Error ? error.message : 'Related event detail could not be loaded.' }));
+    }
   }
 }
 
@@ -739,12 +780,16 @@ function TableStream({
 
 function DetailDock({
   detail,
+  eventsSinceSelection,
+  onRelated,
   placement,
   storedPlacement,
   headingRef,
   onClose
 }: {
   detail: DetailState;
+  eventsSinceSelection: number;
+  onRelated: (eventId: string) => void;
   placement: DrawerPlacement;
   storedPlacement: DrawerPlacement;
   headingRef: RefObject<HTMLHeadingElement | null>;
@@ -763,6 +808,7 @@ function DetailDock({
       </div>
       {placement !== storedPlacement ? <p className="placement-note">Temporary responsive placement. Stored preference is preserved.</p> : null}
       <StateMessage status={detail.status} message={detail.message} />
+      {detail.status !== 'empty' && detail.selected ? <p className="selection-age" role="status">{eventsSinceSelection} events since selection</p> : null}
       {detail.selected ? (
         <dl className="detail-facts">
           <div><dt>Event ID</dt><dd>{detail.selected.id}</dd></div>
@@ -773,7 +819,17 @@ function DetailDock({
         </dl>
       ) : null}
       {detail.detail ? (
-        <pre className="evidence-block">{detail.detail.evidence.rawContext.join('\n') || 'No retained raw context for this event.'}</pre>
+        <>
+          <dl className="detail-facts">
+            <div><dt>Source</dt><dd>{detail.detail.provenance} · {detail.detail.confidence}</dd></div>
+            <div><dt>Build</dt><dd>{detail.detail.gameBuild || 'Unknown'} · {detail.detail.gameChannel || 'Unknown'}</dd></div>
+            <div><dt>Payload</dt><dd><code>{JSON.stringify(detail.detail.payload)}</code></dd></div>
+            <div><dt>Correlations</dt><dd>{Object.entries(detail.detail.correlations).map(([key, value]) => `${key}: ${value}`).join(' · ') || 'None'}</dd></div>
+          </dl>
+          <h3>Evidence · {detail.detail.evidence.availability}</h3>
+          <pre className="evidence-block">{detail.detail.evidence.rawContext.join('\n') || 'No retained raw context for this event.'}</pre>
+          {detail.detail.related.length ? <div className="related-events"><h3>Related events</h3>{detail.detail.related.map((related) => <button type="button" key={related.eventId} onClick={() => onRelated(related.eventId)}>{related.relationship}: {related.eventType} · {related.eventId}</button>)}</div> : null}
+        </>
       ) : null}
     </aside>
   );
@@ -995,12 +1051,6 @@ function HeaderTelemetryMetric({
       <span className="header-metric-detail">{instrument.detail}</span>
     </button>
   );
-}
-
-function toEvidenceKind(kind: StreamEvent['kind']): 'shard' | 'action' | 'session' | 'runtime' {
-  if (kind === 'action' || kind === 'session') return kind;
-  if (kind === 'party' || kind === 'zone' || kind === 'vehicle' || kind === 'navigation' || kind === 'runtime') return 'runtime';
-  return 'shard';
 }
 
 function upsertSource(current: PublicRuntimeSource[], source: PublicRuntimeSource): PublicRuntimeSource[] {

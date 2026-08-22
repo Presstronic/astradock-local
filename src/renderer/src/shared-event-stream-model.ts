@@ -29,6 +29,7 @@ export interface SharedEventStreamState {
   events: readonly StreamEvent[];
   selectedEventId: string | null;
   selectionUnavailable: boolean;
+  eventsSinceSelection: number;
   anchor: StreamAnchor | null;
   unseenCount: number;
   windowStart: number;
@@ -53,6 +54,7 @@ export function createSharedEventStreamState(options: {
     events: [],
     selectedEventId: null,
     selectionUnavailable: false,
+    eventsSinceSelection: 0,
     anchor: null,
     unseenCount: 0,
     windowStart: 0,
@@ -88,6 +90,7 @@ export function reconcileStreamEvents(
     events,
     mode: following && mode === 'replay' ? 'live' : mode,
     selectionUnavailable: selectedRemoved || (state.selectionUnavailable && Boolean(state.selectedEventId)),
+    eventsSinceSelection: state.selectedEventId ? state.eventsSinceSelection + appended : 0,
     unseenCount: following ? 0 : state.unseenCount + appended,
     windowStart,
     totalCount: events.length,
@@ -131,7 +134,8 @@ export function selectStreamEvent(state: SharedEventStreamState, eventId: string
   return {
     ...state,
     selectedEventId: eventId,
-    selectionUnavailable: Boolean(eventId && !state.events.some((event) => event.id === eventId))
+    selectionUnavailable: Boolean(eventId && !state.events.some((event) => event.id === eventId)),
+    eventsSinceSelection: eventId ? 0 : 0
   };
 }
 

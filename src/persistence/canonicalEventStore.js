@@ -247,6 +247,20 @@ class CanonicalEventStore {
     return row ? deserializeRuntimeEvent(row.serialized_event) : null;
   }
 
+  getRelated(event, options = {}) {
+    this.assertOpen();
+    const limit = Math.min(Number.isSafeInteger(options.limit) && options.limit > 0 ? options.limit : 20, 50);
+    const page = this.query({ environmentKey: event.environmentKey, limit: 200 }).items;
+    const correlationIds = new Set(Object.values(event.correlationIds || {}).filter(Boolean));
+    const contributors = new Set(event.derivation?.contributingEventIds || []);
+    return page
+      .filter((candidate) => candidate.eventId !== event.eventId)
+      .filter((candidate) => contributors.has(candidate.eventId)
+        || Object.values(candidate.correlationIds || {}).some((value) => correlationIds.has(value)))
+      .sort((left, right) => String(right.sourceTimestamp || '').localeCompare(String(left.sourceTimestamp || '')) || left.eventId.localeCompare(right.eventId))
+      .slice(0, limit);
+  }
+
   applyRetention(options = {}) {
     this.assertOpen();
     if (this.readonly) throw new CanonicalEventStoreError('store_readonly', 'Canonical event store is read-only.');
