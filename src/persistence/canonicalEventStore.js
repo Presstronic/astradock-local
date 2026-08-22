@@ -287,6 +287,25 @@ class CanonicalEventStore {
     })();
   }
 
+  deleteSensitiveEvidence() {
+    this.assertOpen();
+    this.assertWritable();
+    return this.database.transaction(() => {
+      this.database.prepare('DELETE FROM checkpoints WHERE environment_key IN (SELECT DISTINCT environment_key FROM events WHERE sensitivity IN (\'personal\', \'social\', \'secret\'))').run();
+      return this.database.prepare("DELETE FROM events WHERE sensitivity IN ('personal', 'social', 'secret')").run().changes;
+    })();
+  }
+
+  getStorageSummary() {
+    this.assertOpen();
+    const health = this.getHealth();
+    const bySensitivity = this.database.prepare('SELECT sensitivity, count(*) AS count FROM events GROUP BY sensitivity').all();
+    return {
+      ...health,
+      bySensitivity: Object.fromEntries(bySensitivity.map((row) => [row.sensitivity, row.count]))
+    };
+  }
+
   getHealth() {
     this.assertOpen();
     const databaseSizeBytes = databaseFootprint(this.filePath);

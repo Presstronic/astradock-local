@@ -13,6 +13,9 @@ const CHANNELS = Object.freeze({
   evidenceGet: 'astradock:v1:evidence:get',
   settingsGet: 'astradock:v1:settings:get',
   settingsUpdate: 'astradock:v1:settings:update',
+  settingsRetention: 'astradock:v1:settings:retention',
+  settingsDelete: 'astradock:v1:settings:delete',
+  settingsReset: 'astradock:v1:settings:reset',
   diagnosticsHealth: 'astradock:v1:diagnostics:health',
   subscriptionSubscribe: 'astradock:v1:subscription:subscribe',
   subscriptionUnsubscribe: 'astradock:v1:subscription:unsubscribe',
@@ -97,7 +100,10 @@ const api = Object.freeze({
   }),
   settings: Object.freeze({
     get: () => invoke(CHANNELS.settingsGet),
-    update: (patch) => invoke(CHANNELS.settingsUpdate, patch)
+    update: (patch) => invoke(CHANNELS.settingsUpdate, patch),
+    applyRetention: (environmentKey) => invoke(CHANNELS.settingsRetention, { environmentKey }),
+    deleteTelemetry: (mode, environmentKey) => invoke(CHANNELS.settingsDelete, { mode, environmentKey }),
+    reset: () => invoke(CHANNELS.settingsReset)
   }),
   diagnostics: Object.freeze({
     getHealth: () => invoke(CHANNELS.diagnosticsHealth)

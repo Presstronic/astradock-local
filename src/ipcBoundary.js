@@ -21,6 +21,9 @@ const CHANNELS = Object.freeze({
   evidenceGet: 'astradock:v1:evidence:get',
   settingsGet: 'astradock:v1:settings:get',
   settingsUpdate: 'astradock:v1:settings:update',
+  settingsRetention: 'astradock:v1:settings:retention',
+  settingsDelete: 'astradock:v1:settings:delete',
+  settingsReset: 'astradock:v1:settings:reset',
   diagnosticsHealth: 'astradock:v1:diagnostics:health',
   subscriptionSubscribe: 'astradock:v1:subscription:subscribe',
   subscriptionUnsubscribe: 'astradock:v1:subscription:unsubscribe',
@@ -119,6 +122,22 @@ function validatePayload(channel, payload) {
     case CHANNELS.monitorStop:
     case CHANNELS.settingsGet:
     case CHANNELS.diagnosticsHealth:
+      return assertNoPayload(payload);
+    case CHANNELS.settingsRetention:
+      return { environmentKey: optionalBoundedText(payload?.environmentKey, 'environmentKey', 64) };
+    case CHANNELS.settingsDelete:
+      assertPlainObject(payload, 'deletion');
+      if (Object.keys(payload).some((key) => !['mode', 'environmentKey'].includes(key))) {
+        throw invalidPayload('Unsupported deletion field.');
+      }
+      if (!['sensitive_evidence', 'environment', 'all_telemetry'].includes(payload.mode)) {
+        throw invalidPayload('Unsupported deletion mode.');
+      }
+      if (payload.mode === 'environment' && !optionalBoundedText(payload.environmentKey, 'environmentKey', 64)) {
+        throw invalidPayload('An environment is required for scoped deletion.');
+      }
+      return { mode: payload.mode, environmentKey: optionalBoundedText(payload.environmentKey, 'environmentKey', 64) };
+    case CHANNELS.settingsReset:
       return assertNoPayload(payload);
     case CHANNELS.sourceSelect:
     case CHANNELS.sourceOpenFolder:
@@ -220,6 +239,22 @@ function validateSettingsUpdate(value = {}) {
   }
   if (Object.hasOwn(value, 'userId')) {
     patch.userId = optionalBoundedText(value.userId, 'userId', MAX_TEXT_LENGTH) || '';
+  }
+  for (const [field, choices] of Object.entries({
+    streamView: ['terminal', 'table'],
+    terminalDensity: ['compact', 'default', 'relaxed'],
+    tableDensity: ['compact', 'default', 'relaxed'],
+    terminalDrawer: ['right', 'bottom'],
+    tableDrawer: ['right', 'bottom']
+  })) {
+    if (Object.hasOwn(value, field)) {
+      if (!choices.includes(value[field])) throw invalidPayload(`Unsupported ${field}.`);
+      patch[field] = value[field];
+    }
+  }
+  if (Object.hasOwn(value, 'retentionDays')) {
+    patch.retentionDays = optionalBoundedInteger(value.retentionDays, 'retentionDays', 1, 365);
+    if (patch.retentionDays === null) throw invalidPayload('Retention days are required.');
   }
   if (!Object.keys(patch).length) throw invalidPayload('No supported setting was provided.');
   return patch;

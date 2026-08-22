@@ -124,3 +124,14 @@ test('settings updates allow only supported local renderer preferences', () => {
     /request payload/i
   );
 });
+
+test('settings deletion commands require an explicit bounded scope', () => {
+  assert.deepEqual(validatePayload(CHANNELS.settingsDelete, { mode: 'environment', environmentKey: 'LIVE:4.9.188' }), {
+    mode: 'environment', environmentKey: 'LIVE:4.9.188'
+  });
+  assert.deepEqual(validatePayload(CHANNELS.settingsDelete, { mode: 'all_telemetry' }), {
+    mode: 'all_telemetry', environmentKey: null
+  });
+  assert.throws(() => validatePayload(CHANNELS.settingsDelete, { mode: 'environment' }), /request payload/i);
+  assert.throws(() => validatePayload(CHANNELS.settingsDelete, { mode: 'all_telemetry', path: '/tmp/data' }), /request payload/i);
+});
