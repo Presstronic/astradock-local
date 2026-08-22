@@ -39,6 +39,7 @@ import {
 } from './shared-event-stream-model';
 import { formatInstantContext, formatLocalClock } from './time';
 import { formatTerminalEvent } from './terminal-event-format';
+import { formatTableEvent } from './table-event-format';
 
 interface RuntimeMonitorAppProps {
   client: RuntimeMonitorClient;
@@ -761,21 +762,80 @@ function TableStream({
   onSelect: (event: StreamEvent, trigger: HTMLElement | null) => void;
 }) {
   if (events.length === 0) return <EmptyStream reason={emptyReason} />;
+
+  const activeIndex = Math.max(0, selectedId ? events.findIndex((event) => event.id === selectedId) : 0);
+  const activeEventId = events[activeIndex]?.id;
+
+  function moveSelection(index: number) {
+    const event = events[Math.max(0, Math.min(index, events.length - 1))];
+    if (!event) return;
+    onSelect(event, null);
+    window.requestAnimationFrame(() => document.getElementById(tableEventId(event.id))?.focus());
+  }
+
   return (
-    <div className="table-stream" role="grid" aria-label="Table runtime events">
-      <div className="table-head" role="row"><span>Kind</span><span>Severity</span><span>Summary</span><span>Attributes</span><span>Shard</span><span>Age</span></div>
-      {events.map((event) => (
-        <button type="button" role="row" className="table-row" key={event.id} aria-selected={event.id === selectedId} data-kind={event.kind} data-urgency={event.urgency} onClick={(domEvent) => void onSelect(event, domEvent.currentTarget)}>
-          <span><i className="kind-dot" data-kind={event.kind} /><b className="kind-tag">{event.kind}</b></span>
-          <span><b className="severity-chip">{event.urgency === 'normal' ? '· Routine' : event.urgency === 'warning' ? '▲ Notice' : `■ ${event.urgency}`}</b></span>
-          <span>{event.summary}</span>
-          <span><b className="attribute-chip">Conf {event.confidence}</b></span>
-          <span>{event.context}</span>
-          <span title={formatInstantContext(event.timestamp)} aria-label={`${event.ageLabel}; ${formatInstantContext(event.timestamp)}`}>{event.ageLabel}</span>
-        </button>
-      ))}
+    <div
+      className="table-stream"
+      role="grid"
+      aria-label="Table runtime events"
+      aria-rowcount={events.length}
+      aria-activedescendant={activeEventId ? tableEventId(activeEventId) : undefined}
+      tabIndex={0}
+      onKeyDown={(keyboardEvent) => {
+        if (keyboardEvent.key === 'ArrowDown') { keyboardEvent.preventDefault(); moveSelection(activeIndex + 1); }
+        if (keyboardEvent.key === 'ArrowUp') { keyboardEvent.preventDefault(); moveSelection(activeIndex - 1); }
+        if (keyboardEvent.key === 'Home') { keyboardEvent.preventDefault(); moveSelection(0); }
+        if (keyboardEvent.key === 'End') { keyboardEvent.preventDefault(); moveSelection(events.length - 1); }
+        if ((keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') && events[activeIndex]) {
+          keyboardEvent.preventDefault(); onSelect(events[activeIndex], null);
+        }
+      }}
+    >
+      <table>
+        <caption className="visually-hidden">Live runtime events. Rows are ordered newest first.</caption>
+        <thead><tr role="row">
+          <th scope="col">Kind</th><th scope="col">Severity</th><th scope="col">Summary</th>
+          <th scope="col" className="column-attributes">Attributes</th><th scope="col" className="column-shard">Shard</th><th scope="col">Age</th>
+        </tr></thead>
+        <tbody>
+          {events.map((event, index) => {
+            const row = formatTableEvent(event);
+            return (
+              <tr
+                id={tableEventId(event.id)}
+                role="row"
+                tabIndex={index === activeIndex ? 0 : -1}
+                aria-selected={event.id === selectedId}
+                aria-label={row.accessibleLabel}
+                data-kind={event.kind}
+                data-urgency={event.urgency}
+                key={event.id}
+                onClick={(domEvent) => void onSelect(event, domEvent.currentTarget)}
+                onKeyDown={(keyboardEvent) => {
+                  if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
+                    keyboardEvent.preventDefault(); onSelect(event, keyboardEvent.currentTarget);
+                  }
+                  if (keyboardEvent.key === 'ArrowDown') { keyboardEvent.preventDefault(); moveSelection(index + 1); }
+                  if (keyboardEvent.key === 'ArrowUp') { keyboardEvent.preventDefault(); moveSelection(index - 1); }
+                }}
+              >
+                <td><span className="kind-cell"><i className="kind-dot" data-kind={event.kind} /><b className="kind-tag">{row.kind}</b></span></td>
+                <td><b className="severity-chip">{event.urgency === 'normal' ? '· ' : event.urgency === 'warning' ? '▲ ' : '■ '}{row.severity}</b></td>
+                <td title={row.summary}>{row.summary}</td>
+                <td className="column-attributes" title={row.attributes}><span className="attribute-chip">{row.attributes}</span></td>
+                <td className="column-shard" title={row.shard}>{row.shard}</td>
+                <td title={row.ageLabel} aria-label={row.ageLabel}>{row.age}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
+}
+
+function tableEventId(eventId: string): string {
+  return `table-event-${encodeURIComponent(eventId)}`;
 }
 
 function DetailDock({
