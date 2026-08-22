@@ -217,13 +217,13 @@ function validateEventQuery(value = {}) {
 
 function validateEvidenceRequest(value = {}) {
   assertPlainObject(value, 'request');
-  const kind = value.kind;
-  if (!['shard', 'action', 'session', 'runtime'].includes(kind)) {
-    throw invalidPayload('Unsupported evidence kind.');
-  }
+  const environmentKey = optionalBoundedText(value.environmentKey, 'environmentKey', 160);
+  if (!environmentKey) throw invalidPayload('Evidence environment is required.');
+  const eventId = optionalBoundedText(value.eventId, 'eventId', 160);
+  if (!eventId) throw invalidPayload('Evidence event ID is required.');
   return {
-    kind,
-    id: optionalBoundedText(value.id, 'id', 160) || invalidPayload('Evidence ID is required.')
+    environmentKey,
+    eventId
   };
 }
 

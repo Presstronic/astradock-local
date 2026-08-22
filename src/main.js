@@ -602,42 +602,119 @@ function queryEvents(query) {
 }
 
 function getEvidenceDetail(request) {
-  const collection = request.kind === 'runtime'
-    ? lastScan?.promotedRuntimeEvents || []
-    : request.kind === 'shard'
-    ? lastScan?.entries || []
-    : request.kind === 'action'
-      ? lastScan?.userActivity?.actions || []
-      : lastScan?.userActivity?.sessions || [];
-  const item = collection.find((candidate) => (candidate.id || candidate.eventId) === request.id);
-  if (!item) throw createBoundaryError('evidence_not_found');
-  if (request.kind === 'runtime') {
-    return {
-      kind: request.kind,
-      id: request.id,
-      sensitivity: 'local',
-      evidence: {
-        rawContext: boundTextList([
-          `${item.eventType} at ${item.sourceTimestamp}`,
-          `Confidence: ${item.confidence}`,
-          `Evidence markers: ${(item.evidenceReference?.evidenceMarkers || []).join(', ')}`,
-          `Payload: ${JSON.stringify(item.payload)}`
-        ]),
-        lineNumber: item.evidenceReference?.lineRange?.start || null,
-        environmentKey: item.environmentKey || null
-      }
-    };
-  }
+  const canonical = eventStore?.getById(request.eventId, request.environmentKey);
+  if (canonical) return toCanonicalEvidenceDetail(canonical);
+
+  // Legacy scan carriers are kept as a compatibility path for records that were
+  // parsed before canonical persistence was available. They are still scoped by
+  // environment and never satisfy a request from another environment.
+  const candidates = [
+    ...(lastScan?.promotedRuntimeEvents || []).map((item) => ({ kind: 'runtime', item })),
+    ...(lastScan?.entries || []).map((item) => ({ kind: 'shard', item })),
+    ...(lastScan?.userActivity?.actions || []).map((item) => ({ kind: 'action', item })),
+    ...(lastScan?.userActivity?.sessions || []).map((item) => ({ kind: 'session', item }))
+  ];
+  const match = candidates.find(({ item }) => (item.id || item.eventId) === request.eventId
+    && (!item.environmentKey || item.environmentKey === request.environmentKey));
+  if (!match) throw createBoundaryError('evidence_not_found');
+  return toLegacyEvidenceDetail(match.kind, match.item, request.environmentKey);
+}
+
+function toCanonicalEvidenceDetail(event) {
+  const markers = event.evidenceReference?.evidenceMarkers || [];
+  const sensitive = ['personal', 'social', 'secret'].includes(event.traits?.sensitivity);
+  const payload = sensitive ? { redacted: true } : sanitizeDetailPayload(event.payload);
+  const contributors = new Set(event.derivation?.contributingEventIds || []);
+  const related = eventStore?.getRelated(event, { limit: 20 }) || [];
   return {
-    kind: request.kind,
-    id: request.id,
-    sensitivity: 'local',
+    kind: 'runtime',
+    eventId: event.eventId,
+    eventType: event.eventType,
+    summary: formatRuntimeEventLabel(event),
+    sourceTimestamp: event.sourceTimestamp || null,
+    ingestedAt: event.ingestedAt || null,
+    environmentKey: event.environmentKey,
+    gameChannel: event.gameChannel || null,
+    gameBuild: event.gameBuild || null,
+    sessionId: event.correlationIds?.puSessionId || event.correlationIds?.sessionId || null,
+    provenance: event.provenance,
+    confidence: event.confidence,
+    sensitivity: event.traits?.sensitivity || 'local',
+    parserVersion: event.parserVersion || null,
+    sourceProfileVersion: event.sourceProfileVersion || null,
+    payload,
+    correlations: sanitizeCorrelations(event.correlationIds),
+    retention: 'retained',
     evidence: {
-      rawContext: boundTextList(item.rawContext || (item.rawLine ? [item.rawLine] : [])),
-      lineNumber: item.lineNumber || item.startLineNumber || null,
-      environmentKey: item.environmentKey || null
-    }
+      availability: sensitive ? 'redacted' : markers.length || event.evidenceReference ? 'available' : 'unsupported',
+      rawContext: boundTextList([
+        `${event.eventType} at ${event.sourceTimestamp}`,
+        `Confidence: ${event.confidence}`,
+        `Evidence markers: ${markers.join(', ')}`,
+        sensitive ? 'Payload: redacted by sensitivity policy.' : `Payload: ${JSON.stringify(payload)}`
+      ]),
+      markers: boundTextList(markers),
+      lineNumber: event.evidenceReference?.lineRange?.start || null,
+      environmentKey: event.environmentKey
+    },
+    related: related.map((item) => ({
+      eventId: item.eventId,
+      eventType: item.eventType,
+      relationship: contributors.has(item.eventId) ? 'contributor' : 'correlated',
+      sourceTimestamp: item.sourceTimestamp || null
+    }))
   };
+}
+
+function toLegacyEvidenceDetail(kind, item, environmentKey) {
+  const eventId = item.id || item.eventId;
+  const rawContext = boundTextList(item.rawContext || (item.rawLine ? [item.rawLine] : []));
+  return {
+    kind,
+    eventId,
+    eventType: item.eventType || kind,
+    summary: item.summary || item.eventLabel || kind,
+    sourceTimestamp: item.sourceTimestamp || item.timestamp || null,
+    ingestedAt: item.ingestedAt || null,
+    environmentKey,
+    gameChannel: item.gameChannel || null,
+    gameBuild: item.gameBuild || null,
+    sessionId: item.sessionId || null,
+    provenance: item.provenance || 'observed',
+    confidence: item.confidence || 'unknown',
+    sensitivity: 'local',
+    parserVersion: item.parserVersion || null,
+    sourceProfileVersion: item.sourceProfileVersion || null,
+    payload: sanitizeDetailPayload(item.payload || {}),
+    correlations: sanitizeCorrelations(item.correlationIds || {}),
+    retention: 'retained',
+    evidence: {
+      availability: rawContext.length ? 'available' : 'redacted',
+      rawContext,
+      markers: boundTextList(item.evidenceReference?.evidenceMarkers || []),
+      lineNumber: item.lineNumber || item.startLineNumber || null,
+      environmentKey
+    },
+    related: []
+  };
+}
+
+function sanitizeDetailPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
+  return Object.fromEntries(Object.entries(payload).slice(0, 50).map(([key, value]) => [key, sanitizeDetailValue(value)]));
+}
+
+function sanitizeDetailValue(value, depth = 0) {
+  if (depth > 3) return '[truncated]';
+  if (value === null || typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) return value;
+  if (Array.isArray(value)) return value.slice(0, 20).map((entry) => sanitizeDetailValue(entry, depth + 1));
+  if (typeof value === 'object') return Object.fromEntries(Object.entries(value).slice(0, 20).map(([key, entry]) => [key, sanitizeDetailValue(entry, depth + 1)]));
+  return '[unsupported]';
+}
+
+function sanitizeCorrelations(correlations) {
+  if (!correlations || typeof correlations !== 'object') return {};
+  return Object.fromEntries(Object.entries(correlations).filter(([key, value]) => /^[a-zA-Z0-9_.-]{1,64}$/.test(key) && typeof value === 'string').slice(0, 20));
 }
 
 function getDiagnosticsHealth() {

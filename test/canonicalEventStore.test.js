@@ -76,6 +76,16 @@ test('queries are deterministic, cursor-based, bounded, typed, and environment s
   assert.throws(() => fixture.store.query({ environmentKey: LIVE_ENVIRONMENT_KEY, limit: 501 }), (error) => error.code === 'invalid_query');
 });
 
+test('related events stay environment-scoped and follow canonical correlations', async (t) => {
+  const fixture = await createStoreFixture(t);
+  const first = eventAt('2026-08-19T10:00:00.000Z', 'LIVE_ENV', 'ClientBuildObserved');
+  const related = eventAt('2026-08-19T10:00:01.000Z', 'LIVE_ENV', 'ReleaseEnvironmentObserved');
+  const unrelatedEnvironment = eventAt('2026-08-19T10:00:02.000Z', 'PTU_ENV', 'ReleaseEnvironmentObserved');
+  const correlated = createRuntimeEvent({ ...related, eventId: undefined, correlationIds: { ...related.correlationIds, source: first.eventId } });
+  fixture.store.append([first, correlated, unrelatedEnvironment]);
+  assert.deepEqual(fixture.store.getRelated(first).map((event) => event.eventId), [correlated.eventId]);
+});
+
 test('failed batches roll back and event ID conflicts are rejected', async (t) => {
   const fixture = await createStoreFixture(t);
   const valid = eventAt('2026-08-19T10:00:00.000Z', 'LIVE_ENV', 'ClientBuildObserved');
