@@ -12,11 +12,12 @@ import {
 interface RuntimeNotificationStackProps {
   alerts: readonly AlertState[];
   clock?: () => number;
+  onEvidence?: (eventId: string) => void;
 }
 
 const systemClock = () => Date.now();
 
-export function RuntimeNotificationStack({ alerts, clock = systemClock }: RuntimeNotificationStackProps) {
+export function RuntimeNotificationStack({ alerts, clock = systemClock, onEvidence }: RuntimeNotificationStackProps) {
   const [state, setState] = useState<NotificationStackState>(() => createNotificationStackState());
   const [now, setNow] = useState(() => clock());
 
@@ -46,6 +47,7 @@ export function RuntimeNotificationStack({ alerts, clock = systemClock }: Runtim
             entry={entry}
             now={now}
             key={entry.id}
+            {...(onEvidence ? { onEvidence } : {})}
             onPause={(paused) => setState((current) => setNotificationPaused(current, entry.id, paused, clock()))}
           />
         ))}
@@ -62,11 +64,13 @@ export function RuntimeNotificationStack({ alerts, clock = systemClock }: Runtim
 function NotificationCard({
   entry,
   now,
-  onPause
+  onPause,
+  onEvidence
 }: {
   entry: NotificationEntry;
   now: number;
   onPause: (paused: boolean) => void;
+  onEvidence?: (eventId: string) => void;
 }) {
   const handlePointerEnter = (_event: MouseEvent<HTMLElement>) => onPause(true);
   const handlePointerLeave = (_event: MouseEvent<HTMLElement>) => onPause(false);
@@ -95,6 +99,7 @@ function NotificationCard({
         <p>{entry.message}</p>
       </div>
       {remaining !== null ? <span className="sr-only">Dismisses in {Math.ceil(remaining / 1_000)} seconds.</span> : null}
+      {entry.evidenceEventId && onEvidence ? <button type="button" className="button secondary" onClick={() => onEvidence(entry.evidenceEventId || '')}>View evidence</button> : null}
     </article>
   );
 }

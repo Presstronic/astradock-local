@@ -695,13 +695,14 @@ function createAlerts(
   storage: { status: string; errorCode: string | null; recoverable?: boolean } | null
 ): AlertState[] {
   const alerts: AlertState[] = [];
+  const evidenceEventId = scan?.promotedRuntimeEvents?.[0]?.id || scan?.entries?.[0]?.id || null;
   if (storage?.status === 'error') {
     alerts.push({
       id: 'storage-error',
       severity: storage.recoverable === false ? 'critical' : 'warning',
       title: 'Encrypted telemetry storage unavailable',
       message: `Live monitoring can continue, but canonical events are not durable (${storage.errorCode || 'unknown storage error'}).`,
-      lifetime: 'persistent'
+      lifetime: 'persistent', evidenceEventId
     });
   }
   if (state === 'fatal') {
@@ -710,7 +711,7 @@ function createAlerts(
       severity: 'critical',
       title: 'Runtime Monitor could not initialize',
       message: fatalError || 'Runtime Monitor could not initialize safely.',
-      lifetime: 'persistent'
+      lifetime: 'persistent', evidenceEventId
     });
   }
   if (actionError && state !== 'fatal') {
@@ -729,7 +730,7 @@ function createAlerts(
     alerts.push({ id: 'stale', severity: 'warning', title: 'Monitor health stale', message: 'Expected monitor health signals exceeded the fault-visibility window.', lifetime: 'persistent' });
   }
   if (source && source.validation?.isValid === false) {
-    alerts.push({ id: 'source', severity: 'critical', title: 'Source disconnected', message: source.validation.message, lifetime: 'persistent' });
+    alerts.push({ id: 'source', severity: 'critical', title: 'Source disconnected', message: source.validation.message, lifetime: 'persistent', evidenceEventId });
   }
   if (scan?.parserCompatibility?.status === 'suspected_drift') {
     alerts.push({
@@ -737,7 +738,7 @@ function createAlerts(
       severity: 'warning',
       title: 'Parser vocabulary drift suspected',
       message: 'The source remains available, but some current log vocabulary is not recognized by this profile.',
-      lifetime: 'persistent'
+      lifetime: 'persistent', evidenceEventId
     });
   }
   if (scan?.parserCompatibility?.status === 'unverified_build') {
