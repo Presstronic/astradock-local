@@ -33,6 +33,7 @@ const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 const { CanonicalEventStore } = require('./persistence/canonicalEventStore');
 const { createElectronStorageKeyProvider } = require('./persistence/storageKeyProvider');
 const { createDiagnosticLogger } = require('./diagnosticLogger');
+const { DEFAULT_SETTINGS } = require('./settingsStore');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -222,9 +223,50 @@ register(CHANNELS.eventsQuery, async (query) => queryEvents(query));
 
 register(CHANNELS.evidenceGet, async (request) => getEvidenceDetail(request));
 
-register(CHANNELS.settingsGet, async () => loadRendererSettings(getSettingsPath()));
+register(CHANNELS.settingsGet, async () => ({
+  settings: await loadRendererSettings(getSettingsPath()),
+  storage: eventStore ? eventStore.getStorageSummary() : eventStoreHealth,
+  activeSourceId
+}));
 
-register(CHANNELS.settingsUpdate, async (patch) => updateRendererSettings(getSettingsPath(), patch));
+register(CHANNELS.settingsUpdate, async (patch) => {
+  const settings = await updateRendererSettings(getSettingsPath(), patch);
+  if (eventStore && patch.retentionDays) eventStore.applyRetention({ retentionDays: settings.retentionDays });
+  return { settings, storage: eventStore ? eventStore.getStorageSummary() : eventStoreHealth, activeSourceId };
+});
+
+register(CHANNELS.settingsRetention, async ({ environmentKey }) => {
+  if (!eventStore) throw createBoundaryError('internal_error', 'Local storage is not ready.');
+  const settings = await loadRendererSettings(getSettingsPath());
+  const outcome = eventStore.applyRetention({ retentionDays: settings.retentionDays, environmentKey });
+  return { outcome, storage: eventStore.getStorageSummary() };
+});
+
+register(CHANNELS.settingsDelete, async ({ mode, environmentKey }) => {
+  if (!eventStore) throw createBoundaryError('internal_error', 'Local storage is not ready.');
+  if (mode === 'environment' && activeTailer) await stopMonitor('telemetry_deleted');
+  let deleted;
+  if (mode === 'sensitive_evidence') deleted = eventStore.deleteSensitiveEvidence();
+  else if (mode === 'environment') deleted = eventStore.deleteEnvironment(environmentKey);
+  else deleted = eventStore.deleteAllTelemetry();
+  eventStoreHealth = eventStore.getStorageSummary();
+  return { mode, environmentKey: environmentKey || null, deleted, storage: eventStoreHealth };
+});
+
+register(CHANNELS.settingsReset, async () => {
+  if (activeTailer) await stopMonitor('app_data_reset');
+  if (eventStore) {
+    eventStore.deleteAllTelemetry();
+    eventStoreHealth = eventStore.getStorageSummary();
+  }
+  await Promise.all([
+    fsUnlinkIfPresent(getSettingsPath()),
+    fsUnlinkIfPresent(getSourcePreferencePath())
+  ]);
+  activeSourceId = null;
+  sourceRegistry.clear();
+  return { settings: { ...DEFAULT_SETTINGS }, storage: eventStore ? eventStore.getStorageSummary() : eventStoreHealth, activeSourceId };
+});
 
 register(CHANNELS.diagnosticsHealth, async () => getDiagnosticsHealth());
 
@@ -275,6 +317,11 @@ function getSourcePreferencePath() {
 
 function getSettingsPath() {
   return path.join(app.getPath('userData'), 'renderer-settings.json');
+}
+
+async function fsUnlinkIfPresent(filePath) {
+  const fs = require('node:fs/promises');
+  try { await fs.unlink(filePath); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
 }
 
 async function discoverAndRegisterSources() {

@@ -11,6 +11,7 @@ import type {
   RendererScanResult,
   RuntimeMonitorClient
 } from './astradock-api';
+import type { SettingsSnapshot } from '../../contracts/rendererApi';
 import {
   createRuntimeMonitorViewModel,
   type Density,
@@ -71,6 +72,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [snapshot, setSnapshot] = useState<MonitorSnapshot | null>(null);
   const [scan, setScan] = useState<RendererScanResult | null>(null);
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
+  const [settingsSnapshot, setSettingsSnapshot] = useState<SettingsSnapshot | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [now, setNow] = useState<Date>(() => clock());
   const [search, setSearch] = useState('');
   const [eventStream, setEventStream] = useState(() => createSharedEventStreamState({ view: preferences.streamView }));
@@ -95,15 +98,25 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     async function boot() {
       setLoading(true);
       try {
-        const [discovery, nextSnapshot] = await Promise.all([
+        const [discovery, nextSnapshot, nextSettings] = await Promise.all([
           client.source.discover(),
-          client.monitor.getSnapshot()
+          client.monitor.getSnapshot(),
+          client.settings.get()
         ]);
         if (!active) return;
         setSources([...discovery.sources]);
         setActiveSource(discovery.activeSource || nextSnapshot.source || null);
         setSnapshot(nextSnapshot);
         setScan(nextSnapshot.scan);
+        setSettingsSnapshot(nextSettings);
+        setPreferences((current) => ({
+          ...current,
+          streamView: nextSettings.settings.streamView,
+          terminalDensity: nextSettings.settings.terminalDensity,
+          tableDensity: nextSettings.settings.tableDensity,
+          terminalDrawer: nextSettings.settings.terminalDrawer,
+          tableDrawer: nextSettings.settings.tableDrawer
+        }));
         unsubscribe = client.monitor.subscribe((message) => {
           if (message.error) {
             setFatalError(message.error.message);
@@ -304,7 +317,21 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   }
 
   function updatePreference(patch: Partial<LocalPreferences>) {
-    setPreferences((current) => ({ ...current, ...patch }));
+    const next = { ...preferences, ...patch };
+    setPreferences(next);
+    void client.settings.update(patch).then(setSettingsSnapshot).catch(() => {});
+  }
+
+  async function deleteTelemetry(mode: 'sensitive_evidence' | 'environment' | 'all_telemetry') {
+    const environmentKey = mode === 'environment' ? (snapshot?.scan?.environmentKey || null) : null;
+    const label = mode === 'environment' ? `the current ${environmentKey || 'environment'} telemetry` : mode === 'all_telemetry' ? 'all local telemetry' : 'sensitive local evidence';
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+    try {
+      const result = await client.settings.deleteTelemetry(mode, environmentKey);
+      setSettingsSnapshot((current) => current ? { ...current, storage: result.storage } : current);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Deletion failed.');
+    }
   }
 
   return (
@@ -353,8 +380,22 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         <a href="#runtime-main" aria-current="page">Runtime Monitor</a>
         <button type="button" disabled title="Post-MVP workspace">Data Operations <span>Post-MVP</span></button>
         <button type="button" disabled title="Post-MVP workspace">History &amp; Analytics <span>Post-MVP</span></button>
-        <button type="button">Settings</button>
+        <button type="button" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>Settings</button>
       </nav>
+
+      {settingsOpen ? <SettingsPanel
+        snapshot={settingsSnapshot}
+        preferences={preferences}
+        onPreferenceChange={updatePreference}
+        onRetentionChange={async (retentionDays) => {
+          try { setSettingsSnapshot(await client.settings.update({ retentionDays })); } catch (error) { setActionError(error instanceof Error ? error.message : 'Retention update failed.'); }
+        }}
+        onDelete={deleteTelemetry}
+        onReset={async () => {
+          if (!window.confirm('Reset preferences and delete all local app data? This cannot be undone.')) return;
+          try { setSettingsSnapshot(await client.settings.reset()); setPreferences(DEFAULT_PREFERENCES); setActiveSource(null); } catch (error) { setActionError(error instanceof Error ? error.message : 'Reset failed.'); }
+        }}
+      /> : null}
 
       <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
         <aside id="current-state" className="current-state" aria-label="Current runtime state">
@@ -796,6 +837,43 @@ function Metric({ label, value, title }: { label: string; value: string; title?:
       <strong>{value}</strong>
     </span>
   );
+}
+
+function SettingsPanel({ snapshot, preferences, onPreferenceChange, onRetentionChange, onDelete, onReset }: {
+  snapshot: SettingsSnapshot | null;
+  preferences: LocalPreferences;
+  onPreferenceChange: (patch: Partial<LocalPreferences>) => void;
+  onRetentionChange: (days: number) => Promise<void>;
+  onDelete: (mode: 'sensitive_evidence' | 'environment' | 'all_telemetry') => Promise<void>;
+  onReset: () => Promise<void>;
+}) {
+  const storage = snapshot?.storage;
+  return <section className="settings-panel" aria-label="Local settings and privacy">
+    <h2>Local settings &amp; privacy</h2>
+    <p>These controls affect this device only. Preferences and raw evidence are not synchronized.</p>
+    <label>Stream view <select value={preferences.streamView} onChange={(event) => onPreferenceChange({ streamView: event.target.value as LocalPreferences['streamView'] })}>
+      <option value="terminal">Terminal</option><option value="table">Table</option>
+    </select></label>
+    <label>Retain telemetry (days) <input type="number" min="1" max="365" value={snapshot?.settings.retentionDays ?? 30} onChange={(event) => void onRetentionChange(Number(event.target.value))} /></label>
+    <dl>
+      <div><dt>Stored events</dt><dd>{storage?.eventCount ?? 'Calculating'}</dd></div>
+      <div><dt>Storage</dt><dd>{storage?.databaseSizeBytes == null ? 'Calculating' : formatBytes(storage.databaseSizeBytes)}</dd></div>
+      <div><dt>Oldest event</dt><dd>{storage?.oldestEventAt ? new Date(storage.oldestEventAt).toLocaleString() : 'None'}</dd></div>
+      <div><dt>Newest event</dt><dd>{storage?.newestEventAt ? new Date(storage.newestEventAt).toLocaleString() : 'None'}</dd></div>
+    </dl>
+    <div className="settings-actions" aria-label="Destructive local data actions">
+      <button type="button" onClick={() => void onDelete('sensitive_evidence')}>Delete sensitive evidence</button>
+      <button type="button" onClick={() => void onDelete('environment')}>Delete current environment</button>
+      <button type="button" onClick={() => void onDelete('all_telemetry')}>Delete all telemetry</button>
+      <button type="button" onClick={() => void onReset()}>Reset app data</button>
+    </div>
+  </section>;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
 function HeaderTelemetryMetric({

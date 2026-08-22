@@ -476,14 +476,26 @@ export interface EvidenceDetail {
 }
 
 export interface RendererSettings {
-  version: 1;
+  version: 2;
   theme: 'dark';
   username: string;
   userId: string;
+  streamView: 'terminal' | 'table';
+  terminalDensity: 'compact' | 'default' | 'relaxed';
+  tableDensity: 'compact' | 'default' | 'relaxed';
+  terminalDrawer: 'right' | 'bottom';
+  tableDrawer: 'right' | 'bottom';
+  retentionDays: number;
   savedAt: string | null;
 }
 
-export type RendererSettingsPatch = Partial<Pick<RendererSettings, 'theme' | 'username' | 'userId'>>;
+export interface SettingsSnapshot {
+  settings: RendererSettings;
+  storage: StorageHealth;
+  activeSourceId: string | null;
+}
+
+export type RendererSettingsPatch = Partial<Pick<RendererSettings, 'theme' | 'username' | 'userId' | 'streamView' | 'terminalDensity' | 'tableDensity' | 'terminalDrawer' | 'tableDrawer' | 'retentionDays'>>;
 
 export interface DiagnosticsHealth {
   status: 'monitoring' | 'idle';
@@ -547,8 +559,11 @@ export interface AstraDockApi {
     getEvidenceDetail(request: EvidenceDetailRequest): Promise<EvidenceDetail>;
   };
   readonly settings: {
-    get(): Promise<RendererSettings>;
-    update(patch: RendererSettingsPatch): Promise<RendererSettings>;
+    get(): Promise<SettingsSnapshot>;
+    update(patch: RendererSettingsPatch): Promise<SettingsSnapshot>;
+    applyRetention(environmentKey?: string | null): Promise<{ outcome: unknown; storage: StorageHealth }>;
+    deleteTelemetry(mode: 'sensitive_evidence' | 'environment' | 'all_telemetry', environmentKey?: string | null): Promise<{ deleted: number; storage: StorageHealth }>;
+    reset(): Promise<SettingsSnapshot>;
   };
   readonly diagnostics: {
     getHealth(): Promise<DiagnosticsHealth>;

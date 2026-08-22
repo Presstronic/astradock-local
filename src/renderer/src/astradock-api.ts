@@ -11,6 +11,7 @@ import type {
   RendererEvidenceRow,
   RendererScanResult,
   RendererSettings,
+  SettingsSnapshot,
   SourceDiscoveryResult,
   SourceSelectionResult,
   Unsubscribe
@@ -19,10 +20,16 @@ import type {
 export type RuntimeMonitorClient = Pick<AstraDockApi, 'version' | 'source' | 'monitor' | 'events' | 'settings' | 'diagnostics'>;
 
 export const FALLBACK_SETTINGS: RendererSettings = {
-  version: 1,
+  version: 2,
   theme: 'dark',
   username: '',
   userId: '',
+  streamView: 'terminal',
+  terminalDensity: 'compact',
+  tableDensity: 'default',
+  terminalDrawer: 'right',
+  tableDrawer: 'bottom',
+  retentionDays: 30,
   savedAt: null
 };
 
@@ -63,8 +70,11 @@ function createUnavailableClient(): RuntimeMonitorClient {
       getEvidenceDetail: unavailable as (request: EvidenceDetailRequest) => Promise<EvidenceDetail>
     },
     settings: {
-      get: async () => FALLBACK_SETTINGS,
-      update: async () => FALLBACK_SETTINGS
+      get: async () => ({ settings: FALLBACK_SETTINGS, storage: { status: 'initializing', errorCode: null }, activeSourceId: null } as SettingsSnapshot),
+      update: async () => ({ settings: FALLBACK_SETTINGS, storage: { status: 'initializing', errorCode: null }, activeSourceId: null } as SettingsSnapshot),
+      applyRetention: unavailable as RuntimeMonitorClient['settings']['applyRetention'],
+      deleteTelemetry: unavailable as RuntimeMonitorClient['settings']['deleteTelemetry'],
+      reset: async () => ({ settings: FALLBACK_SETTINGS, storage: { status: 'initializing', errorCode: null }, activeSourceId: null } as SettingsSnapshot)
     },
     diagnostics: {
       getHealth: unavailable as AstraDockApi['diagnostics']['getHealth']
