@@ -657,6 +657,13 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
   function openSyntheticDetail(instrument: InstrumentState, trigger: HTMLElement) {
     lastSelectionTrigger.current = trigger;
+    const supportingEvent = instrument.supportingEventIds
+      ?.map((id) => viewModel.streamEvents.find((event) => event.id === id))
+      .find((event): event is StreamEvent => Boolean(event));
+    if (supportingEvent) {
+      void openEvidence(supportingEvent, trigger);
+      return;
+    }
     setDetail({
       status: instrument.value === 'Unsupported' ? 'unsupported' : 'ready',
       selected: null,
