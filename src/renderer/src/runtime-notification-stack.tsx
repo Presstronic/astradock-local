@@ -1,5 +1,6 @@
 import { useEffect, useState, type FocusEvent, type MouseEvent } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { instantMilliseconds } from './time';
 import type { AlertState } from './runtime-notification-model';
 import {
   createNotificationStackState,
@@ -96,10 +97,20 @@ function NotificationCard({
       <AlertTriangle aria-hidden="true" />
       <div>
         <strong>{entry.title}</strong>
-        <p>{entry.message}</p>
+        <p>{entry.message}{entry.occurredAt ? ` · Observed ${formatNotificationAge(entry.occurredAt, now)}` : ''}</p>
       </div>
       {remaining !== null ? <span className="sr-only">Dismisses in {Math.ceil(remaining / 1_000)} seconds.</span> : null}
       {entry.evidenceEventId && onEvidence ? <button type="button" className="button secondary" onClick={() => onEvidence(entry.evidenceEventId || '')}>View evidence</button> : null}
     </article>
   );
+}
+
+function formatNotificationAge(timestamp: string, now: number): string {
+  const observed = instantMilliseconds(timestamp);
+  if (observed === null) return 'age unknown';
+  const seconds = Math.max(0, Math.floor((now - observed) / 1_000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.floor(minutes / 60)}h ago`;
 }

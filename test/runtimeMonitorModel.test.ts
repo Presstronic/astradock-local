@@ -190,13 +190,13 @@ describe('Runtime Monitor action errors', () => {
     });
 
     expect(viewModel.workspaceState).toBe('no-source');
-    expect(viewModel.alerts).toContainEqual({
+    expect(viewModel.alerts).toContainEqual(expect.objectContaining({
       id: 'action-error',
       severity: 'warning',
       title: 'Action could not complete',
       message: 'Selected file is not a validated Star Citizen game.log.',
       lifetime: 'transient'
-    });
+    }));
   });
 });
 
@@ -414,11 +414,54 @@ describe('Runtime Monitor party and zone projections', () => {
     });
     expect(viewModel.instruments).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'jurisdiction', value: 'SYNTH_JURISDICTION_A' }),
-      expect.objectContaining({ id: 'monitored-space', value: 'Entered' }),
-      expect.objectContaining({ id: 'armistice', value: 'Outside' }),
+      expect.objectContaining({ id: 'monitored-space', value: 'Yes' }),
+      expect.objectContaining({ id: 'armistice', value: 'No' }),
       expect.objectContaining({ id: 'destination', value: 'SYNTH_TARGET_ORISON', state: 'known' })
     ]));
     expect(viewModel.mission).toMatchObject({ title: 'Destination', label: 'SYNTH_TARGET_ORISON' });
     expect(viewModel.streamEvents.map((event) => event.kind)).toEqual(['navigation', 'zone', 'party']);
+  });
+});
+
+describe('issue 41 live instrument cluster contracts', () => {
+  it('exposes critical warning count, age, and supporting evidence IDs', () => {
+    const now = new Date('2026-08-22T12:01:00.000Z');
+    const scan = {
+      scannedAt: '2026-08-22T12:00:00.000Z',
+      environmentKey: 'LIVE::PU::BUILD::BRANCH::SOURCE',
+      parserCompatibility: { status: 'compatible' },
+      promotedRuntimeEvents: [{
+        id: 'critical-event', eventType: 'SourceFailure', eventCategory: 'runtime',
+        summary: 'Source disconnected', timestamp: '2026-08-22T12:00:00.000Z', evidenceAvailable: true
+      }],
+      entries: [], userActivity: { actions: [], sessions: [] }, environmentDiagnostics: [],
+      rendererLifecycle: null, partySnapshot: null, locationSnapshot: null, destinationSnapshot: null,
+      source: { validation: { isValid: false, message: 'Source moved' } }
+    } as never;
+    const model = createRuntimeMonitorViewModel({
+      loading: false, fatalError: null, sources: [], activeSource: scan.source,
+      snapshot: null, scan, now
+    });
+
+    expect(model.instruments).toContainEqual(expect.objectContaining({
+      id: 'critical-warnings', value: '1', state: 'known', supportingEventIds: ['critical-event']
+    }));
+    expect(model.alerts).toContainEqual(expect.objectContaining({
+      id: 'source', severity: 'critical', occurredAt: '2026-08-22T12:00:00.000Z'
+    }));
+    expect(model.warningCount).toBeGreaterThan(0);
+  });
+
+  it('keeps unsupported and unknown warning states honest', () => {
+    const unsupported = createRuntimeMonitorViewModel({
+      loading: false, fatalError: null, sources: [], activeSource: { validation: { isValid: true } } as never,
+      snapshot: null,
+      scan: { parserCompatibility: { status: 'unsupported_profile' }, promotedRuntimeEvents: [], entries: [], userActivity: { actions: [], sessions: [] }, environmentDiagnostics: [] } as never,
+      now: new Date('2026-08-22T12:00:00.000Z')
+    });
+    expect(unsupported.instruments).toContainEqual(expect.objectContaining({ id: 'critical-warnings', value: 'Unsupported', state: 'unsupported' }));
+
+    const unknown = createRuntimeMonitorViewModel({ loading: false, fatalError: null, sources: [], activeSource: null, snapshot: null, scan: null, now: new Date() });
+    expect(unknown.instruments).toContainEqual(expect.objectContaining({ id: 'critical-warnings', value: 'Unknown', state: 'unknown' }));
   });
 });

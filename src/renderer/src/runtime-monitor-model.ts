@@ -83,6 +83,7 @@ export interface InstrumentState {
   detail: string;
   provenance: string;
   drilldown?: string | undefined;
+  supportingEventIds?: readonly string[];
 }
 
 export interface PanelState {
@@ -181,9 +182,10 @@ export function createRuntimeMonitorViewModel(input: {
   const sourceHealth = classifySourceHealth(input.snapshot, source);
   const tailer = monitor?.tailer || null;
   const activityState = classifyActivity(lastObservedAt, input.now);
-  const warningCount = countWarnings(state, scan);
+  const alerts = createAlerts(state, scan, source, input.fatalError, input.actionError || null, input.snapshot?.monitor.storage || null, input.now);
+  const warningCount = countWarnings(state, scan, alerts);
 
-  const instruments = createInstruments(scan, input.now);
+  const instruments = createInstruments(scan, input.now, alerts);
 
   return {
     workspaceState: state,
@@ -212,7 +214,7 @@ export function createRuntimeMonitorViewModel(input: {
     instruments: instruments.filter((instrument) => !PROMOTED_INSTRUMENT_IDS.has(instrument.id)),
     party: createPartyPanel(scan, input.now, state),
     mission: createMissionPanel(scan, input.now, state),
-    alerts: createAlerts(state, scan, source, input.fatalError, input.actionError || null, input.snapshot?.monitor.storage || null),
+    alerts,
     storageLabel: formatStorageLabel(input.snapshot?.monitor.storage || null)
   };
 }
@@ -330,7 +332,8 @@ function toStreamEvent(kind: StreamEvent['kind'], row: RendererEvidenceRow, now:
 
 function createInstruments(
   scan: RendererScanResult | null,
-  now: Date
+  now: Date,
+  alerts: readonly AlertState[]
 ): InstrumentState[] {
   const latestShard = scan?.entries?.[0];
   const latestSession = scan?.userActivity.sessions?.[0];
@@ -352,6 +355,7 @@ function createInstruments(
         ? lifecycle?.shard.region.friendlyRegion || 'Unknown'
         : firstString(latestShard?.region, latestShard?.gameBuild) || 'Region mapping unknown',
       provenance: lifecycle?.shard.shardLabel ? 'Observed shard; versioned region mapping' : latestShard ? 'Observed log evidence' : 'Evidence absent',
+      supportingEventIds: latestShard?.id ? [latestShard.id] : [],
       drilldown: lifecycle?.shard.shardLabel
         ? `Raw region segment: ${lifecycle.shard.region.rawSegment || 'Unknown'}; confidence: ${lifecycle.shard.region.confidence}; mapping: ${lifecycle.shard.region.mappingVersion}`
         : undefined
@@ -364,9 +368,10 @@ function createInstruments(
       detail: lifecycle?.replicationConnection.disconnect
         ? `${lifecycle.replicationConnection.disconnect.origin} · ${lifecycle.replicationConnection.disconnect.reason}`
         : lifecycle?.replicationConnection.connectedAt
-          ? formatFreshness(lifecycle.replicationConnection.connectedAt, now)
+          ? formatInstrumentAge(lifecycle.replicationConnection.connectedAt, now)
           : 'Monitor may have started mid-state',
       provenance: lifecycle && lifecycle.replicationConnection.state !== 'unknown' ? 'Observed canonical event' : 'Evidence absent',
+      supportingEventIds: latestSession?.id ? [latestSession.id] : [],
       drilldown: lifecycle?.replicationConnection.endpoint
         ? `Replicant: ${lifecycle.replicationConnection.endpoint}:${lifecycle.replicationConnection.port}`
         : lifecycle?.replicationConnection.lastEndpoint
@@ -401,17 +406,19 @@ function createInstruments(
       detail: location?.jurisdiction.observedAt
         ? `${formatFreshness(location.jurisdiction.observedAt, now)} · Last confirmed`
         : unsupportedProfile ? 'Parser profile does not support jurisdiction evidence' : 'No validated jurisdiction evidence observed',
-      provenance: location?.jurisdiction.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent'
+      provenance: location?.jurisdiction.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent',
+      supportingEventIds: location?.jurisdiction.evidenceEventId ? [location.jurisdiction.evidenceEventId] : []
     },
     {
       id: 'monitored-space',
       label: 'Monitored space',
-      value: unsupportedProfile ? 'Unsupported' : location?.monitoredSpace.value === true ? 'Entered' : 'Unknown',
+      value: unsupportedProfile ? 'Unsupported' : formatBooleanFact(location?.monitoredSpace.value),
       state: unsupportedProfile ? 'unsupported' : locationFactState(location?.monitoredSpace),
       detail: location?.monitoredSpace.observedAt
         ? `${formatFreshness(location.monitoredSpace.observedAt, now)} · No clear evidence promoted`
         : unsupportedProfile ? 'Parser profile does not support monitored-space evidence' : 'No validated monitored-space evidence observed',
-      provenance: location?.monitoredSpace.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent'
+      provenance: location?.monitoredSpace.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent',
+      supportingEventIds: location?.monitoredSpace.evidenceEventId ? [location.monitoredSpace.evidenceEventId] : []
     },
     {
       id: 'vehicle',
@@ -454,17 +461,43 @@ function createInstruments(
       value: unsupportedProfile
         ? 'Unsupported'
         : location?.armistice.value === true
-        ? 'Inside'
+        ? 'Yes'
         : location?.armistice.value === false
-          ? 'Outside'
+          ? 'No'
           : 'Unknown',
       state: unsupportedProfile ? 'unsupported' : locationFactState(location?.armistice),
       detail: location?.armistice.observedAt
         ? `${formatFreshness(location.armistice.observedAt, now)} · ${location.armistice.state.replaceAll('_', ' ')}`
         : unsupportedProfile ? 'Parser profile does not support armistice evidence' : 'No validated armistice evidence observed',
-      provenance: location?.armistice.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent'
-    }
+      provenance: location?.armistice.evidenceEventId ? 'Observed HUD notification' : 'Evidence absent',
+      supportingEventIds: location?.armistice.evidenceEventId ? [location.armistice.evidenceEventId] : []
+    },
+    createWarningInstrument(alerts, scan, now)
   ];
+}
+
+function createWarningInstrument(alerts: readonly AlertState[], scan: RendererScanResult | null, now: Date): InstrumentState {
+  const critical = alerts.filter((alert) => alert.severity === 'critical' && alert.state !== 'cleared');
+  const supportingEventIds = critical.map((alert) => alert.evidenceEventId).filter((id): id is string => Boolean(id));
+  const newest = critical
+    .map((alert) => alert.occurredAt)
+    .filter((timestamp): timestamp is string => Boolean(timestamp))
+    .sort((left, right) => (instantMilliseconds(right) || 0) - (instantMilliseconds(left) || 0))[0];
+  const unsupported = ['unsupported_profile', 'unverified_build'].includes(scan?.parserCompatibility?.status || '');
+  return {
+    id: 'critical-warnings',
+    label: 'Critical warnings',
+    value: unsupported ? 'Unsupported' : scan ? String(critical.length) : 'Unknown',
+    state: unsupported ? 'unsupported' : scan ? 'known' : 'unknown',
+    detail: unsupported
+      ? 'Parser profile does not support warning evaluation'
+      : critical.length
+        ? `${critical.length === 1 ? 'Active warning' : 'Active warnings'}${newest ? ` · ${formatInstrumentAge(newest, now)}` : ''}`
+        : 'No active critical warnings',
+    provenance: critical.length ? 'Runtime Monitor alert lifecycle' : scan ? 'Evaluated local alert lifecycle' : 'Evidence absent',
+    supportingEventIds,
+    drilldown: critical.length ? critical.map((alert) => `${alert.title}: ${alert.message}`).join(' · ') : undefined
+  };
 }
 
 function snapshotInstrumentState(
@@ -486,6 +519,18 @@ function formatConnectionState(state: string | undefined): string {
     stale: 'Stale',
     unknown: 'Unknown'
   } as Record<string, string>)[state || 'unknown'] || 'Unknown';
+}
+
+function formatBooleanFact(value: boolean | null | undefined): string {
+  if (value === true) return 'Yes';
+  if (value === false) return 'No';
+  return 'Unknown';
+}
+
+function formatInstrumentAge(timestamp: string, now: Date): string {
+  const observed = instantMilliseconds(timestamp);
+  if (observed === null) return 'Age unknown';
+  return `${formatCompactDuration(Math.max(0, Math.floor((now.getTime() - observed) / 1_000)))} old`;
 }
 
 export function formatCompactDuration(seconds: number): string {
@@ -707,17 +752,19 @@ function createAlerts(
   source: PublicRuntimeSource | null,
   fatalError: string | null,
   actionError: string | null,
-  storage: { status: string; errorCode: string | null; recoverable?: boolean } | null
+  storage: { status: string; errorCode: string | null; recoverable?: boolean } | null,
+  now: Date
 ): AlertState[] {
   const alerts: AlertState[] = [];
   const evidenceEventId = scan?.promotedRuntimeEvents?.[0]?.id || scan?.entries?.[0]?.id || null;
+  const occurredAt = evidenceEventId ? findEventTimestamp(scan, evidenceEventId) : scan?.scannedAt || now.toISOString();
   if (storage?.status === 'error') {
     alerts.push({
       id: 'storage-error',
       severity: storage.recoverable === false ? 'critical' : 'warning',
       title: 'Encrypted telemetry storage unavailable',
       message: `Live monitoring can continue, but canonical events are not durable (${storage.errorCode || 'unknown storage error'}).`,
-      lifetime: 'persistent', evidenceEventId
+      lifetime: 'persistent', evidenceEventId, occurredAt
     });
   }
   if (state === 'fatal') {
@@ -726,7 +773,7 @@ function createAlerts(
       severity: 'critical',
       title: 'Runtime Monitor could not initialize',
       message: fatalError || 'Runtime Monitor could not initialize safely.',
-      lifetime: 'persistent', evidenceEventId
+      lifetime: 'persistent', evidenceEventId, occurredAt
     });
   }
   if (actionError && state !== 'fatal') {
@@ -735,17 +782,17 @@ function createAlerts(
       severity: 'warning',
       title: 'Action could not complete',
       message: actionError,
-      lifetime: 'transient'
+      lifetime: 'transient', occurredAt: now.toISOString()
     });
   }
   if (state === 'degraded' || state === 'recovering' || state === 'paused' || state === 'stale') {
-    alerts.push({ id: 'degraded', severity: 'warning', title: 'Monitor recovering', message: 'Monitoring is active but health is degraded.', lifetime: 'persistent' });
+    alerts.push({ id: 'degraded', severity: 'warning', title: 'Monitor recovering', message: 'Monitoring is active but health is degraded.', lifetime: 'persistent', occurredAt });
   }
   if (state === 'stale') {
-    alerts.push({ id: 'stale', severity: 'warning', title: 'Monitor health stale', message: 'Expected monitor health signals exceeded the fault-visibility window.', lifetime: 'persistent' });
+    alerts.push({ id: 'stale', severity: 'warning', title: 'Monitor health stale', message: 'Expected monitor health signals exceeded the fault-visibility window.', lifetime: 'persistent', occurredAt });
   }
   if (source && source.validation?.isValid === false) {
-    alerts.push({ id: 'source', severity: 'critical', title: 'Source disconnected', message: source.validation.message, lifetime: 'persistent', evidenceEventId });
+    alerts.push({ id: 'source', severity: 'critical', title: 'Source disconnected', message: source.validation.message, lifetime: 'persistent', evidenceEventId, occurredAt });
   }
   if (scan?.parserCompatibility?.status === 'suspected_drift') {
     alerts.push({
@@ -753,7 +800,7 @@ function createAlerts(
       severity: 'warning',
       title: 'Parser vocabulary drift suspected',
       message: 'The source remains available, but some current log vocabulary is not recognized by this profile.',
-      lifetime: 'persistent', evidenceEventId
+      lifetime: 'persistent', evidenceEventId, occurredAt
     });
   }
   if (scan?.parserCompatibility?.status === 'unverified_build') {
@@ -762,7 +809,7 @@ function createAlerts(
       severity: 'warning',
       title: 'Unverified game build',
       message: 'This patch belongs to a known profile family but lacks exact fixture-backed approval; semantic events are suppressed.',
-      lifetime: 'persistent'
+      lifetime: 'persistent', occurredAt
     });
   }
   for (const diagnostic of scan?.environmentDiagnostics || []) {
@@ -771,7 +818,7 @@ function createAlerts(
       severity: 'warning',
       title: 'Environment diagnostic',
       message: typeof diagnostic === 'string' ? diagnostic : 'Environment evidence requires review.',
-      lifetime: 'persistent'
+      lifetime: 'persistent', occurredAt
     });
   }
   return alerts;
@@ -783,10 +830,16 @@ function formatStorageLabel(storage: { status: string; eventCount?: number; encr
   return `${storage.eventCount || 0} events · ${storage.encrypted ? 'Encrypted' : 'Unprotected'}`;
 }
 
-function countWarnings(state: WorkspaceState, scan: RendererScanResult | null): number {
+function countWarnings(state: WorkspaceState, scan: RendererScanResult | null, alerts: readonly AlertState[]): number {
   return (state === 'ready' || state === 'loading' ? 0 : 1)
     + (scan?.parserCompatibility?.status === 'suspected_drift' ? 1 : 0)
-    + (scan?.environmentDiagnostics?.length || 0);
+    + (scan?.environmentDiagnostics?.length || 0)
+    + alerts.filter((alert) => alert.severity === 'critical').length;
+}
+
+function findEventTimestamp(scan: RendererScanResult | null, eventId: string): string | null {
+  const row = [...(scan?.promotedRuntimeEvents || []), ...(scan?.entries || [])].find((candidate) => candidate.id === eventId);
+  return firstString(row?.timestamp, row?.sourceTimestamp, row?.lastSeen, row?.startedAt);
 }
 
 function formatMonitorLabel(state: WorkspaceState, active: boolean, activity: ActivityState): string {

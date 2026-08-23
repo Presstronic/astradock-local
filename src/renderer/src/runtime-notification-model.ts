@@ -8,6 +8,7 @@ export interface AlertState {
   message: string;
   lifetime: NotificationLifetime;
   evidenceEventId?: string | null;
+  occurredAt?: string | null;
   reason?: string;
   state?: 'active' | 'cleared' | 'acknowledged';
 }
