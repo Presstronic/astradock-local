@@ -105,7 +105,7 @@ Before approving a fixture PR, verify:
 | LIVE 4.9.188 repeated PU-ready sequence | `spine/live-4-9-188-repeated-pu-ready.observed` |
 | Frontend PU-ready vocabulary guard | `negative/live-4-9-188-frontend-ready-noise.non-event` |
 | Disconnect/frontend return/clean quit | `spine/disconnect-frontend-clean-exit.observed` |
-| Failure and transition gaps | `spine/failure-transition-evidence.unavailable` |
+| Failure, matchmaking, restart, and transition gaps | `spine/failure-transition-evidence.unavailable`, `spine/pu-transition-evidence.unavailable`; see [`pu-transition-evidence-matrix.md`](pu-transition-evidence-matrix.md) |
 | Attractive non-authoritative lines | `negative/object-container-ship-navigation.non-event`, `negative/mission-notification-ui-lifecycle.non-event` |
 | Framing and duplicate behavior | `framing/line-framing-edge-cases.framing`, `framing/duplicate-notification-lifecycle.framing` |
 | Environment isolation | `multi/4.9-pub/sc-4.9-cross-env/environment/live-ptu-identical-identifiers.isolation` |

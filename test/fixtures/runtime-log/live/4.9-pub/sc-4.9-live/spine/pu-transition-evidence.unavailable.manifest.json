@@ -1,0 +1,53 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/spine/pu-transition-evidence.unavailable",
+  "title": "Unavailable matchmaking, in-session transition, and restart evidence",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-08-19.3",
+  "domain": "spine",
+  "action": "failed or cancelled matchmaking, in-session server or shard transition, and AstraDock restart during active PU",
+  "outcome": "unavailable",
+  "provenance": "unavailable_evidence_annotation",
+  "evidenceBasis": "docs/pu-transition-evidence-matrix.md#follow-up-capture-requirements",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": [],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "No raw snippet is committed because the reviewed evidence does not contain complete controlled examples for these transitions."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "MatchmakingFailed",
+      "reason": "No controlled terminal failure with an unambiguous local matchmaking request identity has been captured."
+    },
+    {
+      "eventType": "MatchmakingCancelled",
+      "reason": "No distinct cancellation record has been captured; timeout, absence, or later join evidence is insufficient."
+    },
+    {
+      "eventType": "InSessionServerHandoffObserved",
+      "reason": "The same-shard DGS change was observed only through an overlay and has no safe game.log local-player correlation."
+    },
+    {
+      "eventType": "InSessionShardChanged",
+      "reason": "The second shard is observed after frontend return as a new PU session, not as an in-session shard transition."
+    },
+    {
+      "eventType": "ActiveSessionRecoveredAfterRestart",
+      "reason": "No controlled AstraDock restart capture proves replay or bootstrap recovery during an active PU session."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "not_applicable",
+    "sequence": [],
+    "notes": "This manifest is a promotion gate. It prevents generic mesh/router vocabulary, missing terminal records, and startup reconstruction from becoming transition events."
+  },
+  "knownLimitations": [
+    "The unavailable scenarios require owner-supplied controlled captures before any positive event or reducer transition can be enabled.",
+    "Overlay/OCR observations are a separate future source and do not satisfy game.log evidence requirements."
+  ],
+  "verificationNotes": "Fixture corpus validation must accept this annotation without a log file; future capture PRs must replace individual unavailable decisions with minimal sanitized positive and negative fixtures."
+}
