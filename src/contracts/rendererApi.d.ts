@@ -90,7 +90,7 @@ export interface TailerCheckpoint {
 }
 
 export interface TailerHealth {
-  status: 'idle' | 'waiting_for_source' | 'monitoring' | 'paused' | 'stopped';
+  status: 'idle' | 'waiting_for_source' | 'monitoring' | 'paused' | 'stale' | 'stopped';
   available: boolean;
   generation: number;
   sequence: number;

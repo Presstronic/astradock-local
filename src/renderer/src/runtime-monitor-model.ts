@@ -49,10 +49,16 @@ export interface RuntimeMonitorViewModel {
   freshnessLabel: string;
   exactFreshness: string | null;
   sourceHealth: SourceHealthState;
+  sourceHealthLabel: string;
+  backlogLabel: string;
+  backlogDetail: string;
   activityState: ActivityState;
   compatibilityState: CompatibilityState;
   environmentLabel: string;
   buildLabel: string;
+  lifecycleLabel: string;
+  lifecycleDetail: string;
+  lifecycleLastChangedAt: string | null;
   warningCount: number;
   streamEvents: StreamEvent[];
   retainedCount: number;
@@ -65,7 +71,7 @@ export interface RuntimeMonitorViewModel {
   storageLabel: string;
 }
 
-export type SourceHealthState = 'unknown' | 'healthy' | 'recovering' | 'paused' | 'degraded' | 'missing' | 'stopped' | 'error';
+export type SourceHealthState = 'unknown' | 'healthy' | 'recovering' | 'paused' | 'stale' | 'degraded' | 'missing' | 'stopped' | 'error';
 export type ActivityState = 'none' | 'recent' | 'quiet';
 export type CompatibilityState = 'unknown' | 'compatible' | 'unverified_build' | 'unsupported_profile' | 'suspected_drift';
 
@@ -173,6 +179,7 @@ export function createRuntimeMonitorViewModel(input: {
   const monitor = input.snapshot?.monitor ?? null;
   const lastObservedAt = monitor?.tailer?.lastObservedAt || scan?.scannedAt || null;
   const sourceHealth = classifySourceHealth(input.snapshot, source);
+  const tailer = monitor?.tailer || null;
   const activityState = classifyActivity(lastObservedAt, input.now);
   const warningCount = countWarnings(state, scan);
 
@@ -185,12 +192,18 @@ export function createRuntimeMonitorViewModel(input: {
     freshnessLabel: formatFreshness(lastObservedAt, input.now),
     exactFreshness: lastObservedAt,
     sourceHealth,
+    sourceHealthLabel: formatSourceHealth(sourceHealth),
+    backlogLabel: formatBacklog(tailer),
+    backlogDetail: formatBacklogDetail(tailer),
     activityState,
     compatibilityState: (scan?.parserCompatibility?.status || 'unknown') as CompatibilityState,
     environmentLabel: lifecycle?.environment.releaseChannel || formatEnvironment(scan),
     buildLabel: lifecycle?.build.productVersion || lifecycle?.build.fileVersion || (environment?.buildVersion && environment.buildVersion !== 'UNKNOWN_BUILD'
       ? environment.buildVersion
       : source?.buildVersion || 'Unknown'),
+    lifecycleLabel: formatLifecycleState(lifecycle?.lifecycle.state),
+    lifecycleDetail: lifecycle?.lifecycle.reason || 'No accepted lifecycle transition has been observed.',
+    lifecycleLastChangedAt: lifecycle?.lifecycle.lastChangedAt || null,
     warningCount,
     streamEvents,
     retainedCount: createAllEvents(scan).length,
@@ -231,6 +244,7 @@ export function classifyWorkspaceState(input: {
   if (input.snapshot?.monitor.active && !tailer) return 'recovering';
   if (tailer?.status === 'stopped' || input.snapshot?.monitor.active === false) return 'ready';
   if (tailer?.status === 'paused' || tailer?.paused) return 'paused';
+  if (tailer?.status === 'stale') return 'stale';
   if (tailer?.lastErrorCode) return 'degraded';
   if (tailer && !tailer.available) return 'disconnected';
   if (tailer && (tailer.backlogBytes > 0 || tailer.deliveryInFlight)) return 'degraded';
@@ -256,6 +270,7 @@ export function classifySourceHealth(
   if (!tailer) return monitor?.active ? 'recovering' : 'stopped';
   if (tailer.status === 'stopped' || !monitor?.active) return 'stopped';
   if (tailer.status === 'paused' || tailer.paused) return 'paused';
+  if (tailer.status === 'stale') return 'stale';
   if (tailer.lastErrorCode) return 'degraded';
   if (!tailer.available || tailer.status === 'waiting_for_source') return 'missing';
   if (tailer.backlogBytes > 0 || tailer.deliveryInFlight) return 'degraded';
@@ -723,7 +738,7 @@ function createAlerts(
       lifetime: 'transient'
     });
   }
-  if (state === 'degraded' || state === 'recovering' || state === 'paused') {
+  if (state === 'degraded' || state === 'recovering' || state === 'paused' || state === 'stale') {
     alerts.push({ id: 'degraded', severity: 'warning', title: 'Monitor recovering', message: 'Monitoring is active but health is degraded.', lifetime: 'persistent' });
   }
   if (state === 'stale') {
@@ -809,6 +824,27 @@ export function formatSourceState(source: PublicRuntimeSource): string {
   return [channel, source.buildVersion && source.buildVersion !== 'UNKNOWN_BUILD' ? source.buildVersion : null, status]
     .filter(Boolean)
     .join(' / ');
+}
+
+export function formatSourceHealth(state: SourceHealthState): string {
+  return ({
+    unknown: 'Unknown', healthy: 'Healthy', recovering: 'Recovering', paused: 'Paused', stale: 'Stale',
+    degraded: 'Degraded', missing: 'Source missing', stopped: 'Stopped', error: 'Error'
+  } as Record<SourceHealthState, string>)[state];
+}
+
+function formatBacklog(tailer: { backlogBytes?: number; deliveryInFlight?: boolean } | null): string {
+  if (!tailer) return 'Unknown';
+  const bytes = Number.isInteger(tailer.backlogBytes) ? Math.max(0, tailer.backlogBytes as number) : null;
+  if (bytes === null) return 'Unknown';
+  return bytes === 0 && !tailer.deliveryInFlight ? '0 B' : `${bytes} B`;
+}
+
+function formatBacklogDetail(tailer: { backlogBytes?: number; deliveryInFlight?: boolean } | null): string {
+  if (!tailer) return 'No monitor health snapshot is available.';
+  const events = 'Event count unavailable until line framing completes.';
+  if (tailer.deliveryInFlight) return `${events} Delivery is in progress.`;
+  return `${events} Unread bytes: ${formatBacklog(tailer)}.`;
 }
 
 export function formatFreshness(value: string | null | undefined, now: Date): string {

@@ -5,7 +5,8 @@ import {
   classifySourceHealth,
   classifyWorkspaceState,
   createRuntimeMonitorViewModel,
-  formatCompactDuration
+  formatCompactDuration,
+  formatSourceHealth
 } from '../src/renderer/src/runtime-monitor-model';
 
 describe('separated monitor health and activity clocks', () => {
@@ -196,6 +197,53 @@ describe('Runtime Monitor action errors', () => {
       message: 'Selected file is not a validated Star Citizen game.log.',
       lifetime: 'transient'
     });
+  });
+});
+
+describe('issue 42 source and lifecycle surface', () => {
+  it('exposes canonical health, backlog, lifecycle state, and transition freshness', () => {
+    const now = new Date('2026-08-22T12:00:10.000Z');
+    const scan = {
+      environment: { releaseChannel: 'LIVE', environmentName: 'PU', buildVersion: '4.9.1' },
+      rendererLifecycle: {
+        activeEnvironmentKey: 'env',
+        environments: { env: {
+          environment: { releaseChannel: 'LIVE' },
+          build: { productVersion: '4.9.1' },
+          shard: { state: 'unknown', shardLabel: null, region: { friendlyRegion: 'UNKNOWN' } },
+          replicationConnection: { state: 'unknown' },
+          puSession: { state: 'unknown' },
+          lifecycle: { state: 'in_game', reason: 'Entered the persistent universe.', lastChangedAt: '2026-08-22T12:00:00.000Z' }
+        } }
+      },
+      parserCompatibility: { status: 'compatible' },
+      promotedRuntimeEvents: [], entries: [], userActivity: { actions: [], sessions: [] }, environmentDiagnostics: []
+    } as never;
+    const model = createRuntimeMonitorViewModel({
+      loading: false, fatalError: null, sources: [], activeSource: { validation: { isValid: true } } as never,
+      snapshot: { monitor: { active: true, tailer: { status: 'monitoring', available: true, backlogBytes: 2048, deliveryInFlight: true, lastObservedAt: '2026-08-22T12:00:05.000Z' } } } as never,
+      scan, now
+    });
+
+    expect(formatSourceHealth('degraded')).toBe('Degraded');
+    expect(model.sourceHealthLabel).toBe('Degraded');
+    expect(model.backlogLabel).toBe('2048 B');
+    expect(model.backlogDetail).toContain('Event count unavailable');
+    expect(model.lifecycleLabel).toBe('In game');
+    expect(model.lifecycleDetail).toBe('Entered the persistent universe.');
+    expect(model.lifecycleLastChangedAt).toBe('2026-08-22T12:00:00.000Z');
+  });
+
+  it('keeps missing and stopped source states distinguishable', () => {
+    const source = { validation: { isValid: true } } as never;
+    expect(formatSourceHealth('missing')).toBe('Source missing');
+    expect(formatSourceHealth('stale')).toBe('Stale');
+    expect(createRuntimeMonitorViewModel({ loading: false, fatalError: null, sources: [], activeSource: source,
+      snapshot: { monitor: { active: true, tailer: { status: 'waiting_for_source', available: false } } } as never,
+      scan: null, now: new Date() }).sourceHealth).toBe('missing');
+    expect(createRuntimeMonitorViewModel({ loading: false, fatalError: null, sources: [], activeSource: source,
+      snapshot: { monitor: { active: false, tailer: { status: 'stopped', available: false } } } as never,
+      scan: null, now: new Date() }).sourceHealth).toBe('stopped');
   });
 });
 

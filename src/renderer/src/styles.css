@@ -279,6 +279,62 @@ h2,
   overflow: visible;
 }
 
+.header-metric-action {
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.header-metric-action:hover,
+.header-metric-action[aria-expanded="true"] {
+  background: var(--surface-active);
+}
+
+.source-details {
+  position: absolute;
+  z-index: 4;
+  top: var(--header-height);
+  right: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--primary-border);
+  background: var(--surface-chrome);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .32);
+}
+
+.source-details > div:first-child,
+.source-details-actions,
+.source-details-actions label {
+  display: flex;
+  gap: 6px;
+  flex-direction: column;
+}
+
+.source-details > div:first-child span {
+  color: var(--text-label);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.source-details-actions {
+  align-items: flex-end;
+  flex-direction: row;
+}
+
+.source-details-actions label {
+  color: var(--text-label);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
 .header-metric,
 .status-pill {
   min-height: 28px;

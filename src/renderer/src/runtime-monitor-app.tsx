@@ -23,7 +23,8 @@ import {
   type PartyTransitionViewState,
   type PartyViewState,
   type StreamEvent,
-  type StreamView
+  type StreamView,
+  formatFreshness
 } from './runtime-monitor-model';
 import { RuntimeNotificationStack } from './runtime-notification-stack';
 import {
@@ -76,6 +77,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
   const [settingsSnapshot, setSettingsSnapshot] = useState<SettingsSnapshot | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
   const [now, setNow] = useState<Date>(() => clock());
   const [search, setSearch] = useState('');
   const [streamFilters, setStreamFilters] = useState<{
@@ -91,6 +93,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [eventStream, setEventStream] = useState(() => createSharedEventStreamState({ view: preferences.streamView }));
   const [partyAnnouncement, setPartyAnnouncement] = useState('');
   const [destinationAnnouncement, setDestinationAnnouncement] = useState('');
+  const [monitorAnnouncement, setMonitorAnnouncement] = useState('');
   const [detail, setDetail] = useState<DetailState>({
     status: 'empty',
     selected: null,
@@ -144,6 +147,9 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             }
             if (change.type === 'monitor.error') {
               setActionError(change.error.message);
+            }
+            if (change.type === 'monitor.lifecycle') {
+              setMonitorAnnouncement(`Monitor source update: ${formatLifecycleChange(change.lifecycle)}.`);
             }
           }
         });
@@ -398,10 +404,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           <Metric label="Environment" value={viewModel.environmentLabel.toUpperCase()} />
           <Metric label="Build" value={viewModel.buildLabel} />
           <StatusPill state={viewModel.workspaceState} label={viewModel.monitorLabel} />
-          <Metric label="Source health" value={viewModel.sourceHealth} />
+          <Metric label="Source health" value={viewModel.sourceHealthLabel} title={viewModel.backlogDetail} />
           <Metric label="Last activity" value={viewModel.freshnessLabel} title={viewModel.exactFreshness || undefined} />
+          <Metric label="Lifecycle" value={viewModel.lifecycleLabel} title={viewModel.lifecycleDetail} />
+          <Metric label="Last transition" value={formatFreshness(viewModel.lifecycleLastChangedAt, now)} title={viewModel.lifecycleLastChangedAt || undefined} />
           <Metric label="Parser" value={viewModel.compatibilityState.replaceAll('_', ' ')} />
-          <Metric label="Source" value={viewModel.source?.displayLabel || 'Awaiting source'} />
+          <button type="button" className="header-metric header-metric-action" aria-expanded={sourceDetailsOpen} onClick={() => setSourceDetailsOpen((open) => !open)}>
+            <small>Source</small><strong>{viewModel.source?.displayLabel || 'Awaiting source'}</strong>
+          </button>
           {viewModel.headerTelemetry.map((instrument) => (
             <HeaderTelemetryMetric
               key={instrument.id}
@@ -422,6 +432,27 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           )}
         </div>
       </header>
+
+      {sourceDetailsOpen ? <SourceDetails
+        sources={viewModel.sourceCandidates}
+        activeSource={viewModel.source}
+        onSelect={async (sourceId) => {
+          try {
+            setActionError(null);
+            const result = await client.source.select(sourceId);
+            setActiveSource(result.selected ? result.source : null);
+            setSources((current) => upsertSource(current, result.source));
+            if (result.selected) setScan(await client.monitor.scan({ sourceId, options: {} }));
+          } catch (error) { setActionError(error instanceof Error ? error.message : 'Source selection failed.'); }
+        }}
+        onChoose={chooseSource}
+        onRetry={scanSource}
+        onOpenFolder={async () => {
+          if (!viewModel.source) return;
+          try { await client.source.openFolder(viewModel.source.sourceId); setMonitorAnnouncement('Source folder opened.'); }
+          catch (error) { setActionError(error instanceof Error ? error.message : 'Source folder could not be opened.'); }
+        }}
+      /> : null}
 
       <nav className="workspace-tabs" aria-label="Workspaces">
         <a href="#runtime-main" aria-current="page">Runtime Monitor</a>
@@ -487,6 +518,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           />
           <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{partyAnnouncement}</p>
           <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{destinationAnnouncement}</p>
+          <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{monitorAnnouncement}</p>
         </aside>
 
         <section id="runtime-stream" className="stream-workspace" aria-label="Runtime event stream">
@@ -594,7 +626,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             <span>Retention 30 days</span>
             <span><b>Storage</b> {viewModel.storageLabel}</span>
             <i />
-            <span><b>Backlog</b> 0</span>
+            <span title={viewModel.backlogDetail}><b>Backlog</b> {viewModel.backlogLabel}</span>
             <span title={[
               scan?.parserCompatibility?.compatibilityBasis,
               scan?.parserCompatibility?.testedBuild,
@@ -1050,6 +1082,46 @@ function Metric({ label, value, title }: { label: string; value: string; title?:
       <strong>{value}</strong>
     </span>
   );
+}
+
+function SourceDetails({
+  sources,
+  activeSource,
+  onSelect,
+  onChoose,
+  onRetry,
+  onOpenFolder
+}: {
+  sources: readonly PublicRuntimeSource[];
+  activeSource: PublicRuntimeSource | null;
+  onSelect: (sourceId: string) => Promise<void>;
+  onChoose: () => Promise<void>;
+  onRetry: () => Promise<void>;
+  onOpenFolder: () => Promise<void>;
+}) {
+  return <section className="source-details" aria-label="Source details">
+    <div>
+      <strong>{activeSource?.displayLabel || 'No source selected'}</strong>
+      <span>{activeSource?.displayPath || 'Select a validated game.log to begin.'}</span>
+      <span>{activeSource ? `${activeSource.validation.status.replaceAll('_', ' ')} · ${activeSource.channelHint || 'UNKNOWN'} · ${activeSource.buildVersion || 'Unknown build'}` : 'Source path is hidden until an explicit detail action.'}</span>
+    </div>
+    <div className="source-details-actions">
+      <label>Available sources<select value={activeSource?.sourceId || ''} onChange={(event) => void onSelect(event.currentTarget.value)} disabled={!sources.length}>
+        <option value="">Select source</option>
+        {sources.map((source) => <option key={source.sourceId} value={source.sourceId}>{source.displayLabel}</option>)}
+      </select></label>
+      <button type="button" className="button secondary" onClick={() => void onChoose()}>Choose source</button>
+      <button type="button" className="button secondary" onClick={() => void onRetry()} disabled={!activeSource}>Retry source</button>
+      <button type="button" className="button secondary" onClick={() => void onOpenFolder()} disabled={!activeSource}>Open containing folder</button>
+    </div>
+  </section>;
+}
+
+function formatLifecycleChange(lifecycle: unknown): string {
+  if (!lifecycle || typeof lifecycle !== 'object') return 'source health changed';
+  const type = 'type' in lifecycle && typeof lifecycle.type === 'string' ? lifecycle.type.replace(/^monitor\./, '').replaceAll('_', ' ') : 'source health changed';
+  const status = 'status' in lifecycle && typeof lifecycle.status === 'string' ? `, ${lifecycle.status.replaceAll('_', ' ')}` : '';
+  return `${type}${status}`;
 }
 
 function SettingsPanel({ snapshot, preferences, onPreferenceChange, onRetentionChange, onDelete, onReset }: {
