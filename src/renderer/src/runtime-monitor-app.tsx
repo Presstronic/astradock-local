@@ -20,7 +20,6 @@ import {
   type InstrumentState,
   type MissionDestinationViewState,
   type PartyMemberViewState,
-  type PartyTransitionViewState,
   type PartyViewState,
   type StreamEvent,
   type StreamView,
@@ -995,14 +994,6 @@ function PartySection({
       ) : (
         <div className="semantic-empty"><strong>{party.label}</strong><p>{party.detail}</p></div>
       )}
-      {party.transitions.length ? (
-        <div className="party-transitions" aria-label="Recent party alerts">
-          <h3>Recent changes</h3>
-          <div role="list">
-            {party.transitions.map((transition) => <PartyTransition key={transition.id} transition={transition} onSelect={onSelect} />)}
-          </div>
-        </div>
-      ) : null}
       <p className="party-limitation">{party.limitation} Social telemetry stays on this device.</p>
     </section>
   );
@@ -1026,19 +1017,6 @@ function PartyMember({ member, onSelect }: {
       <span className="party-member-heading"><strong title={member.handle}>{member.handle}</strong>{member.isLeader ? <em>Leader</em> : null}{member.isLocalPlayer ? <em>You</em> : null}</span>
       <span className="party-member-facts"><span>{member.membershipLabel}</span><span data-state={member.connectionState}>{member.connectionLabel}</span><time title={formatInstantContext(member.observedAt)}>{member.freshnessLabel}</time></span>
       <small>{member.transitionLabel} · Observed · Confidence {member.confidence}</small>
-    </button>
-  );
-}
-
-function PartyTransition({ transition, onSelect }: {
-  transition: PartyTransitionViewState;
-  onSelect: (evidenceEventId: string, trigger: HTMLElement, fallback: string) => void;
-}) {
-  const fallback = `${transition.label}${transition.subjectLabel ? `: ${transition.subjectLabel}` : ''}; ${transition.freshnessLabel}; confidence ${transition.confidence}. The referenced evidence is no longer in the retained stream.`;
-  return (
-    <button type="button" role="listitem" className="party-transition" onClick={(event) => onSelect(transition.evidenceEventId, event.currentTarget, fallback)}>
-      <span><strong>{transition.label}</strong>{transition.subjectLabel ? <small>{transition.subjectLabel}</small> : null}</span>
-      <time title={formatInstantContext(transition.observedAt)}>{transition.freshnessLabel}</time>
     </button>
   );
 }
