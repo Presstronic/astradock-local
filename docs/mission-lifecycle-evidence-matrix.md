@@ -25,6 +25,7 @@ The result is intentionally conservative. The reviewed 4.9 LIVE/PUB evidence con
 | Mission-giver asset guard | `mission/mission-giver-asset-failure.non-event` | Proves asset loading or missing mission-giver data is not player-facing mission state. |
 | Tutorial step guard | `mission/tutorial-step-lifecycle.non-event` | Proves tutorial task/progress records are not general mission lifecycle records. |
 | Unavailable lifecycle annotation | `mission/mission-lifecycle-transitions.unavailable` | Records missing offered/shared, accepted, local-share, objective, terminal, and mid-session evidence. |
+| LIVE 4.9.188 accepted-contract fixture | `mission/contract-accepted.observed`, `mission/contract-shared-only.non-event` | Directly supports shared and primary/local contract acceptance when the notification contains a non-zero `MissionId`; shared zero-ID notifications remain non-events. |
 
 ## Promotion Decisions
 
@@ -32,7 +33,7 @@ The result is intentionally conservative. The reviewed 4.9 LIVE/PUB evidence con
 | --- | --- | --- | --- | --- | --- |
 | Mission offered to local player | `MissionOffered` | Defer | None | No controlled offer/share capture proves a local-player-facing offer. | Keep mission section `unknown` or `unsupported`; do not show offer alerts. |
 | Mission shared with local player | `MissionSharedWithPlayer` | Defer | None | No controlled party/local share receipt capture exists. | Do not infer shares from `MissionId`, party, or notification lifecycle records. |
-| Mission accepted by local player | `MissionAccepted` | Defer | None | No accepted action sequence proves local-player attribution and mission identity. | Do not set a current mission from startup, UI notification, or tutorial records. |
+| Mission accepted by local player | `MissionAccepted` | Promote for `sc-4.9-live` provisional profile | High | Shared and primary/local `Contract Accepted:` notifications with non-zero `MissionId`; the shared case is corroborated by the direct local `MissionAccept` comms record | Present the accepted contract and mission identity as local-only telemetry; do not infer objectives or completion. |
 | Mission shared by local player | `MissionSharedByLocalPlayer` | Defer | None | No local-share capture exists. | Do not present outgoing share status. |
 | Objective added or changed | `MissionObjectiveChanged` | Defer | None | No objective lifecycle sequence proves a semantic mission objective change. | Do not alter objective lists from generic notification add/next/fade/remove records. |
 | Objective completed | `MissionObjectiveCompleted` | Defer | None | No objective completion outcome was captured. | Do not advance progress from notification echoes or tutorial steps. |
@@ -45,7 +46,7 @@ The result is intentionally conservative. The reviewed 4.9 LIVE/PUB evidence con
 | Confirmed empty current mission set | `MissionCurrentSetConfirmedEmpty` | Defer | None | No source proves an authoritative empty active mission set. | Do not convert startup, missing captures, or mid-session replay into a confirmed zero-mission state. |
 | Monitor starts mid-mission | No event; projection bootstrap state | Defer | None | No mid-session startup capture with proven active mission state exists. | Start mission projection as `unknown`; never convert missing evidence into an empty confirmed mission set. |
 
-No issue #10 candidate mission event is promoted for the current `sc-4.9-live` provisional profile.
+Only `MissionAccepted` is promoted for the current `sc-4.9-live` provisional profile. All other issue #10 candidate mission events remain deferred.
 
 ## Payload, Attribution, and Correlation Rules
 
@@ -111,18 +112,17 @@ Happy-path checks:
 Unhappy-path checks:
 
 1. Replay `mission-service-startup.non-event`, `mission-giver-asset-failure.non-event`, `tutorial-step-lifecycle.non-event`, and `negative/mission-notification-ui-lifecycle.non-event`.
-2. Confirm none emit mission offered, shared, accepted, objective, completed, failed, abandoned, withdrawn, expired, or empty confirmed mission-set events.
+2. Confirm none emit mission offered, shared, objective, completed, failed, abandoned, withdrawn, expired, or empty confirmed mission-set events; contract-shared-only remains a non-event for acceptance.
 3. Interleave identical synthetic mission identifiers across LIVE/PTU/EPTU partitions and confirm correlations do not cross environment keys.
 4. Start monitoring mid-session and confirm mission projection starts as `unknown` or `unsupported`, not an empty confirmed set.
 5. Run the privacy scanner and reject real mission IDs, handles, identifiers, paths, IP addresses, credentials, service URLs, and full-log excerpts.
 
 ## Remaining Evidence Gaps
 
-Controlled gameplay captures are still required before enabling any mission event family:
+Controlled gameplay captures are still required before enabling any mission event family beyond `MissionAccepted`:
 
 - Mission offered to the local player.
 - Mission shared with the local player.
-- Mission accepted by the local player.
 - Mission shared by the local player.
 - Objective added or changed.
 - Objective completed.

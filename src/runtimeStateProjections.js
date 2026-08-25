@@ -3,7 +3,8 @@ const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 const { laterInstant, toEpochMilliseconds } = require('./time');
 
 const SNAPSHOT_VERSION = 1;
-const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected', 'PartyLeft']);
+const PARTY_EVENT_TYPES = Object.freeze(['PartyCreated', 'PartyLaunchInitiated', 'PartyMemberConnected', 'PartyMemberJoined', 'PartyLeft']);
+const MISSION_EVENT_TYPES = Object.freeze(['MissionAccepted']);
 const LOCATION_EVENT_TYPES = Object.freeze(['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged']);
 const QUANTUM_EVENT_TYPES = Object.freeze(['QuantumTargetSelected', 'QuantumTargetChanged', 'QuantumTravelArrived']);
 const VEHICLE_EVENT_TYPES = Object.freeze(['VehicleRetrieved', 'VehicleControlAcquired', 'VehicleControlReleased', 'VehicleStored']);
@@ -23,6 +24,8 @@ function projectRuntimeParty(events, options = {}) {
       applyPartyLaunchInitiated(projection, event);
     } else if (event.eventType === 'PartyMemberConnected') {
       applyPartyMemberConnected(projection, event);
+    } else if (event.eventType === 'PartyMemberJoined') {
+      applyPartyMemberJoined(projection, event);
     } else if (event.eventType === 'PartyLeft') {
       applyPartyLeft(projection, event);
     } else if (SESSION_BOUNDARY_EVENT_TYPES.includes(event.eventType)) {
@@ -259,6 +262,22 @@ function applyPartyMemberConnected(projection, event) {
     evidenceEventId: event.eventId
   });
   addTransition(projection, event, 'Member connected', memberHandle);
+}
+
+function applyPartyMemberJoined(projection, event) {
+  const memberHandle = sanitizeDisplayText(event.payload.memberHandle);
+  projection.state = projection.state === 'unknown' ? 'in_party' : projection.state;
+  upsertPartyMember(projection, memberHandle, {
+    membershipState: 'confirmed',
+    connectionState: 'connected',
+    isLeader: projection.leader.handle === memberHandle,
+    isLocalPlayer: false,
+    latestTransition: 'Member joined',
+    observedAt: event.sourceTimestamp,
+    confidence: event.confidence,
+    evidenceEventId: event.eventId
+  });
+  addTransition(projection, event, 'Member joined', memberHandle);
 }
 
 function applyPartyLeft(projection, event) {
@@ -502,6 +521,7 @@ function toTime(value) {
 
 module.exports = {
   LOCATION_EVENT_TYPES,
+  MISSION_EVENT_TYPES,
   PARTY_EVENT_TYPES,
   QUANTUM_EVENT_TYPES,
   VEHICLE_EVENT_TYPES,

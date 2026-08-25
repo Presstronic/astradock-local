@@ -50,6 +50,27 @@ test('party snapshot projects only promoted party evidence without inventing mar
   );
 });
 
+test('named party-member joins become confirmed members from direct notifications', () => {
+  const events = parseFixture('party', 'party-member-joined.observed.log').events;
+  const snapshot = toRendererPartySnapshot(projectRuntimeParty(events, {
+    activeEnvironmentKey: events.at(-1).environmentKey,
+    now: '2026-08-25T01:00:00.000Z'
+  }));
+  const party = snapshot.environments[snapshot.activeEnvironmentKey];
+
+  assert.equal(party.state, 'in_party');
+  assert.equal(party.confirmedMemberCount, 2);
+  assert.equal(party.possibleMemberCount, 0);
+  assert.deepEqual(party.members.map((member) => [member.handle, member.membershipState, member.connectionState]), [
+    ['SYNTH_HANDLE_MEMBER_A', 'confirmed', 'connected'],
+    ['SYNTH_HANDLE_MEMBER_B', 'confirmed', 'connected']
+  ]);
+  assert.deepEqual(party.recentTransitions.map((transition) => transition.eventType), [
+    'PartyMemberJoined',
+    'PartyMemberJoined'
+  ]);
+});
+
 test('marker-only party evidence leaves party state unknown', () => {
   const events = parseFixture('party', 'party-marker-only-membership.non-event.log').events;
   const snapshot = toRendererPartySnapshot(projectRuntimeParty(events, {

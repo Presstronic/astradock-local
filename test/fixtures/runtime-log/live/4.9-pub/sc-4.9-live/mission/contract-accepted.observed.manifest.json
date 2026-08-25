@@ -1,0 +1,49 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/mission/contract-accepted.observed",
+  "title": "Shared contract accepted with non-zero mission identity",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "2026-08-19.5",
+  "domain": "mission",
+  "action": "accept a shared contract as the local player",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "issue #122 owner-provided LIVE 4.9.188 capture",
+  "logFile": "contract-accepted.observed.log",
+  "privacyClassification": ["personal", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["missionId", "playerGeid", "handle", "notificationId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Mission, player, notification, and contract identifiers are synthetic."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "MissionAccepted",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "missionId", "contractName"],
+      "payload": {"notificationId": "37", "missionId": "SYNTH_MISSION_ACCEPTED", "contractName": "SYNTH_CONTRACT_NAME"},
+      "evidenceMarkers": ["Contract Accepted:", "MissionId:"]
+    },
+    {
+      "eventType": "MissionAccepted",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "missionId", "contractName"],
+      "payload": {"notificationId": "38", "missionId": "SYNTH_MISSION_PRIMARY", "contractName": "SYNTH_PRIMARY_CONTRACT"},
+      "evidenceMarkers": ["Contract Accepted:", "MissionId:"]
+    }
+  ],
+  "expectedNonEvents": [{"eventType": "MissionAccepted", "reason": "Contract shared with a zero mission ID is not acceptance evidence."}],
+  "correlation": {
+    "dedupeKey": "notificationId|missionId",
+    "sequence": ["contract shared zero-ID notification", "local MissionAccept comms record", "shared contract accepted", "primary contract accepted"],
+    "notes": "The non-zero accepted notification is the canonical event anchor; direct MissionAccept is corroborating local attribution."
+  },
+  "knownLimitations": ["This fixture proves acceptance, not objective progress, completion, failure, abandonment, or primary-contract ownership semantics."],
+  "verificationNotes": "Whole-file and fragmented parsing must emit exactly one MissionAccepted event and ignore the shared zero-ID notification."
+}

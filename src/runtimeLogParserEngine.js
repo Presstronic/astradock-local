@@ -59,7 +59,9 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'partyCreated',
   'partyLaunchInitiated',
   'partyMemberConnected',
+  'partyMemberJoined',
   'partyLeft',
+  'missionAccepted',
   'jurisdictionEntered',
   'monitoredSpaceEntered',
   'monitoredSpaceExited',
@@ -91,7 +93,9 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   partyCreated: 'PartyCreated',
   partyLaunchInitiated: 'PartyLaunchInitiated',
   partyMemberConnected: 'PartyMemberConnected',
+  partyMemberJoined: 'PartyMemberJoined',
   partyLeft: 'PartyLeft',
+  missionAccepted: 'MissionAccepted',
   jurisdictionEntered: 'JurisdictionEntered',
   monitoredSpaceEntered: 'MonitoredSpaceEntered',
   monitoredSpaceExited: 'MonitoredSpaceExited',
@@ -237,6 +241,15 @@ class RuntimeLogRecordAssembler {
     const records = [];
     const diagnostics = [];
     const isContinuation = /^\s+/.test(line.text);
+
+    if (this.pending && isTimestampedNotificationContinuation(this.pending.text, line.text)) {
+      this.pending.text = `${this.pending.text}\n${line.text}`;
+      this.pending.normalizedText = normalizeRecordText(this.pending.text);
+      this.pending.byteLength += line.byteLength;
+      this.pending.endLineNumber = line.lineNumber;
+      this.pending.lineCount += 1;
+      return { records, diagnostics };
+    }
 
     if (isContinuation && this.pending) {
       this.pending.text = `${this.pending.text}\n${line.text}`;
@@ -918,6 +931,15 @@ class RuntimeLogParserEngine {
           memberHandle: member.groups.member
         }, extractor, profile, record);
       }
+      case 'partyMemberJoined': {
+        const notification = pickNotification(record.normalizedText);
+        const member = notification.message && notification.message.match(/^New Member Joined\s+(?<member>.+?)\s+has joined the party\.:?\s*$/i);
+        if (!member) return [];
+        return this.createEventIfComplete('PartyMemberJoined', {
+          notificationId: notification.id,
+          memberHandle: member.groups.member.trim()
+        }, extractor, profile, record);
+      }
       case 'partyLeft': {
         const leave = record.normalizedText.match(/<Leave group>\s+Client\s+(?<playerGeid>\S+)\s+leave group\s+(?<partyId>\S+)/);
         if (!leave) return [];
@@ -927,6 +949,18 @@ class RuntimeLogParserEngine {
           partyId: cleanValue(leave.groups.partyId),
           playerGeid,
           reason: 'voluntary_leave'
+        }, extractor, profile, record);
+      }
+      case 'missionAccepted': {
+        const notification = pickNotification(record.normalizedText);
+        const missionId = pickBracketValue(record.normalizedText, 'MissionId')
+          || record.normalizedText.match(/\bMissionId\s*:\s*\[([^\]]+)\]/i)?.[1] || null;
+        const message = notification.message && notification.message.match(/^Contract Accepted:\s*(?<contractName>.+?)\s*:?$/i);
+        if (!notification.id || !missionId || isZeroIdentifier(missionId) || !message) return [];
+        return this.createEventIfComplete('MissionAccepted', {
+          notificationId: notification.id,
+          missionId,
+          contractName: message.groups.contractName.replace(/:\s*$/, '').trim()
         }, extractor, profile, record);
       }
       case 'jurisdictionEntered': {
@@ -1737,6 +1771,10 @@ function pickNotification(text) {
   };
 }
 
+function isZeroIdentifier(value) {
+  return /^0{8}(?:-0{4}){3}-0{12}$/i.test(String(value || ''));
+}
+
 function normalizeLocationNotificationMessage(message) {
   return message ? message.replace(/:\s*$/, '').trim() : null;
 }
@@ -1846,7 +1884,19 @@ function parseSourceTimestamp(text) {
 }
 
 function normalizeRecordText(text) {
-  return String(text).replace(/\s*\n\s*/g, ' ').trimEnd();
+  return String(text)
+    .replace(/\s*\n\s*/g, ' ')
+    .replace(/\s<\d{4}-\d{2}-\d{2}T[^>]+>\s*/g, ' ')
+    .trimEnd();
+}
+
+function isTimestampedNotificationContinuation(pendingText, lineText) {
+  if (!pendingText.includes('<SHUDEvent_OnNotification> Added notification "') || pendingText.includes(' to queue.')) return false;
+  const pendingTimestamp = String(pendingText).match(/^<([^>]+)>/);
+  const lineTimestamp = String(lineText).match(/^<([^>]+)>/);
+  if (!pendingTimestamp || !lineTimestamp || pendingTimestamp[1] !== lineTimestamp[1]) return false;
+  const remainder = String(lineText).replace(/^<[^>]+>\s*/, '');
+  return Boolean(remainder) && !remainder.startsWith('[Notice]');
 }
 
 function normalizeReleaseChannel(value) {

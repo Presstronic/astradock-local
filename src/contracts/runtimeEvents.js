@@ -579,6 +579,21 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       memberHandle: 'SYNTH_HANDLE_PARTY_MEMBER'
     }
   },
+  PartyMemberJoined: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'Direct notification evidence shows a named party member joined.',
+    traits: traits({ subjectScopes: ['party', 'other_player'], sensitivity: 'social' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/party/party-member-joined.observed',
+    payload: {
+      notificationId: field(STRING),
+      memberHandle: field(STRING)
+    },
+    examplePayload: {
+      notificationId: 'SYNTH_NOTIFICATION_PARTY_JOINED',
+      memberHandle: 'SYNTH_HANDLE_JOINED_MEMBER'
+    }
+  },
   PartyLeft: {
     owner: 'runtime-contracts',
     status: 'mvp',
@@ -594,6 +609,23 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       partyId: 'SYNTH_PARTY_A',
       playerGeid: 'SYNTH_PLAYER_GEID_LOCAL',
       reason: 'voluntary_leave'
+    }
+  },
+  MissionAccepted: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'A contract accepted by the local player was directly observed.',
+    traits: traits({ subjectScopes: ['local_player', 'session'], sensitivity: 'personal' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/mission/contract-accepted.observed',
+    payload: {
+      notificationId: field(STRING),
+      missionId: field(STRING),
+      contractName: field(STRING)
+    },
+    examplePayload: {
+      notificationId: 'SYNTH_NOTIFICATION_CONTRACT_ACCEPTED',
+      missionId: 'SYNTH_MISSION_ACCEPTED',
+      contractName: 'SYNTH_CONTRACT_NAME'
     }
   },
   JurisdictionEntered: {

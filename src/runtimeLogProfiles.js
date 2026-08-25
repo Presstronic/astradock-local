@@ -12,6 +12,7 @@ const SC_49_EVENT_FAMILIES = Object.freeze([
   { id: 'frontend', requiredAnchors: ['RequestFrontEndReason'] },
   { id: 'application', requiredAnchors: ['<SystemQuit>'] },
   { id: 'party', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
+  { id: 'mission', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
   { id: 'zone', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
   { id: 'vehicle', requiredAnchors: ['<CEntityComponentShipListProvider::SetVehicleSpawningInformations>', '<Vehicle Control Flow>'] },
   { id: 'quantum', requiredAnchors: ['<Player Selected Quantum Target - Local>'] }
@@ -316,6 +317,17 @@ const SC_49_EXTRACTORS = Object.freeze([
     dedupeFields: ['notificationId', 'memberHandle']
   },
   {
+    id: 'party.notification-member-joined',
+    kind: 'partyMemberJoined',
+    eventType: 'PartyMemberJoined',
+    literals: ['<SHUDEvent_OnNotification>', 'New Member Joined', 'has joined the party.'],
+    requiredFields: ['notificationId', 'memberHandle'],
+    confidence: 'high',
+    sensitivity: 'social',
+    evidenceMarkers: ['<SHUDEvent_OnNotification>', 'New Member Joined', 'has joined the party.'],
+    dedupeFields: ['notificationId', 'memberHandle']
+  },
+  {
     id: 'party.left-local',
     kind: 'partyLeft',
     eventType: 'PartyLeft',
@@ -325,6 +337,17 @@ const SC_49_EXTRACTORS = Object.freeze([
     sensitivity: 'social',
     evidenceMarkers: ['<Leave group>'],
     dedupeFields: ['partyId', 'playerGeid', 'reason']
+  },
+  {
+    id: 'mission.contract-accepted',
+    kind: 'missionAccepted',
+    eventType: 'MissionAccepted',
+    literals: ['<SHUDEvent_OnNotification>', 'Contract Accepted:', 'MissionId:'],
+    requiredFields: ['notificationId', 'missionId', 'contractName'],
+    confidence: 'high',
+    sensitivity: 'personal',
+    evidenceMarkers: ['<SHUDEvent_OnNotification>', 'Contract Accepted:', 'MissionId:'],
+    dedupeFields: ['notificationId', 'missionId']
   },
   {
     id: 'zone.jurisdiction-entered',
@@ -475,7 +498,7 @@ const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
     knownLimitations: [
       'Supports only fixture-promoted runtime-event/v1 patterns.',
       'Executable-version compatibility is limited to reviewed 4.9.0-LIVE and 4.9.188 LIVE families.',
-      'Does not infer mission, destination, travel, or deferred party lifecycle events.'
+      'Does not infer destination, travel, or deferred party lifecycle events.'
     ],
     extractors: SC_49_EXTRACTORS
   },

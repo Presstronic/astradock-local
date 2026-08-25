@@ -22,11 +22,24 @@ const {
 } = require('../src/contracts/runtimeEvents');
 
 const FIXTURE_ROOT = path.join(__dirname, 'fixtures', 'runtime-log');
-const UNPROVEN_EVENT_PREFIXES = ['Destination', 'Travel', 'Mission'];
+const UNPROVEN_EVENT_PREFIXES = ['Destination', 'Travel'];
+const DEFERRED_MISSION_EVENTS = new Set([
+  'MissionOffered',
+  'MissionSharedWithPlayer',
+  'MissionSharedByLocalPlayer',
+  'MissionObjectiveChanged',
+  'MissionObjectiveCompleted',
+  'MissionObjectiveFailed',
+  'MissionCompleted',
+  'MissionFailed',
+  'MissionAbandoned',
+  'MissionWithdrawn',
+  'MissionExpired',
+  'MissionCurrentStateConfirmedEmpty'
+]);
 const DEFERRED_PARTY_EVENTS = new Set([
   'PartyInviteObserved',
   'PartyJoined',
-  'PartyMemberJoined',
   'PartyMemberDisconnected',
   'PartyMemberReconnected',
   'PartyMemberLeft',
@@ -100,6 +113,7 @@ test('fixture-promoted canonical events are covered by the runtime event registr
       `${eventType} must not be promoted before fixture evidence`
     );
     assert.equal(DEFERRED_PARTY_EVENTS.has(eventType), false, `${eventType} is still deferred by issue 9 evidence`);
+    assert.equal(DEFERRED_MISSION_EVENTS.has(eventType), false, `${eventType} is still deferred by issue 10 evidence`);
   }
 });
 

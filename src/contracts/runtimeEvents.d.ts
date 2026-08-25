@@ -162,10 +162,19 @@ export interface RuntimeEventPayloadMap {
     notificationId: string;
     memberHandle: string;
   };
+  PartyMemberJoined: {
+    notificationId: string;
+    memberHandle: string;
+  };
   PartyLeft: {
     partyId: string;
     playerGeid: string;
     reason: 'voluntary_leave';
+  };
+  MissionAccepted: {
+    notificationId: string;
+    missionId: string;
+    contractName: string;
   };
   JurisdictionEntered: {
     notificationId: string;

@@ -1,0 +1,49 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/party/party-member-joined.observed",
+  "title": "Two named party members join through multi-line notifications",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "2026-08-19.5",
+  "domain": "party",
+  "action": "accept party invitations while monitoring an existing party",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "issue #122 owner-provided LIVE 4.9.188 capture",
+  "logFile": "party-member-joined.observed.log",
+  "privacyClassification": ["social", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["memberHandle", "markerId", "trackedEntityId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Member handles, marker IDs, and tracked entity IDs are synthetic. Marker evidence is retained only as corroboration."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "PartyMemberJoined",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "memberHandle"],
+      "payload": {"notificationId": "48", "memberHandle": "SYNTH_HANDLE_MEMBER_A"},
+      "evidenceMarkers": ["New Member Joined", "has joined the party."]
+    },
+    {
+      "eventType": "PartyMemberJoined",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": ["notificationId", "memberHandle"],
+      "payload": {"notificationId": "49", "memberHandle": "SYNTH_HANDLE_MEMBER_B"},
+      "evidenceMarkers": ["New Member Joined", "has joined the party."]
+    }
+  ],
+  "expectedNonEvents": [{"eventType": "PartyMemberJoined", "reason": "Party marker stream-in alone must not create a named member."}],
+  "correlation": {
+    "dedupeKey": "notificationId|memberHandle",
+    "sequence": ["named member A notification", "named member B notification", "marker corroboration"],
+    "notes": "Notification identity is authoritative for the named join; marker IDs are not mapped to handles."
+  },
+  "knownLimitations": ["This fixture proves named joins but not disconnect, kick, leader change, or disband semantics."],
+  "verificationNotes": "Whole-file and one-byte split parsing must emit exactly two PartyMemberJoined events with stable event IDs."
+}
