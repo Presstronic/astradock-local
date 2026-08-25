@@ -175,8 +175,17 @@ function validateMonitorOptions(value = {}) {
     username: optionalBoundedText(value.username, 'username', 64),
     userId: optionalBoundedText(value.userId, 'userId', MAX_TEXT_LENGTH),
     startMode: optionalStartMode(value.startMode),
+    bootstrapMode: optionalBootstrapMode(value.bootstrapMode),
     checkpoint: validateCheckpoint(value.checkpoint)
   });
+}
+
+function optionalBootstrapMode(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !['none', 'current_state'].includes(value)) {
+    throw invalidPayload('Unsupported monitor bootstrap mode.');
+  }
+  return value;
 }
 
 function optionalStartMode(value) {

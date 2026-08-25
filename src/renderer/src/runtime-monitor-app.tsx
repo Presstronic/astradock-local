@@ -276,14 +276,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     }
   }
 
-  async function scanSource() {
+  async function scanSource(options = {}) {
     if (!viewModel.source) {
       setActionError('Choose a local game.log source first.');
       return;
     }
     try {
       setActionError(null);
-      const nextScan = await client.monitor.scan({ sourceId: viewModel.source.sourceId, options: {} });
+      const nextScan = await client.monitor.scan({ sourceId: viewModel.source.sourceId, options });
       setScan(nextScan);
       setActiveSource(nextScan.source);
     } catch (error) {
@@ -298,7 +298,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     }
     try {
       setActionError(null);
-      const result = await client.monitor.start({ sourceId: viewModel.source.sourceId, options: { startMode: 'from_current_end' } });
+      const result = await client.monitor.start({ sourceId: viewModel.source.sourceId, options: { startMode: 'from_current_end', bootstrapMode: 'current_state' } });
       setSnapshot((current) => ({ ...(current || createEmptySnapshot()), monitor: result.monitor, scan: result.scan, source: result.scan.source }));
       setScan(result.scan);
       setActiveSource(result.scan.source);
@@ -426,7 +426,10 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             {viewModel.source ? 'Re-scan source' : 'Choose source'}
           </button>
           {snapshot?.monitor.active ? (
-            <button type="button" className="button secondary follow-active" onClick={() => void stopMonitor()}>Pause follow</button>
+            <>
+              <button type="button" className="button secondary" onClick={() => void scanSource({ bootstrapMode: 'current_state' })}>Recover current state</button>
+              <button type="button" className="button secondary follow-active" onClick={() => void stopMonitor()}>Pause follow</button>
+            </>
           ) : (
             <button type="button" className="button secondary" onClick={() => void startMonitor()} disabled={!viewModel.source}>Start follow</button>
           )}

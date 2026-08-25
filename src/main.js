@@ -200,10 +200,11 @@ register(CHANNELS.monitorScan, async ({ sourceId, options }) => {
 
 register(CHANNELS.monitorStart, async ({ sourceId, options }) => {
   const source = await getApprovedSource(sourceId || activeSourceId);
-  await startMonitor(source, options);
+  const monitorOptions = { bootstrapMode: 'current_state', ...options };
+  await startMonitor(source, monitorOptions);
   let scan;
   try {
-    scan = await scanSource(source, options);
+    scan = await scanSource(source, monitorOptions);
   } catch (error) {
     await stopMonitor('runtime_error');
     throw error;
@@ -370,7 +371,7 @@ async function scanSource(source, options = {}) {
   persistCanonicalEvents(result.runtimeEvents || []);
   lastScan = result;
   lastScanSource = source;
-  return toRendererScanResult(result, source);
+  return toRendererScanResult(result, source, options);
 }
 
 async function startMonitor(source, options = {}) {
@@ -785,7 +786,7 @@ function sanitizeTailerHealth(health) {
   };
 }
 
-function toRendererScanResult(result, source) {
+function toRendererScanResult(result, source, options = {}) {
   const {
     logPath: _logPath,
     runtimeEvents: _runtimeEvents,
@@ -808,7 +809,16 @@ function toRendererScanResult(result, source) {
       actions: (userActivity.actions || []).map(sanitizeEvidenceCarrier),
       sessions: (userActivity.sessions || []).map(sanitizeEvidenceCarrier)
     },
-    source: toPublicSource(source)
+    source: toPublicSource(source),
+    recovery: options.bootstrapMode === 'current_state'
+      ? {
+          mode: 'full_log_scan',
+          qualification: 'last_confirmed',
+          canonicalEventCount: result.runtimeEvents?.length || 0,
+          observedAt: result.scannedAt,
+          limitation: 'State is reconstructed from retained game.log evidence. It is not proof that the game is still connected until new live log evidence arrives.'
+        }
+      : null
   };
 }
 

@@ -48,6 +48,7 @@ export interface MonitorOptions {
   username?: string;
   userId?: string;
   startMode?: 'from_current_end' | 'from_checkpoint' | 'from_beginning';
+  bootstrapMode?: 'none' | 'current_state';
   checkpoint?: TailerCheckpoint | null;
 }
 
@@ -176,6 +177,13 @@ export interface RendererScanResult {
     sessions?: readonly RendererEvidenceRow[];
   };
   source: PublicRuntimeSource;
+  recovery: {
+    mode: 'full_log_scan';
+    qualification: 'last_confirmed';
+    canonicalEventCount: number;
+    observedAt: string;
+    limitation: string;
+  } | null;
 }
 
 export interface RendererLifecycleProjection {
