@@ -79,13 +79,15 @@
 html,
 body,
 #root {
+  height: 100%;
   min-width: 1024px;
-  min-height: 640px;
+  min-height: 0;
   margin: 0;
   background: var(--background);
   color: var(--text-body);
   font-family: var(--font-body);
   letter-spacing: 0;
+  overflow: hidden;
 }
 
 button,
@@ -144,8 +146,11 @@ h2,
 .runtime-shell {
   display: grid;
   grid-template-rows: var(--header-height) var(--tabs-height) minmax(0, 1fr);
+  height: 100%;
   min-width: 1024px;
-  min-height: 100vh;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
   background: var(--background);
 }
 
@@ -508,6 +513,13 @@ h2,
 .runtime-main {
   display: grid;
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.runtime-main > * {
+  min-width: 0;
   min-height: 0;
 }
 
