@@ -15,6 +15,7 @@ test('IPC boundary accepts only bounded monitor command payloads', () => {
       username: 'SYNTH_HANDLE',
       userId: 'SYNTH_ACCOUNT',
       startMode: 'from_checkpoint',
+      bootstrapMode: 'current_state',
       checkpoint: {
         sourceIdentity: '123:456:789',
         offset: 42,
@@ -27,6 +28,7 @@ test('IPC boundary accepts only bounded monitor command payloads', () => {
       username: 'SYNTH_HANDLE',
       userId: 'SYNTH_ACCOUNT',
       startMode: 'from_checkpoint',
+      bootstrapMode: 'current_state',
       checkpoint: {
         version: 1,
         sourceIdentity: '123:456:789',
@@ -56,6 +58,14 @@ test('IPC boundary accepts only bounded monitor command payloads', () => {
     () => validatePayload(CHANNELS.monitorStart, {
       sourceId: 'src_0123456789abcdef01234567',
       options: { startMode: 'from_private_path' }
+    }),
+    /invalid_payload|request payload/i
+  );
+
+  assert.throws(
+    () => validatePayload(CHANNELS.monitorStart, {
+      sourceId: 'src_0123456789abcdef01234567',
+      options: { bootstrapMode: 'replay_everything' }
     }),
     /invalid_payload|request payload/i
   );
