@@ -6,6 +6,7 @@ const {
 } = require('./runtimeLifecycleProjection');
 const {
   LOCATION_EVENT_TYPES,
+  MISSION_EVENT_TYPES,
   PARTY_EVENT_TYPES,
   QUANTUM_EVENT_TYPES,
   VEHICLE_EVENT_TYPES,
@@ -781,6 +782,7 @@ async function parseLogFile(logPath, options = {}) {
     runtimeEvents: canonical.events,
     promotedRuntimeEvents: canonical.events.filter((event) => (
       PARTY_EVENT_TYPES.includes(event.eventType) || LOCATION_EVENT_TYPES.includes(event.eventType)
+        || MISSION_EVENT_TYPES.includes(event.eventType)
         || QUANTUM_EVENT_TYPES.includes(event.eventType) || VEHICLE_EVENT_TYPES.includes(event.eventType)
     )),
     parserCompatibility: canonical.parserHealth,

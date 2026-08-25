@@ -1,0 +1,22 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/mission/contract-shared-only.non-event",
+  "title": "Shared contract notification without acceptance",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188.23497",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "2026-08-19.5",
+  "domain": "mission",
+  "action": "receive a shared contract notification without accepting it",
+  "outcome": "non-event",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "issue #122 negative acceptance boundary",
+  "logFile": "contract-shared-only.non-event.log",
+  "privacyClassification": ["personal", "local", "sanitized"],
+  "sensitivityHandling": {"redactedFields": ["notificationId"], "syntheticPlaceholderPrefix": "SYNTH_", "notes": "The contract label is synthetic."},
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [{"eventType": "MissionAccepted", "reason": "A shared notification with a zero mission ID contains no direct acceptance evidence."}],
+  "correlation": {"dedupeKey": "not_applicable", "sequence": ["shared notification"], "notes": "Sharing is not acceptance."},
+  "knownLimitations": ["This negative fixture does not test completion or failure."],
+  "verificationNotes": "The parser must emit no MissionAccepted event."
+}

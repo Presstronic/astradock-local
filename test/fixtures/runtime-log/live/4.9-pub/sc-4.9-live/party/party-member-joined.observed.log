@@ -1,0 +1,9 @@
+<2026-08-25T00:54:09.202Z> [Notice] <SHUDEvent_OnNotification> Added notification "New Member Joined
+<2026-08-25T00:54:09.202Z> SYNTH_HANDLE_MEMBER_A has joined the party.: " [48] to queue. New queue size: 1, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]
+<2026-08-25T00:54:09.202Z>    "New Member Joined
+<2026-08-25T00:54:09.202Z> SYNTH_HANDLE_MEMBER_A has joined the party.: " [48]
+<2026-08-25T00:54:13.929Z> [Notice] <SHUDEvent_OnNotification> Added notification "New Member Joined
+<2026-08-25T00:54:13.929Z> SYNTH_HANDLE_MEMBER_B has joined the party.: " [49] to queue. New queue size: 2, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]
+<2026-08-25T00:54:13.929Z>    "New Member Joined
+<2026-08-25T00:54:13.929Z> SYNTH_HANDLE_MEMBER_B has joined the party.: " [49]
+<2026-08-25T00:54:14.160Z> [Notice] <CPartyMarkerComponent RWES> Streamed in party marker id SYNTH_MARKER_A. TrackedEntityId: SYNTH_ENTITY_A [Team_GameServices][EntitySubscription]

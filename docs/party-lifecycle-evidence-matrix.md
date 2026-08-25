@@ -20,9 +20,10 @@ The result is intentionally conservative. AstraDock Local may show supported par
 | --- | --- | --- |
 | Reviewed 4.9 LIVE private log analysis | [`game-log-pattern-analysis-2026-08-09.md`](game-log-pattern-analysis-2026-08-09.md#settled-requirement-live-party-status) | Supports creation, launch, a named member connection, and explicit local leave. |
 | Positive party fixture | `party/party-create-launch-member-connected.observed` | Provides deterministic positive coverage for `PartyCreated`, `PartyLaunchInitiated`, and `PartyMemberConnected`. |
+| Named member-join fixture | `party/party-member-joined.observed` | Provides direct multi-line `New Member Joined` coverage for two named members; marker stream-in remains corroborating evidence only. |
 | Explicit leave fixture | `party/party-explicit-leave.observed` | Provides direct local voluntary-leave evidence while proving marker removal alone is not terminal evidence. |
 | Marker-only negative fixture | `party/party-marker-only-membership.non-event` | Proves marker stream activity must not create, remove, or count named party members. |
-| Unavailable lifecycle annotation | `party/party-lifecycle-transitions.unavailable` | Records missing invite, accept/join, disconnect, reconnect, other-member leave, kick/removal, leader change, disband, and mid-party startup evidence. |
+| Unavailable lifecycle annotation | `party/party-lifecycle-transitions.unavailable` | Records missing invite, independent local join, disconnect, reconnect, other-member leave, kick/removal, leader change, disband, and mid-party startup evidence. |
 | Duplicate notification lifecycle fixture | `framing/duplicate-notification-lifecycle.framing` | Proves notification add/next/fade/remove echoes and duplicate add records must dedupe to one semantic event family. |
 
 ## Promotion Decisions
@@ -33,8 +34,8 @@ The result is intentionally conservative. AstraDock Local may show supported par
 | Party launch | `PartyLaunchInitiated` | Promote for `sc-4.9-live` provisional profile | Medium | Direct party notification message | Add recent launch activity; do not change roster membership. |
 | Named member connection | `PartyMemberConnected` | Promote for `sc-4.9-live` provisional profile | Medium | Direct party notification naming one member handle | Mark that member connection state as `connected`; do not treat as proof of join time or permanent membership without supporting lifecycle evidence. |
 | Party invite | No settled canonical event | Defer | None | Not captured in the reviewed build | Keep unknown and do not show invite alerts. |
-| Invite accepted or local joins existing party | `PartyJoined`, `PartyMemberJoined` | Defer | None | Not captured in the reviewed build | Do not transition from `unknown` to `in_party` unless a supported creation/join line is observed. |
-| Other member joins | `PartyMemberJoined` | Defer | None | Not captured in the reviewed build | Do not add a member from marker count or notification lifecycle echoes. |
+| Invite accepted or local joins existing party | `PartyJoined` | Defer | None | No distinct local-party lifecycle event is required for the current scope | Do not infer a local join from invite UI alone. |
+| Other member joins | `PartyMemberJoined` | Promote for `sc-4.9-live` provisional profile | High | Direct multi-line `New Member Joined <handle> has joined the party.` notifications in the owner-provided LIVE capture | Confirm the named member and set connection state to `connected`; marker IDs remain unlinked corroboration. |
 | Other member disconnects | `PartyMemberDisconnected` | Defer | None | Not captured in the reviewed build | Existing confirmed members may become stale only by bounded policy, not by marker removal alone. |
 | Member reconnects | No settled canonical event beyond connection update | Defer | None | Not captured in the reviewed build | A repeated connection notification may refresh connection evidence only after dedupe rules are implemented. |
 | Local voluntary leave | `PartyLeft` | Promote for `sc-4.9-live` provisional profile | High | Direct `<Leave group>` record names the local player GEID and party ID | Set local party state to `not_in_party` and clear the active party/roster; marker removal by itself remains non-terminal. |
@@ -95,8 +96,9 @@ Happy-path checks:
 
 1. Replay `party-create-launch-member-connected.observed` and emit only `PartyCreated`, `PartyLaunchInitiated`, and `PartyMemberConnected`.
 2. Confirm the projected party is `in_party` only when local attribution is supported.
-3. Confirm the named member's connection evidence is retained without inventing join time or stable marker identity.
-4. Replay `party-explicit-leave.observed`, emit one `PartyLeft`, and project `not_in_party` only from the direct leave record.
+3. Replay `party-member-joined.observed` and emit two named `PartyMemberJoined` events from the multi-line notifications.
+4. Confirm the named member's join evidence is retained without inventing marker identity.
+5. Replay `party-explicit-leave.observed`, emit one `PartyLeft`, and project `not_in_party` only from the direct leave record.
 
 Unhappy-path checks:
 
@@ -110,9 +112,7 @@ Unhappy-path checks:
 
 Controlled gameplay captures are still required before enabling the deferred event families:
 
-- Invite.
-- Accept or local join.
-- Other member join.
+- Invite or local party join state independent of the member notification.
 - Other member disconnect and reconnect.
 - Other member voluntary leave.
 - Removal or kick.

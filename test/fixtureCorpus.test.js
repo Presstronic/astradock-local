@@ -51,7 +51,9 @@ const EXPECTED_OBSERVED_EVENTS = new Set([
   'PartyCreated',
   'PartyLaunchInitiated',
   'PartyMemberConnected',
+  'PartyMemberJoined',
   'PartyLeft',
+  'MissionAccepted',
   'JurisdictionEntered',
   'MonitoredSpaceEntered',
   'MonitoredSpaceExited',
@@ -67,7 +69,6 @@ const REQUIRED_NEGATIVE_EVENTS = new Set([
   'LocationConfirmed',
   'DestinationSet',
   'ShipOwnedOrPiloted',
-  'MissionAccepted',
   'MissionObjectiveProgressed',
   'MissionCompleted',
   'CrossEnvironmentMergedIdentity'
@@ -75,12 +76,12 @@ const REQUIRED_NEGATIVE_EVENTS = new Set([
 const ISSUE_9_PROMOTED_PARTY_EVENTS = new Set([
   'PartyCreated',
   'PartyLaunchInitiated',
-  'PartyMemberConnected'
+  'PartyMemberConnected',
+  'PartyMemberJoined'
 ]);
 const ISSUE_9_DEFERRED_PARTY_EVENTS = new Set([
   'PartyInviteObserved',
   'PartyJoined',
-  'PartyMemberJoined',
   'PartyMemberDisconnected',
   'PartyMemberReconnected',
   'PartyMemberLeft',
@@ -99,7 +100,6 @@ const ISSUE_9_PARTY_GUARD_EVENTS = new Set([
 const ISSUE_10_DEFERRED_MISSION_EVENTS = new Set([
   'MissionOffered',
   'MissionSharedWithPlayer',
-  'MissionAccepted',
   'MissionSharedByLocalPlayer',
   'MissionObjectiveChanged',
   'MissionObjectiveCompleted',
@@ -118,6 +118,7 @@ const ISSUE_10_NEGATIVE_FIXTURES = new Set([
   'mission/mission-lifecycle-transitions.unavailable',
   'negative/mission-notification-ui-lifecycle.non-event'
 ]);
+const ISSUE_10_PROMOTED_FIXTURES = new Set(['mission/contract-accepted.observed']);
 const ISSUE_11_DEFERRED_DESTINATION_EVENTS = new Set([
   'DestinationSet',
   'DestinationChanged',
@@ -415,13 +416,17 @@ test('issue 10 mission lifecycle evidence gates unsupported transitions', () => 
       manifest.fixtureId.replace('live/4.9-pub/sc-4.9-live/', '')
     ));
 
+  const allMissionManifests = walkFiles(path.join(FIXTURE_ROOT, 'live', '4.9-pub', 'sc-4.9-live'))
+    .filter((file) => file.endsWith('.manifest.json'))
+    .map(readJson)
+    .filter((manifest) => manifest.domain === 'mission');
   const fixtureIds = new Set(relevantManifests.map((manifest) => (
     manifest.fixtureId.replace('live/4.9-pub/sc-4.9-live/', '')
   )));
   const deferredEvents = new Set(relevantManifests.flatMap((manifest) => (
     manifest.expectedNonEvents.map((event) => event.eventType)
   )));
-  const promotedMissionEvents = relevantManifests.flatMap((manifest) => (
+  const promotedMissionEvents = allMissionManifests.flatMap((manifest) => (
     manifest.expectedCanonicalEvents.filter((event) => event.eventType.startsWith('Mission'))
   ));
   const unavailableManifest = relevantManifests.find((manifest) => (
@@ -434,7 +439,10 @@ test('issue 10 mission lifecycle evidence gates unsupported transitions', () => 
 
   assert.ok(unavailableManifest, 'issue 10 unavailable mission lifecycle annotation is required');
   assert.equal(unavailableManifest.outcome, 'unavailable');
-  assert.equal(promotedMissionEvents.length, 0, 'issue 10 must not promote mission canonical events');
+  assert.equal(promotedMissionEvents.filter((event) => event.eventType !== 'MissionAccepted').length, 0, 'issue 10 must not promote deferred mission canonical events');
+  for (const fixtureId of ISSUE_10_PROMOTED_FIXTURES) {
+    assert.ok(allMissionManifests.some((manifest) => manifest.fixtureId.endsWith(fixtureId)), `missing promoted mission fixture ${fixtureId}`);
+  }
 
   for (const eventType of ISSUE_10_DEFERRED_MISSION_EVENTS) {
     assert.ok(deferredEvents.has(eventType), `missing deferred issue 10 event gate ${eventType}`);
