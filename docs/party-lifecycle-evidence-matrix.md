@@ -76,6 +76,7 @@ Per-member state is separate:
 ## Stale and Boundary Rules
 
 - Missing terminal evidence is not terminal evidence. Absence of a supported leave, disband, or disconnect line must not clear party state immediately.
+- `Missions/Comms` Add/Remove records such as `SeaPancake connected` or `SeaPancake disconnected` describe party communication range, not authoritative Star Citizen server connectivity. They remain attributed legacy actions and must not be labeled as server disconnects.
 - Runtime projection may mark party and member facts `stale` after a bounded no-refresh interval once the extraction profile defines that interval.
 - A PU disconnect, frontend return, game process exit, log rotation, or environment/profile change may clear or partition current party state only through explicit session-boundary rules.
 - Replay must preserve the original parser/profile version, confidence, timestamps, and evidence references.
