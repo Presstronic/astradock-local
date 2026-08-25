@@ -159,6 +159,22 @@ test('promotes accepted PU disconnect evidence to a visible server leave action'
   assert.match(result.userActivity.actions[0].action, /Left pub_use1b_12326004_100/);
 });
 
+test('labels party comms range transitions with the affected member instead of calling them server disconnects', () => {
+  const result = parseLogText(`
+<2026-08-25T02:16:57.528Z> SeaPancake disconnected.: " [138], Action: Remove [Team_CoreGameplayFeatures][Missions][Comms]
+<2026-08-25T02:17:04.000Z> SeaPancake connected.: " [138], Action: Add [Team_CoreGameplayFeatures][Missions][Comms]
+`);
+
+  assert.deepEqual(
+    result.userActivity.actions.map((action) => action.eventLabel),
+    ['Party Comms Connected (SeaPancake)', 'Party Comms Disconnected (SeaPancake)']
+  );
+  assert.equal(result.userActivity.actions[1].username, 'SeaPancake');
+  assert.equal(result.userActivity.actions[1].scope, 'party_comms');
+  assert.match(result.userActivity.actions[1].action, /party comms range/);
+  assert.equal(result.userActivity.actions.some((action) => action.eventLabel === 'Server Disconnect (Unattributed)'), false);
+});
+
 test('rejects frontend-channel disconnects and correlates delayed PU disconnects to the prior shard', () => {
   const result = parseLogText(`
 <2026-08-19T00:00:00.000Z> <Init> Environment[PUB] Tag[LIVE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/game.log]

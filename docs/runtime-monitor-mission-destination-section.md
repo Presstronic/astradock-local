@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Mission / destination section keeps two evidence capabilities visibly separate: local-player mission lifecycle and locally correlated quantum destination/travel observations. A missing signal is never presented as a confirmed empty set.
+Mission and Destination / travel are separate current-state sections. Local-player mission lifecycle and locally correlated quantum destination/travel observations retain independent state, freshness, and evidence. A missing signal is never presented as a confirmed empty set.
 
 ## Information contract
 
@@ -10,6 +10,7 @@ The Mission / destination section keeps two evidence capabilities visibly separa
 - Destination/travel displays the raw sanitized target label, canonical state, latest promoted transition, confidence, and freshness only for fixture-approved local-vehicle correlations.
 - Supported destination states are **Target selected**, **Arrived**, **Unknown**, and **Stale**. **Unsupported** applies to incompatible or unverified profiles. No destination is never claimed unless future authoritative empty-state evidence is promoted.
 - No friendly destination name, progress value, travel-start state, cancellation, failure, or mission outcome is inferred.
+- Destination / travel is displayed below Mission; event history remains in the shared Table/Terminal stream.
 - The latest supported destination transition links by immutable evidence event ID to the shared local evidence drilldown. Retention removal produces an explicit fallback rather than redirecting to unrelated evidence.
 
 ## State and lifecycle behavior

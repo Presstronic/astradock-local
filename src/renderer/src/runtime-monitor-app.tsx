@@ -507,7 +507,10 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
               openPartyFallback(fallback, trigger);
             }}
           />
-          <MissionDestinationSection
+          <MissionSection
+            value={viewModel.mission}
+          />
+          <DestinationSection
             value={viewModel.mission}
             onSelect={(evidenceEventId, trigger, fallback) => {
               const event = viewModel.streamEvents.find((candidate) => candidate.id === evidenceEventId);
@@ -1021,7 +1024,22 @@ function PartyMember({ member, onSelect }: {
   );
 }
 
-function MissionDestinationSection({ value, onSelect }: {
+function MissionSection({ value }: { value: MissionDestinationViewState }) {
+  return (
+    <section className="semantic-panel mission-destination-panel" data-state={value.missionState} aria-labelledby="mission-heading">
+      <h2 id="mission-heading"><span>Mission</span><small title={formatInstantContext(value.exactFreshness)}>{value.freshnessLabel}</small></h2>
+      <div className="mission-destination-domains">
+        <section aria-label="Mission capability" data-state={value.missionState}>
+          <strong>{value.missionLabel}</strong>
+          <p>{value.missionDetail}</p>
+        </section>
+      </div>
+      <p className="party-limitation">Mission acceptance and tracking evidence stays on this device.</p>
+    </section>
+  );
+}
+
+function DestinationSection({ value, onSelect }: {
   value: MissionDestinationViewState;
   onSelect: (evidenceEventId: string, trigger: HTMLElement, fallback: string) => void;
 }) {
@@ -1030,16 +1048,10 @@ function MissionDestinationSection({ value, onSelect }: {
     ? `${transition.label}: ${transition.destinationLabel}; ${transition.freshnessLabel}; confidence ${transition.confidence}. The referenced evidence is no longer in the retained stream.`
     : '';
   return (
-    <section className="semantic-panel mission-destination-panel" data-state={value.state} aria-labelledby="mission-destination-heading">
-      <h2 id="mission-destination-heading"><span>Mission / destination</span><small title={formatInstantContext(value.exactFreshness)}>{value.freshnessLabel}</small></h2>
+    <section className="semantic-panel mission-destination-panel" data-state={value.destinationState} aria-labelledby="destination-heading">
+      <h2 id="destination-heading"><span>Destination / travel</span><small title={formatInstantContext(value.exactFreshness)}>{value.freshnessLabel}</small></h2>
       <div className="mission-destination-domains">
-        <section aria-labelledby="mission-capability-heading" data-state={value.missionState}>
-          <h3 id="mission-capability-heading">Mission</h3>
-          <strong>{value.missionLabel}</strong>
-          <p>{value.missionDetail}</p>
-        </section>
-        <section aria-labelledby="destination-capability-heading" data-state={value.destinationState}>
-          <h3 id="destination-capability-heading">Destination / travel</h3>
+        <section aria-label="Destination and travel capability" data-state={value.destinationState}>
           <strong title={value.destinationLabel}>{value.destinationLabel}</strong>
           <p>{value.destinationDetail}</p>
         </section>

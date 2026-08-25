@@ -417,6 +417,23 @@ function extractServerLeaveFromLine(line) {
   };
 }
 
+function extractPartyCommsTransitionFromLine(line) {
+  const match = line.match(/(?:^|>\s*)(?<username>[A-Za-z0-9_.-]{2,64})\s+(?<verb>disconnected|connected)\.?\s*.*\bAction\s*:\s*(?<action>Add|Remove)\b.*\[Team_CoreGameplayFeatures\]\[Missions\]\[Comms\]/i);
+  if (!match) return null;
+  const disconnected = match.groups.verb.toLowerCase() === 'disconnected' || match.groups.action.toLowerCase() === 'remove';
+  return {
+    username: match.groups.username,
+    connected: !disconnected,
+    eventType: disconnected ? 'party_comms_disconnect' : 'party_comms_connect',
+    eventLabel: disconnected
+      ? `Party Comms Disconnected (${match.groups.username})`
+      : `Party Comms Connected (${match.groups.username})`,
+    action: disconnected
+      ? `${match.groups.username} became unavailable in party comms range`
+      : `${match.groups.username} returned to party comms range`
+  };
+}
+
 function extractUserInfoFromLine(line, targetUsername = '') {
   const username = pickValue(line, [
     /\b(?:username|user_name|accountName|account_name|displayName|display_name|nickname|handle|playerName|player_name)\b\s*[:=]\s*(?<value>[A-Za-z0-9_.-]+)/i,
@@ -505,6 +522,28 @@ function parseUserActions(logText, options = {}) {
       currentSession.endLineNumber = index + 1;
       currentSession.staleReason = 'environment_changed';
       currentSession = null;
+    }
+
+    const partyCommsTransition = extractPartyCommsTransitionFromLine(line);
+    if (partyCommsTransition) {
+      actions.push({
+        id: createPartitionedIdentity(environmentKey, 'action', [index, partyCommsTransition.eventType, partyCommsTransition.username]),
+        eventType: partyCommsTransition.eventType,
+        eventLabel: partyCommsTransition.eventLabel,
+        sessionId: null,
+        environmentKey,
+        environment,
+        gameChannel: environment.releaseChannel,
+        gameBuild: environment.buildVersion,
+        lineNumber: index + 1,
+        timestamp: timestamp || lastTimestamp,
+        username: partyCommsTransition.username,
+        userId: null,
+        action: partyCommsTransition.action,
+        scope: 'party_comms',
+        rawLine: line.trim()
+      });
+      return;
     }
 
     const serverJoin = extractServerJoinFromLine(line);
