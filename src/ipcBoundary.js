@@ -11,6 +11,7 @@ const MONITOR_START_MODES = Object.freeze(['from_current_end', 'from_checkpoint'
 const CHANNELS = Object.freeze({
   sourceDiscover: 'astradock:v1:source:discover',
   sourceChoose: 'astradock:v1:source:choose',
+  sourceChooseDirectory: 'astradock:v1:source:choose-directory',
   sourceSelect: 'astradock:v1:source:select',
   sourceOpenFolder: 'astradock:v1:source:open-folder',
   monitorSnapshot: 'astradock:v1:monitor:snapshot',
@@ -120,6 +121,7 @@ function validatePayload(channel, payload) {
   switch (channel) {
     case CHANNELS.sourceDiscover:
     case CHANNELS.sourceChoose:
+    case CHANNELS.sourceChooseDirectory:
     case CHANNELS.monitorSnapshot:
     case CHANNELS.monitorStop:
     case CHANNELS.exporterCancel:

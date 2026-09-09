@@ -381,6 +381,7 @@ function inferInstallationKind(sourcePath) {
 function formatDisplayLabel(channel, discoveryMethods = []) {
   const normalized = normalizeSupportedChannel(channel);
   const prefix = normalized === 'UNKNOWN' ? 'Unknown channel' : normalized;
+  if (discoveryMethods.includes('directory_selected')) return `${prefix} install directory selected by user`;
   if (discoveryMethods.includes('user_selected')) return `${prefix} game.log selected by user`;
   if (discoveryMethods.includes('restored_setting')) return `${prefix} game.log from saved preference`;
   return `${prefix} game.log candidate`;

@@ -596,6 +596,7 @@ export interface AstraDockApi {
   readonly source: {
     discover(): Promise<SourceDiscoveryResult>;
     choose(): Promise<SourceSelectionResult | null>;
+    chooseDirectory(): Promise<SourceSelectionResult | null>;
     select(sourceId: string): Promise<SourceSelectionResult>;
     openFolder(sourceId: string): Promise<{ opened: true }>;
   };

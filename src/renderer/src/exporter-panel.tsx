@@ -5,6 +5,7 @@ import type { BlueprintExportResult, MonitorChangeEnvelope } from '../../contrac
 interface ExporterPanelProps {
   client: RuntimeMonitorClient;
   source: PublicRuntimeSource | null;
+  onChooseDirectory: () => Promise<void>;
   onChooseSource: () => Promise<void>;
 }
 
@@ -20,7 +21,7 @@ const phaseLabels: Record<string, string> = {
   cancelled: 'Export cancelled'
 };
 
-export function ExporterPanel({ client, source, onChooseSource }: ExporterPanelProps) {
+export function ExporterPanel({ client, source, onChooseDirectory, onChooseSource }: ExporterPanelProps) {
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState('idle');
   const [progress, setProgress] = useState({ filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
@@ -73,7 +74,8 @@ export function ExporterPanel({ client, source, onChooseSource }: ExporterPanelP
           <p className="exporter-intro">Scan the active LIVE session and retained log backups for Station-compatible blueprint records.</p>
         </div>
         <div className="exporter-actions">
-          <button type="button" className="button secondary" onClick={() => void onChooseSource()}>Override source</button>
+          <button type="button" className="button secondary" onClick={() => void onChooseDirectory()}>Choose install directory</button>
+          <button type="button" className="button secondary" onClick={() => void onChooseSource()}>Override source file</button>
           {running ? <button type="button" className="button secondary" onClick={() => void cancelExport()}>Cancel export</button> : <button type="button" className="button primary" onClick={() => void runExport()}>Export JSON</button>}
         </div>
       </header>
@@ -87,7 +89,7 @@ export function ExporterPanel({ client, source, onChooseSource }: ExporterPanelP
           <div className="exporter-source-summary">
             <span className="eyebrow">Source</span>
             <strong>{source?.displayLabel || 'Awaiting source'}</strong>
-            <span>{source?.validation?.isValid ? 'Validated current game.log' : 'No validated LIVE game.log selected'}</span>
+            <span>{source?.validation?.isValid ? 'Using Game.log and its logbackups directory' : 'Choose a Star Citizen channel directory'}</span>
           </div>
         </section>
 

@@ -219,6 +219,21 @@ test('public source DTOs and validation messages do not reveal private source pa
   assert.equal(source.validation.message.includes('PRIVATE_PLAYER'), false);
 });
 
+test('labels a persisted directory-selected source without exposing its filesystem path', async () => {
+  const root = await makeTempDir();
+  const selectedLog = path.join(root, 'StarCitizen', 'LIVE', LOG_FILE_NAME);
+  await writeGameLog(selectedLog, 'LIVE');
+
+  const source = await validateLogSource(selectedLog, {
+    discoveryMethods: ['user_selected', 'directory_selected'],
+    now: NOW
+  });
+
+  assert.equal(source.validation.isValid, true);
+  assert.equal(source.displayLabel, 'LIVE install directory selected by user');
+  assert.equal(toPublicSource(source).displayLabel.includes(root), false);
+});
+
 test('canonicalizes symlinked game.log selections before deriving source identity', {
   skip: process.platform === 'win32' ? 'Windows symlink identity behavior depends on runner privileges and filesystem policy.' : false
 }, async () => {
