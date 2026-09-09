@@ -40,6 +40,7 @@ import {
 import { formatInstantContext, formatLocalClock } from './time';
 import { formatTerminalEvent } from './terminal-event-format';
 import { formatTableEvent } from './table-event-format';
+import { ExporterPanel } from './exporter-panel';
 
 interface RuntimeMonitorAppProps {
   client: RuntimeMonitorClient;
@@ -76,6 +77,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
   const [settingsSnapshot, setSettingsSnapshot] = useState<SettingsSnapshot | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [workspace, setWorkspace] = useState<'runtime' | 'exporter'>('runtime');
   const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
   const [now, setNow] = useState<Date>(() => clock());
   const [search, setSearch] = useState('');
@@ -457,7 +459,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       /> : null}
 
       <nav className="workspace-tabs" aria-label="Workspaces">
-        <a href="#runtime-main" aria-current="page">Runtime Monitor</a>
+        <button type="button" aria-current={workspace === 'runtime' ? 'page' : undefined} onClick={() => setWorkspace('runtime')}>Runtime Monitor</button>
+        <button type="button" aria-current={workspace === 'exporter' ? 'page' : undefined} onClick={() => { setWorkspace('exporter'); setSettingsOpen(false); }}>Exporter</button>
         <button type="button" disabled title="Post-MVP workspace">Data Operations <span>Post-MVP</span></button>
         <button type="button" disabled title="Post-MVP workspace">History &amp; Analytics <span>Post-MVP</span></button>
         <button type="button" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>Settings</button>
@@ -477,7 +480,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         }}
       /> : null}
 
-      <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
+      {workspace === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} onChooseSource={chooseSource} /> : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
         <aside id="current-state" className="current-state" aria-label="Current runtime state">
           <section className="instrument-list" aria-label="Current-state instruments">
             <h2><span>Instruments</span><small>{viewModel.freshnessLabel}</small></h2>
@@ -656,7 +659,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           headingRef={detailHeadingRef}
           onClose={closeDetail}
         /> : null}
-      </main>
+      </main>}
     </div>
   );
 

@@ -34,6 +34,10 @@ const { CanonicalEventStore } = require('./persistence/canonicalEventStore');
 const { createElectronStorageKeyProvider } = require('./persistence/storageKeyProvider');
 const { createDiagnosticLogger } = require('./diagnosticLogger');
 const { DEFAULT_SETTINGS } = require('./settingsStore');
+const {
+  scanBlueprintLogs,
+  writeBlueprintJson
+} = require('./exporter/blueprintExporter');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -61,6 +65,8 @@ let activeSourceId = null;
 let eventStore = null;
 let eventStoreHealth = { status: 'initializing', errorCode: null, recoverable: true };
 let diagnosticLogger = null;
+let exporterCancelRequested = false;
+let exporterRunning = false;
 const subscriptions = new SubscriptionHub({ channel: CHANNELS.subscriptionEvent, maxSubscribers: 8 });
 
 installAppSecurityPolicy({ app, session, rendererUrl });
@@ -218,6 +224,63 @@ register(CHANNELS.monitorStart, async ({ sourceId, options }) => {
 register(CHANNELS.monitorStop, async () => {
   await stopMonitor('user_requested');
   return getMonitorState();
+});
+
+register(CHANNELS.exporterCancel, async () => {
+  exporterCancelRequested = true;
+  return { cancelled: true };
+});
+
+register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outputFormat }) => {
+  if (exportType !== 'blueprint_data' || environment !== 'LIVE' || outputFormat !== 'json') {
+    throw createBoundaryError('invalid_payload', 'Only LIVE Blueprint Data JSON export is currently supported.');
+  }
+  const source = await getApprovedSource(sourceId || activeSourceId);
+  if (source.channelHint !== 'LIVE') {
+    throw createBoundaryError('source_not_approved', 'Select a LIVE game.log source for this export.');
+  }
+  if (exporterRunning) {
+    throw createBoundaryError('invalid_payload', 'An export is already running.');
+  }
+  exporterRunning = true;
+  exporterCancelRequested = false;
+  const publishProgress = (progress) => publishMonitorChange({ type: 'exporter.progress', progress });
+  publishProgress({ phase: 'validating', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
+  try {
+    const result = await scanBlueprintLogs(source.private.canonicalPath, {
+      shouldCancel: () => exporterCancelRequested,
+      onProgress: (progress) => publishProgress({ ...progress, recordsFound: 0, duplicatesSuppressed: 0 })
+    });
+    if (exporterCancelRequested) {
+      publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
+      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, errors: result.errors };
+    }
+    publishProgress({ phase: 'awaiting_save', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
+    const saveResult = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export Blueprint Data',
+      defaultPath: path.join(app.getPath('documents'), 'astradock-blueprints.json'),
+      filters: [{ name: 'JSON files', extensions: ['json'] }],
+      properties: ['showOverwriteConfirmation']
+    });
+    if (saveResult.canceled || !saveResult.filePath) {
+      publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
+      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, errors: result.errors };
+    }
+    publishProgress({ phase: 'writing', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
+    const outputPath = await writeBlueprintJson(saveResult.filePath, result.records);
+    const status = result.errors.length ? 'partial' : result.records.length ? 'completed' : 'no_matches';
+    publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed, outputFileName: path.basename(outputPath) });
+    return { status, outputPath, outputFileName: path.basename(outputPath), records: result.records, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, errors: result.errors };
+  } catch (error) {
+    if (error?.code === 'export_cancelled') {
+      publishProgress({ phase: 'cancelled', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
+      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], filesScanned: 0, filesTotal: 0, linesRead: 0, duplicatesSuppressed: 0, skippedFiles: 0, errors: [] };
+    }
+    throw error;
+  } finally {
+    exporterCancelRequested = false;
+    exporterRunning = false;
+  }
 });
 
 register(CHANNELS.eventsQuery, async (query) => queryEvents(query));

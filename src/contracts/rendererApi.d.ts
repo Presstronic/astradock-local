@@ -566,7 +566,28 @@ export type MonitorChange =
   | { type: 'monitor.scan'; monitor: MonitorState; scan: RendererScanResult }
   | { type: 'monitor.bytes'; monitor: MonitorState; chunk: TailerChunkMetadata }
   | { type: 'monitor.lifecycle'; monitor: MonitorState; lifecycle: TailerLifecycleRecord }
-  | { type: 'monitor.error'; monitor: MonitorState; error: { code: string; message: string; retryable: boolean } };
+  | { type: 'monitor.error'; monitor: MonitorState; error: { code: string; message: string; retryable: boolean } }
+  | { type: 'exporter.progress'; progress: { phase: string; filesProcessed: number; filesTotal: number; recordsFound: number; duplicatesSuppressed: number; outputFileName?: string } };
+
+export interface BlueprintExportOptions {
+  sourceId?: string | null;
+  exportType: 'blueprint_data';
+  environment: 'LIVE';
+  outputFormat: 'json';
+}
+
+export interface BlueprintExportResult {
+  status: 'completed' | 'no_matches' | 'cancelled' | 'partial';
+  outputPath: string | null;
+  outputFileName: string | null;
+  records: readonly { name: string; type: string; shared: boolean | null }[];
+  filesScanned: number;
+  filesTotal: number;
+  linesRead: number;
+  duplicatesSuppressed: number;
+  skippedFiles: number;
+  errors: readonly { file: string; code: string; message: string }[];
+}
 
 export type Unsubscribe = () => void;
 
@@ -584,6 +605,10 @@ export interface AstraDockApi {
     start(command?: MonitorCommand): Promise<MonitorStartResult>;
     stop(): Promise<MonitorState>;
     subscribe(listener: (message: MonitorChangeEnvelope) => void, options?: { resumeAfter?: number }): Unsubscribe;
+  };
+  readonly exporter: {
+    run(options: BlueprintExportOptions): Promise<BlueprintExportResult>;
+    cancel(): Promise<{ cancelled: boolean }>;
   };
   readonly events: {
     query(query?: EventQuery): Promise<EventPage>;
