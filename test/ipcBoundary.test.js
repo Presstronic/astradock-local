@@ -9,6 +9,9 @@ const {
 } = require('../src/ipcBoundary');
 
 test('IPC boundary accepts only bounded monitor command payloads', () => {
+  assert.deepEqual(validatePayload(CHANNELS.sourceChooseDirectory), {});
+  assert.throws(() => validatePayload(CHANNELS.sourceChooseDirectory, { path: '/tmp' }), /request payload/i);
+
   assert.deepEqual(validatePayload(CHANNELS.monitorStart, {
     sourceId: 'src_0123456789abcdef01234567',
     options: {

@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const CHANNELS = Object.freeze({
   sourceDiscover: 'astradock:v1:source:discover',
   sourceChoose: 'astradock:v1:source:choose',
+  sourceChooseDirectory: 'astradock:v1:source:choose-directory',
   sourceSelect: 'astradock:v1:source:select',
   sourceOpenFolder: 'astradock:v1:source:open-folder',
   monitorSnapshot: 'astradock:v1:monitor:snapshot',
@@ -86,6 +87,7 @@ const api = Object.freeze({
   source: Object.freeze({
     discover: () => invoke(CHANNELS.sourceDiscover),
     choose: () => invoke(CHANNELS.sourceChoose),
+    chooseDirectory: () => invoke(CHANNELS.sourceChooseDirectory),
     select: (sourceId) => invoke(CHANNELS.sourceSelect, { sourceId }),
     openFolder: (sourceId) => invoke(CHANNELS.sourceOpenFolder, { sourceId })
   }),

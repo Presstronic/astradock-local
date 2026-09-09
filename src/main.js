@@ -165,6 +165,26 @@ register(CHANNELS.sourceChoose, async () => {
   };
 });
 
+register(CHANNELS.sourceChooseDirectory, async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose Star Citizen channel directory',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (result.canceled) return null;
+  const source = await validateLogSource(path.join(result.filePaths[0], 'Game.log'), {
+    discoveryMethods: ['user_selected', 'directory_selected']
+  });
+  rememberSource(source);
+
+  if (source.validation.isValid) {
+    activeSourceId = source.sourceId;
+    await saveSourcePreference(getSourcePreferencePath(), source);
+  }
+
+  return { source: toPublicSource(source), saved: source.validation.isValid };
+});
+
 register(CHANNELS.sourceSelect, async ({ sourceId }) => {
   const source = await revalidateRegisteredSource(sourceId);
   if (!source.validation.isValid) {

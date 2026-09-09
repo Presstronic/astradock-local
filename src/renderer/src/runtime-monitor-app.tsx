@@ -277,6 +277,24 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     }
   }
 
+  async function chooseSourceDirectory() {
+    try {
+      setActionError(null);
+      const result = await client.source.chooseDirectory();
+      if (!result?.source) return;
+      setActiveSource(result.saved ? result.source : null);
+      setSources((current) => upsertSource(current, result.source));
+      if (result.saved) {
+        const nextScan = await client.monitor.scan({ sourceId: result.source.sourceId, options: {} });
+        setScan(nextScan);
+      } else {
+        setActionError(result.source.validation.message);
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Installation directory selection failed.');
+    }
+  }
+
   async function scanSource(options = {}) {
     if (!viewModel.source) {
       setActionError('Choose a local game.log source first.');
@@ -480,7 +498,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         }}
       /> : null}
 
-      {workspace === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} onChooseSource={chooseSource} /> : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
+      {workspace === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} onChooseDirectory={chooseSourceDirectory} onChooseSource={chooseSource} /> : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
         <aside id="current-state" className="current-state" aria-label="Current runtime state">
           <section className="instrument-list" aria-label="Current-state instruments">
             <h2><span>Instruments</span><small>{viewModel.freshnessLabel}</small></h2>

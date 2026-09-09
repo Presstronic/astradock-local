@@ -54,6 +54,7 @@ function createUnavailableClient(): RuntimeMonitorClient {
     source: {
       discover: unavailable as () => Promise<SourceDiscoveryResult>,
       choose: unavailable as () => Promise<SourceSelectionResult | null>,
+      chooseDirectory: unavailable as () => Promise<SourceSelectionResult | null>,
       select: unavailable as (sourceId: string) => Promise<SourceSelectionResult>,
       openFolder: unavailable as (sourceId: string) => Promise<{ opened: true }>
     },
