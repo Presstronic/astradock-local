@@ -17,6 +17,8 @@ const CHANNELS = Object.freeze({
   monitorScan: 'astradock:v1:monitor:scan',
   monitorStart: 'astradock:v1:monitor:start',
   monitorStop: 'astradock:v1:monitor:stop',
+  exporterRun: 'astradock:v1:exporter:run',
+  exporterCancel: 'astradock:v1:exporter:cancel',
   eventsQuery: 'astradock:v1:events:query',
   evidenceGet: 'astradock:v1:evidence:get',
   settingsGet: 'astradock:v1:settings:get',
@@ -120,6 +122,7 @@ function validatePayload(channel, payload) {
     case CHANNELS.sourceChoose:
     case CHANNELS.monitorSnapshot:
     case CHANNELS.monitorStop:
+    case CHANNELS.exporterCancel:
     case CHANNELS.settingsGet:
     case CHANNELS.diagnosticsHealth:
       return assertNoPayload(payload);
@@ -147,6 +150,17 @@ function validatePayload(channel, payload) {
       return {
         sourceId: optionalSourceId(payload?.sourceId),
         options: validateMonitorOptions(payload?.options)
+      };
+    case CHANNELS.exporterRun:
+      assertPlainObject(payload, 'export');
+      if (Object.keys(payload).some((key) => !['sourceId', 'exportType', 'environment', 'outputFormat'].includes(key))) {
+        throw invalidPayload('Unsupported export field.');
+      }
+      return {
+        sourceId: optionalSourceId(payload.sourceId),
+        exportType: payload.exportType === 'blueprint_data' ? 'blueprint_data' : invalidPayload('Unsupported export type.'),
+        environment: payload.environment === 'LIVE' ? 'LIVE' : invalidPayload('Unsupported export environment.'),
+        outputFormat: payload.outputFormat === 'json' ? 'json' : invalidPayload('Unsupported export format.')
       };
     case CHANNELS.eventsQuery:
       return validateEventQuery(payload);

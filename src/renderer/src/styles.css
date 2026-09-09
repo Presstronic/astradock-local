@@ -262,10 +262,207 @@ h2,
   white-space: nowrap;
 }
 
-.workspace-tabs a[aria-current="page"] {
+.workspace-tabs a[aria-current="page"],
+.workspace-tabs button[aria-current="page"] {
   border-bottom-color: var(--primary);
   background: var(--surface-active);
   color: var(--foreground);
+}
+
+.exporter-workspace {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+  padding: 18px;
+  overflow: auto;
+  background: var(--surface-stream);
+}
+
+.exporter-header,
+.exporter-results-heading,
+.exporter-status-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.exporter-header h1 {
+  color: var(--foreground);
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.exporter-intro {
+  max-width: 680px;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.exporter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button.primary {
+  border-color: var(--primary-border);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.exporter-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 14px;
+}
+
+.exporter-card {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--border);
+  background: var(--surface-chrome);
+}
+
+.exporter-card h2 {
+  margin-bottom: 14px;
+  color: var(--foreground);
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.exporter-field {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 11px;
+  color: var(--text-label);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.exporter-field select {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0 8px;
+  background: var(--input);
+  color: var(--foreground);
+}
+
+.exporter-source-summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-inner);
+}
+
+.exporter-source-summary strong,
+.exporter-status-line strong {
+  color: var(--foreground);
+}
+
+.exporter-source-summary > span:last-child {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.exporter-status-line {
+  align-items: center;
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.exporter-status-line strong {
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.export-progress {
+  height: 8px;
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  background: var(--surface-rail);
+}
+
+.export-progress span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  transition: width var(--motion-notification) ease;
+}
+
+.exporter-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.exporter-facts div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line-inner);
+}
+
+.exporter-facts dt {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.exporter-facts dd {
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exporter-error,
+.exporter-warning,
+.exporter-empty {
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.exporter-error { color: var(--danger-text); }
+.exporter-warning { color: var(--warning); }
+
+.exporter-results {
+  min-height: 180px;
+  overflow: auto;
+}
+
+.exporter-results-heading {
+  align-items: center;
+}
+
+.exporter-results-heading h2 { margin-bottom: 0; }
+
+.exporter-results-heading > span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.exporter-table-wrap { overflow: auto; }
+.exporter-table-wrap table { width: 100%; border-collapse: collapse; }
+.exporter-table-wrap th,
+.exporter-table-wrap td { padding: 8px; border-bottom: 1px solid var(--line-inner); text-align: left; }
+.exporter-table-wrap th { color: var(--text-label); font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.exporter-table-wrap td { color: var(--text-body); font-size: 12px; }
+
+@media (max-width: 900px) {
+  .exporter-grid { grid-template-columns: 1fr; }
+  .exporter-header { display: grid; }
 }
 
 .workspace-tabs button span {

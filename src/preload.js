@@ -9,6 +9,8 @@ const CHANNELS = Object.freeze({
   monitorScan: 'astradock:v1:monitor:scan',
   monitorStart: 'astradock:v1:monitor:start',
   monitorStop: 'astradock:v1:monitor:stop',
+  exporterRun: 'astradock:v1:exporter:run',
+  exporterCancel: 'astradock:v1:exporter:cancel',
   eventsQuery: 'astradock:v1:events:query',
   evidenceGet: 'astradock:v1:evidence:get',
   settingsGet: 'astradock:v1:settings:get',
@@ -93,6 +95,10 @@ const api = Object.freeze({
     start: (command = {}) => invoke(CHANNELS.monitorStart, command),
     stop: () => invoke(CHANNELS.monitorStop),
     subscribe
+  }),
+  exporter: Object.freeze({
+    run: (options) => invoke(CHANNELS.exporterRun, options),
+    cancel: () => invoke(CHANNELS.exporterCancel)
   }),
   events: Object.freeze({
     query: (query = {}) => invoke(CHANNELS.eventsQuery, query),

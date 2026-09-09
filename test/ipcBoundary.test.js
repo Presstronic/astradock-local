@@ -71,6 +71,33 @@ test('IPC boundary accepts only bounded monitor command payloads', () => {
   );
 });
 
+test('IPC boundary accepts only the enabled Exporter configuration', () => {
+  assert.deepEqual(validatePayload(CHANNELS.exporterRun, {
+    sourceId: 'src_0123456789abcdef01234567',
+    exportType: 'blueprint_data',
+    environment: 'LIVE',
+    outputFormat: 'json'
+  }), {
+    sourceId: 'src_0123456789abcdef01234567',
+    exportType: 'blueprint_data',
+    environment: 'LIVE',
+    outputFormat: 'json'
+  });
+
+  assert.throws(() => validatePayload(CHANNELS.exporterRun, {
+    sourceId: '../private/game.log', exportType: 'blueprint_data', environment: 'LIVE', outputFormat: 'json'
+  }), /request payload/i);
+  assert.throws(() => validatePayload(CHANNELS.exporterRun, {
+    exportType: 'inventory', environment: 'LIVE', outputFormat: 'json'
+  }), /request payload/i);
+  assert.throws(() => validatePayload(CHANNELS.exporterRun, {
+    exportType: 'blueprint_data', environment: 'PTU', outputFormat: 'json'
+  }), /request payload/i);
+  assert.throws(() => validatePayload(CHANNELS.exporterRun, {
+    exportType: 'blueprint_data', environment: 'LIVE', outputFormat: 'csv'
+  }), /request payload/i);
+});
+
 test('IPC boundary constrains event query pagination and environment-scoped evidence requests', () => {
   assert.deepEqual(validatePayload(CHANNELS.eventsQuery, {
     kind: 'actions',
