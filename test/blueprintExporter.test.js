@@ -29,6 +29,7 @@ test('supports localized blueprint labels without accepting arbitrary notificati
 
 test('validates backup filename shape and derives conservative categories', () => {
   assert.equal(backupLogInfo('Game Build(12545750) 31 Aug 26 (23 44 28).log').build, '12545750');
+  assert.equal(backupLogInfo('Game Build(11518367) 26 Mar 26 (18 10 33).Tentonaxe.log').build, '11518367');
   assert.equal(backupLogInfo('Game Build(12545750) malformed.log'), null);
   assert.equal(deriveBlueprintType('AMRS Laser Cannon'), 'Weapon Gun');
   assert.equal(deriveBlueprintType('unknown blueprint'), '');

@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 
-const BACKUP_NAME_PATTERN = /^Game Build\((?<build>\d+)\) (?<date>\d{1,2} [A-Za-z]{3} \d{2}) \((?<time>\d{2} \d{2} \d{2})\)\.log$/i;
+const BACKUP_NAME_PATTERN = /^Game Build\((?<build>\d+)\) (?<date>\d{1,2} [A-Za-z]{3} \d{2}) \((?<time>\d{2} \d{2} \d{2})\)(?:\.[^.]+)?\.log$/i;
 const DEFAULT_BLUEPRINT_LABELS = Object.freeze([
   'Received Blueprint',
   'Bauplan erhalten',
