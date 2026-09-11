@@ -87,6 +87,7 @@ Before approving a fixture PR, verify:
 
 | Area | Fixture coverage |
 | --- | --- |
+| Blueprint acquisition/export | `exporter/blueprint-acquisition.unavailable`; see [`blueprint-exporter-evidence-matrix.md`](blueprint-exporter-evidence-matrix.md). The reviewed corpus has no approved blueprint signal, so this is a promotion gate rather than a parser fixture. |
 | Build/environment | `spine/client-build-environment.observed` |
 | Local identity/login | `spine/local-identity-login.observed` |
 | PU join/shard/server | `spine/pu-join-shard-server.observed` |

@@ -1,0 +1,42 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/exporter/blueprint-acquisition.unavailable",
+  "title": "Blueprint acquisition evidence is unavailable for issue 132",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-09-10",
+  "domain": "exporter",
+  "action": "acquire, persist, replay, and localize a blueprint notification",
+  "outcome": "unavailable",
+  "provenance": "unavailable_evidence_annotation",
+  "evidenceBasis": "docs/blueprint-exporter-evidence-matrix.md#exit-condition",
+  "privacyClassification": ["local", "export", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["handle", "accountId", "characterId", "entityId", "sessionId", "notificationId", "endpoint", "path", "token"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "No owner-reviewed minimal log sequence exists. Community-reported notification text and synthetic parser cases are not fixture evidence."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {
+      "eventType": "BlueprintObserved",
+      "reason": "The reviewed clean-install corpus contains no owner-approved blueprint acquisition or ownership signal."
+    },
+    {
+      "eventType": "BlueprintSharedObserved",
+      "reason": "No source proves shared semantics for a blueprint notification or record."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "issue132+unsupported-blueprint-acquisition",
+    "sequence": ["unavailable evidence annotation"],
+    "notes": "This manifest is a promotion gate. It prevents generic inventory, attachments, assets, arbitrary notifications, and community-only shapes from becoming blueprint export records."
+  },
+  "knownLimitations": [
+    "An owner-supplied capture must establish the supported shape, locale, build, duplicate behavior, and field semantics.",
+    "The reported Received Blueprint notification is a capture lead, not an approved contract.",
+    "Station field semantics and validation remain unverified."
+  ],
+  "verificationNotes": "Treat Blueprint Data as unsupported for this profile until issue 132 adds owner-reviewed positive and negative fixtures with an explicit approval decision."
+}
