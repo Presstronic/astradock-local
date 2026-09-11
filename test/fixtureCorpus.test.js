@@ -135,6 +135,9 @@ const ISSUE_11_NEGATIVE_FIXTURES = new Set([
   'destination/temporal-proximity-route-noise.non-event',
   'negative/object-container-ship-navigation.non-event'
 ]);
+const ISSUE_132_EXPORTER_FIXTURES = new Set([
+  'exporter/blueprint-acquisition.unavailable'
+]);
 
 const SENSITIVE_PATTERNS = [
   { name: 'ipv4 address', pattern: /\b(?:\d{1,3}\.){3}\d{1,3}\b/ },
@@ -508,6 +511,45 @@ test('issue 11 destination and travel evidence gates unsupported transitions', (
   for (const eventType of ISSUE_11_DEFERRED_DESTINATION_EVENTS) {
     assert.ok(deferredEvents.has(eventType), `missing deferred issue 11 event gate ${eventType}`);
   }
+});
+
+test('issue 132 blueprint export evidence remains explicitly unavailable pending owner review', () => {
+  const evidenceMatrixPath = path.join(__dirname, '..', 'docs', 'blueprint-exporter-evidence-matrix.md');
+  assertNoSensitivePatterns(evidenceMatrixPath);
+
+  const evidenceMatrix = fs.readFileSync(evidenceMatrixPath, 'utf8');
+  for (const requiredText of [
+    'not approved; owner capture required',
+    'Received Blueprint',
+    'AttachmentReceived',
+    'crafting_hud_notification_received_blueprint',
+    'shared',
+    'Technology and libraries: None',
+    'Exit Condition'
+  ]) {
+    assert.ok(evidenceMatrix.includes(requiredText), `blueprint evidence matrix missing ${requiredText}`);
+  }
+
+  const exporterManifests = walkFiles(path.join(FIXTURE_ROOT, 'live', '4.9-pub', 'sc-4.9-live', 'exporter'))
+    .filter((file) => file.endsWith('.manifest.json'))
+    .map(readJson);
+  const fixtureIds = new Set(exporterManifests.map((manifest) => (
+    manifest.fixtureId.replace('live/4.9-pub/sc-4.9-live/', '')
+  )));
+  const unavailableManifest = exporterManifests.find((manifest) => (
+    manifest.fixtureId.endsWith('/blueprint-acquisition.unavailable')
+  ));
+
+  for (const fixtureId of ISSUE_132_EXPORTER_FIXTURES) {
+    assert.ok(fixtureIds.has(fixtureId), `missing issue 132 fixture ${fixtureId}`);
+  }
+  assert.ok(unavailableManifest, 'issue 132 unavailable evidence annotation is required');
+  assert.equal(unavailableManifest.outcome, 'unavailable');
+  assert.equal(unavailableManifest.expectedCanonicalEvents.length, 0);
+  assert.deepEqual(
+    unavailableManifest.expectedNonEvents.map((event) => event.eventType),
+    ['BlueprintObserved', 'BlueprintSharedObserved']
+  );
 });
 
 test('malformed manifests and unknown profiles fail with clear assertions', () => {

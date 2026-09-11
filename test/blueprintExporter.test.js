@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -14,6 +15,14 @@ const {
 
 const blueprintLine = (name, id = 3) => `<2026-09-03T10:20:30.000Z> [Notice] <SHUDEvent_OnNotification> Added notification "Received Blueprint: ${name}: " [${id}] to queue. New queue size: 1, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: []`;
 
+function collectLogFiles(directory) {
+  return fsSync.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return collectLogFiles(entryPath);
+    return entry.name.endsWith('.log') ? [entryPath] : [];
+  });
+}
+
 test('parses blueprint notifications with quoted names and ignores non-notification lines', () => {
   const parsed = parseBlueprintNotification(blueprintLine('Yubarev "Mirage" Pistol', 19));
   assert.equal(parsed.name, 'Yubarev "Mirage" Pistol');
@@ -25,6 +34,15 @@ test('supports localized blueprint labels without accepting arbitrary notificati
   const line = '<2026-09-03T10:20:30.000Z> [Notice] <SHUDEvent_OnNotification> Added notification "Bauplan erhalten: ADP-mk4 Core Woodland: " [4] to queue. New queue size: 1,';
   assert.equal(parseBlueprintNotification(line).name, 'ADP-mk4 Core Woodland');
   assert.equal(parseBlueprintNotification(line, { labels: ['Other label'] }), null);
+});
+
+test('the reviewed LIVE fixture corpus has no approved blueprint notification evidence', () => {
+  const corpusRoot = path.join(__dirname, 'fixtures', 'runtime-log', 'live', '4.9-pub', 'sc-4.9-live');
+  const matches = collectLogFiles(corpusRoot).flatMap((filePath) => (
+    fsSync.readFileSync(filePath, 'utf8').split(/\r?\n/).map(parseBlueprintNotification).filter(Boolean)
+  ));
+
+  assert.deepEqual(matches, []);
 });
 
 test('validates backup filename shape and derives conservative categories', () => {
