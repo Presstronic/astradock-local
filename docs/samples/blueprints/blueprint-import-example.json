@@ -1,0 +1,32 @@
+[
+  {
+    "name": "AMRS Laser Cannon",
+    "type": "Weapon Gun",
+    "shared": true
+  },
+  {
+    "name": "Behring S3 Ballistic Cannon",
+    "type": "Weapon Gun",
+    "shared": true
+  },
+  {
+    "name": "Medical Gun",
+    "type": "Medical",
+    "shared": false
+  },
+  {
+    "name": "BP_CRAFT_Cooler_S1",
+    "type": "Cooler",
+    "shared": true
+  },
+  {
+    "name": "quantainium_processor",
+    "type": "Mining",
+    "shared": null
+  },
+  {
+    "name": "Ballistic Repeater",
+    "type": "",
+    "shared": true
+  }
+]

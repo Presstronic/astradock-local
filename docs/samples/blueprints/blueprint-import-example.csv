@@ -1,0 +1,7 @@
+name,type,shared
+AMRS Laser Cannon,Weapon Gun,true
+Behring S3 Ballistic Cannon,Weapon Gun,true
+Medical Gun,Medical,false
+BP_CRAFT_Cooler_S1,Cooler,true
+quantainium_processor,Mining,
+Ballistic Repeater,,true
