@@ -41,6 +41,7 @@ import { formatInstantContext, formatLocalClock } from './time';
 import { formatTerminalEvent } from './terminal-event-format';
 import { formatTableEvent } from './table-event-format';
 import { ExporterPanel } from './exporter-panel';
+import { workspaceMode } from './workspace-mode';
 
 interface RuntimeMonitorAppProps {
   client: RuntimeMonitorClient;
@@ -77,7 +78,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
   const [settingsSnapshot, setSettingsSnapshot] = useState<SettingsSnapshot | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [workspace, setWorkspace] = useState<'runtime' | 'exporter'>('runtime');
+  const [workspace, setWorkspace] = useState<'runtime' | 'exporter'>(workspaceMode === 'exporter' ? 'exporter' : 'runtime');
   const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
   const [now, setNow] = useState<Date>(() => clock());
   const [search, setSearch] = useState('');
@@ -477,10 +478,12 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       /> : null}
 
       <nav className="workspace-tabs" aria-label="Workspaces">
-        <button type="button" aria-current={workspace === 'runtime' ? 'page' : undefined} onClick={() => setWorkspace('runtime')}>Runtime Monitor</button>
-        <button type="button" aria-current={workspace === 'exporter' ? 'page' : undefined} onClick={() => { setWorkspace('exporter'); setSettingsOpen(false); }}>Exporter</button>
-        <button type="button" disabled title="Post-MVP workspace">Data Operations <span>Post-MVP</span></button>
-        <button type="button" disabled title="Post-MVP workspace">History &amp; Analytics <span>Post-MVP</span></button>
+        {workspaceMode === 'normal' ? <>
+          <button type="button" aria-current={workspace === 'runtime' ? 'page' : undefined} onClick={() => setWorkspace('runtime')}>Runtime Monitor</button>
+          <button type="button" aria-current={workspace === 'exporter' ? 'page' : undefined} onClick={() => { setWorkspace('exporter'); setSettingsOpen(false); }}>Exporter</button>
+          <button type="button" disabled title="Post-MVP workspace">Data Operations <span>Post-MVP</span></button>
+          <button type="button" disabled title="Post-MVP workspace">History &amp; Analytics <span>Post-MVP</span></button>
+        </> : <button type="button" aria-current="page">Exporter</button>}
         <button type="button" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>Settings</button>
       </nav>
 

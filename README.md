@@ -25,6 +25,8 @@ npm run dist:standalone:win
 
 The command creates `dist/standalone/AstraDock-Local-<version>-standalone-test-x64.exe`, never publishes it, and does not create an installer. It is a narrowly distributed test tool, not a supported release format or automatic-update target. Build, transfer, verification, data-retention, and cleanup guidance is in [`docs/windows-standalone-testing.md`](docs/windows-standalone-testing.md).
 
+To create the focused Exporter-only standalone test artifact, run `npm run dist:standalone:exporter:win`. It starts in Exporter, hides unfinished and non-exporter workspaces, writes to `dist/standalone-exporter/`, and is never a release or upload target. See [`docs/exporter-focused-build.md`](docs/exporter-focused-build.md).
+
 ## Current Functionality
 
 - Auto-discovers common Windows and supported Linux/Wine/Proton/LUG Star Citizen `game.log` sources without full-disk scanning.
