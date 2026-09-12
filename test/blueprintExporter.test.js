@@ -7,11 +7,21 @@ const test = require('node:test');
 const {
   backupLogInfo,
   collectBlueprintLogFiles,
-  deriveBlueprintType,
+  createBlueprintExtractionProfile,
+  normalizeBlueprint,
   parseBlueprintNotification,
   scanBlueprintLogs,
   writeBlueprintJson
 } = require('../src/exporter/blueprintExporter');
+
+const APPROVED_TEST_PROFILE = {
+  status: 'approved',
+  profileId: 'test-owner-approved-blueprint-v1',
+  version: 1,
+  build: null,
+  locale: 'en-US',
+  labels: ['Received Blueprint']
+};
 
 const blueprintLine = (name, id = 3) => `<2026-09-03T10:20:30.000Z> [Notice] <SHUDEvent_OnNotification> Added notification "Received Blueprint: ${name}: " [${id}] to queue. New queue size: 1, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: []`;
 
@@ -45,12 +55,42 @@ test('the reviewed LIVE fixture corpus has no approved blueprint notification ev
   assert.deepEqual(matches, []);
 });
 
-test('validates backup filename shape and derives conservative categories', () => {
+test('validates backup filename shape and preserves only explicit Station fields', () => {
   assert.equal(backupLogInfo('Game Build(12545750) 31 Aug 26 (23 44 28).log').build, '12545750');
   assert.equal(backupLogInfo('Game Build(11518367) 26 Mar 26 (18 10 33).Tentonaxe.log').build, '11518367');
   assert.equal(backupLogInfo('Game Build(12545750) malformed.log'), null);
-  assert.equal(deriveBlueprintType('AMRS Laser Cannon'), 'Weapon Gun');
-  assert.equal(deriveBlueprintType('unknown blueprint'), '');
+  assert.deepEqual(normalizeBlueprint({ name: ' AMRS Laser Cannon ', type: 'Weapon Gun', shared: true }), { name: 'AMRS Laser Cannon', type: 'Weapon Gun', shared: true });
+  assert.deepEqual(normalizeBlueprint({ name: 'unknown blueprint' }), { name: 'unknown blueprint', type: '', shared: null });
+  assert.equal(normalizeBlueprint({ name: '  ' }), null);
+});
+
+test('does not enable an unapproved or incomplete extraction profile', () => {
+  assert.equal(createBlueprintExtractionProfile().status, 'unsupported');
+  assert.equal(createBlueprintExtractionProfile({ profile: { status: 'approved', labels: [] } }).status, 'unsupported');
+  assert.equal(createBlueprintExtractionProfile({ profile: APPROVED_TEST_PROFILE }).profileId, 'test-owner-approved-blueprint-v1');
+});
+
+test('returns an explicit unsupported result without scanning or exporting unapproved evidence', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const current = path.join(root, 'game.log');
+  await fs.writeFile(current, `${blueprintLine('Unapproved Blueprint')}\n`);
+  const result = await scanBlueprintLogs(current);
+  assert.equal(result.records.length, 0);
+  assert.equal(result.extraction.status, 'unsupported');
+  assert.equal(result.extraction.profileId, null);
+  assert.match(result.extraction.reason, /approved blueprint evidence profile/);
+  await fs.rm(root, { recursive: true, force: true });
+});
+
+test('rejects an approved profile when the scanned build is outside its version scope', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const current = path.join(root, 'game.log');
+  await fs.writeFile(current, 'BackupNameAttachment=" Build(99999999) 03 Sep 26 (10 20 30)"\n' + blueprintLine('Out of profile') + '\n');
+  const result = await scanBlueprintLogs(current, { profile: { ...APPROVED_TEST_PROFILE, build: '12545750' } });
+  assert.equal(result.records.length, 0);
+  assert.equal(result.extraction.status, 'unsupported');
+  assert.ok(result.errors.some((error) => error.code === 'unsupported_profile'));
+  await fs.rm(root, { recursive: true, force: true });
 });
 
 test('scans current and backup logs, deduplicates repeated observations, and writes JSON atomically', async () => {
@@ -62,7 +102,7 @@ test('scans current and backup logs, deduplicates repeated observations, and wri
   await fs.writeFile(path.join(backupDir, 'Game Build(12545750) 03 Sep 26 (10 20 30).log'), `${blueprintLine('AMRS Laser Cannon')}\n${blueprintLine('Medical Gun', 4)}\n`);
   await fs.writeFile(path.join(backupDir, 'not-a-game-log.log'), blueprintLine('Should Not Match'));
 
-  const result = await scanBlueprintLogs(current);
+  const result = await scanBlueprintLogs(current, { profile: APPROVED_TEST_PROFILE });
   assert.equal(result.filesTotal, 2);
   assert.equal(result.records.length, 2);
   assert.equal(result.files.filter((file) => file.status === 'ready').length, 2);
@@ -82,7 +122,7 @@ test('reports a missing logbackups directory without failing current-log export'
   await fs.writeFile(current, `${blueprintLine('Mining Tool')}\n`);
   const sourceSet = await collectBlueprintLogFiles(current);
   assert.equal(sourceSet.files.length, 1);
-  const result = await scanBlueprintLogs(current);
+  const result = await scanBlueprintLogs(current, { profile: APPROVED_TEST_PROFILE });
   assert.equal(result.records.length, 1);
   await fs.rm(root, { recursive: true, force: true });
 });
@@ -116,7 +156,7 @@ test('reports a source changed during scan without discarding bounded results', 
   const current = path.join(root, 'game.log');
   await fs.writeFile(current, `${blueprintLine('Stable Blueprint')}\n`);
   let changed = false;
-  const result = await scanBlueprintLogs(current, {
+  const result = await scanBlueprintLogs(current, { profile: APPROVED_TEST_PROFILE,
     onProgress(progress) {
       if (!changed && progress.phase === 'scanning') {
         changed = true;
