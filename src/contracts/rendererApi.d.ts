@@ -596,7 +596,7 @@ export interface BlueprintExportResult {
     profileVersion: number | null;
     parserVersion: string;
     reason?: string;
-    diagnostics?: readonly { code: string; message: string }[];
+    diagnostics?: readonly { code: string; message: string; count?: number }[];
   };
 }
 

@@ -192,6 +192,11 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
   let filesScanned = 0;
   let compatibleFiles = 0;
   const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
+  const noteUnsupportedLine = () => {
+    const existing = extractionDiagnostics.find((entry) => entry.code === 'unrecognized_notification');
+    if (existing) existing.count += 1;
+    else extractionDiagnostics.push({ code: 'unrecognized_notification', message: 'A blueprint-like notification did not match the approved profile shape.', count: 1 });
+  };
 
   if (profile.status !== 'approved') {
     return {
@@ -239,6 +244,7 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
             linesRead += 1;
             const parsed = parseBlueprintNotification(line, { patterns });
             if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
+            else if (line.includes('Added notification')) noteUnsupportedLine();
           }
         });
         input.on('end', () => {
@@ -246,6 +252,7 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
             linesRead += 1;
             const parsed = parseBlueprintNotification(remainder, { patterns });
             if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
+            else if (remainder.includes('Added notification')) noteUnsupportedLine();
           }
           resolve();
         });
