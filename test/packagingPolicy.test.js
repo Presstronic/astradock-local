@@ -23,3 +23,15 @@ test('standalone artifacts are unmistakably labeled as test output', () => {
     'AstraDock-Local-${version}-standalone-test-${arch}.${ext}'
   );
 });
+
+test('Exporter-focused standalone build is isolated from normal packaging', () => {
+  const command = packageJson.scripts['dist:standalone:exporter:win'];
+
+  assert.equal(typeof command, 'string');
+  assert.match(command, /build:renderer:exporter/);
+  assert.match(command, /electron-builder --win portable --x64/);
+  assert.match(command, /--publish never/);
+  assert.match(command, /dist\/standalone-exporter/);
+  assert.match(command, /exporter-standalone-test/);
+  assert.doesNotMatch(packageJson.scripts.dist, /exporter|standalone/);
+});
