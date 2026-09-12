@@ -581,11 +581,14 @@ export interface BlueprintExportResult {
   outputPath: string | null;
   outputFileName: string | null;
   records: readonly { name: string; type: string; shared: boolean | null }[];
+  files: readonly { file: string; kind: string; build: string | null; status: string; fingerprint: string | null }[];
   filesScanned: number;
   filesTotal: number;
   linesRead: number;
   duplicatesSuppressed: number;
   skippedFiles: number;
+  sourceFingerprint: string;
+  diagnostics: readonly { file: string; kind: string; status: string; reason: string; code?: string }[];
   errors: readonly { file: string; code: string; message: string }[];
 }
 

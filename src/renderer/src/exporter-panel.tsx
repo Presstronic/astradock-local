@@ -105,6 +105,7 @@ export function ExporterPanel({ client, source, onChooseDirectory, onChooseSourc
           {error ? <p className="exporter-error" role="alert">{error}</p> : null}
           {result?.status === 'no_matches' ? <p className="exporter-empty">No qualifying blueprint notifications were found. The logs may predate blueprint activity or contain no blueprint acquisition events.</p> : null}
           {result?.errors.length ? <p className="exporter-warning" role="status">{result.errors.length} log file warning{result.errors.length === 1 ? '' : 's'}; the export may be partial.</p> : null}
+          {result ? <p className="exporter-source-note" role="status">Source set: {result.files.filter((file) => file.status === 'ready').length} included, {result.skippedFiles} skipped or unavailable; fingerprint {result.sourceFingerprint}.</p> : null}
         </section>
       </section>
 

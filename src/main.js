@@ -273,7 +273,7 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     });
     if (exporterCancelRequested) {
       publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, errors: result.errors };
+      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], files: result.files, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, sourceFingerprint: result.sourceFingerprint, diagnostics: result.diagnostics, errors: result.errors };
     }
     publishProgress({ phase: 'awaiting_save', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
     const saveResult = await dialog.showSaveDialog(mainWindow, {
@@ -284,13 +284,13 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     });
     if (saveResult.canceled || !saveResult.filePath) {
       publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, errors: result.errors };
+      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], files: result.files, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, sourceFingerprint: result.sourceFingerprint, diagnostics: result.diagnostics, errors: result.errors };
     }
     publishProgress({ phase: 'writing', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
     const outputPath = await writeBlueprintJson(saveResult.filePath, result.records);
     const status = result.errors.length ? 'partial' : result.records.length ? 'completed' : 'no_matches';
     publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed, outputFileName: path.basename(outputPath) });
-    return { status, outputPath, outputFileName: path.basename(outputPath), records: result.records, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, errors: result.errors };
+    return { status, outputPath, outputFileName: path.basename(outputPath), records: result.records, files: result.files, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, sourceFingerprint: result.sourceFingerprint, diagnostics: result.diagnostics, errors: result.errors };
   } catch (error) {
     if (error?.code === 'export_cancelled') {
       publishProgress({ phase: 'cancelled', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
