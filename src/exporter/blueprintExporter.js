@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 
-const BACKUP_NAME_PATTERN = /^Game Build\((?<build>\d+)\) (?<date>\d{1,2} [A-Za-z]{3} \d{2}) \((?<time>\d{2} \d{2} \d{2})\)(?:\.[^.]+)?\.log$/i;
+const BACKUP_NAME_PATTERN = /^Game\s+Build\s*\(\s*(?<build>\d+)\s*\)\s+(?<date>\d{1,2}\s+[A-Za-z]{3}\s+\d{2})\s+\(\s*(?<time>\d{2}\s+\d{2}\s+\d{2})\s*\)(?:\.[^.]+)?\.log$/i;
 const DEFAULT_BLUEPRINT_LABELS = Object.freeze([
   'Received Blueprint',
   'Bauplan erhalten',
@@ -67,28 +67,68 @@ function normalizeBlueprint(record) {
 
 function backupLogInfo(fileName) {
   const match = BACKUP_NAME_PATTERN.exec(fileName);
-  return match ? { build: match.groups.build, fileName } : null;
+  return match ? {
+    build: match.groups.build,
+    date: match.groups.date.replace(/\s+/g, ' '),
+    time: match.groups.time.replace(/\s+/g, ' '),
+    fileName
+  } : null;
 }
 
 async function collectBlueprintLogFiles(sourcePath, options = {}) {
   const currentPath = path.resolve(sourcePath);
   const backupDirectory = path.join(path.dirname(currentPath), 'logbackups');
-  const files = [{ path: currentPath, kind: 'current', build: null }];
-  let skipped = 0;
+  const diagnostics = [];
+  const files = [];
+  const current = await inspectSourceFile({ path: currentPath, kind: 'current', build: null, fileName: path.basename(currentPath) });
+  if (current.status === 'ready' || current.status === 'missing' || current.status === 'inaccessible') files.push(current);
+  else diagnostics.push(current);
+
   try {
     const entries = await fsp.readdir(backupDirectory, { withFileTypes: true });
     for (const entry of entries) {
-      if (!entry.isFile()) { skipped += 1; continue; }
+      if (!entry.isFile()) {
+        diagnostics.push({ file: entry.name, kind: entry.isDirectory() ? 'directory' : 'other', status: 'skipped', reason: 'not_a_file' });
+        continue;
+      }
       const info = backupLogInfo(entry.name);
-      if (!info) { skipped += 1; continue; }
-      files.push({ path: path.join(backupDirectory, entry.name), kind: 'backup', build: info.build, fileName: entry.name });
+      if (!info) {
+        diagnostics.push({ file: entry.name, kind: 'backup', status: 'skipped', reason: 'malformed_backup_name' });
+        continue;
+      }
+      const inspected = await inspectSourceFile({ path: path.join(backupDirectory, entry.name), kind: 'backup', build: info.build, fileName: entry.name, date: info.date, time: info.time });
+      if (inspected.status === 'ready' || inspected.status === 'missing' || inspected.status === 'inaccessible') files.push(inspected);
+      else diagnostics.push(inspected);
     }
   } catch (error) {
-    if (error.code !== 'ENOENT') throw error;
-    skipped += 1;
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') diagnostics.push({ file: 'logbackups', kind: 'directory', status: 'missing', reason: 'backup_directory_missing' });
+    else diagnostics.push({ file: 'logbackups', kind: 'directory', status: 'inaccessible', reason: 'backup_directory_unreadable', code: error.code || 'readdir_failed' });
   }
-  files.sort((left, right) => left.kind.localeCompare(right.kind) || left.path.localeCompare(right.path));
-  return { files, backupDirectory, skipped };
+  files.sort(compareSourceFiles);
+  const fingerprint = createSourceSetFingerprint(files);
+  return { files, backupDirectory, diagnostics, skipped: diagnostics.length, fingerprint };
+}
+
+async function inspectSourceFile(file) {
+  try {
+    const stat = await fsp.stat(file.path);
+    if (!stat.isFile()) return { ...file, status: 'skipped', reason: 'not_a_file' };
+    return { ...file, status: 'ready', size: stat.size, modifiedAt: stat.mtimeMs, fingerprint: `${stat.size}:${stat.mtimeMs}` };
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return { ...file, status: 'missing', reason: 'file_missing', code: error.code };
+    if (error.code === 'EACCES' || error.code === 'EPERM') return { ...file, status: 'inaccessible', reason: 'permission_denied', code: error.code };
+    return { ...file, status: 'inaccessible', reason: 'stat_failed', code: error.code || 'stat_failed' };
+  }
+}
+
+function compareSourceFiles(left, right) {
+  const kindDelta = (left.kind === 'current' ? 0 : 1) - (right.kind === 'current' ? 0 : 1);
+  return kindDelta || String(left.fileName).localeCompare(String(right.fileName), 'en', { numeric: true }) || String(left.path).localeCompare(String(right.path));
+}
+
+function createSourceSetFingerprint(files) {
+  const crypto = require('node:crypto');
+  return `set_${crypto.createHash('sha256').update(files.map((file) => `${file.kind}:${file.fileName}:${file.fingerprint || file.status}`).join('|')).digest('hex').slice(0, 24)}`;
 }
 
 async function readFirstLine(filePath) {
@@ -120,7 +160,7 @@ function buildFromHeader(line) {
 async function scanBlueprintLogs(sourcePath, options = {}) {
   const sourceSet = await collectBlueprintLogFiles(sourcePath, options);
   const patterns = compileBlueprintPatterns(options.labels);
-  const observations = [];
+  const observations = new Map();
   const errors = [];
   let linesRead = 0;
   let filesScanned = 0;
@@ -136,6 +176,10 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     const progress = { phase: 'scanning', currentFile: file.fileName || path.basename(file.path), filesProcessed: index, filesTotal: sourceSet.files.length };
     onProgress(progress);
     let build = file.build;
+    if (file.status !== 'ready') {
+      errors.push({ file: file.fileName, code: file.code || file.status, message: file.status === 'missing' ? 'The log was not found during scanning.' : 'The log could not be accessed.' });
+      continue;
+    }
     try {
       if (!build) build = buildFromHeader(await readFirstLine(file.path));
       await new Promise((resolve, reject) => {
@@ -151,48 +195,55 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
             }
             linesRead += 1;
             const parsed = parseBlueprintNotification(line, { patterns });
-            if (parsed) observations.push({ ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build });
+            if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build });
           }
         });
         input.on('end', () => {
           if (remainder) {
             linesRead += 1;
             const parsed = parseBlueprintNotification(remainder, { patterns });
-            if (parsed) observations.push({ ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build });
+            if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build });
           }
           resolve();
         });
         input.on('error', reject);
       });
       filesScanned += 1;
+      const after = await inspectSourceFile(file);
+      if (after.status !== 'ready' || after.fingerprint !== file.fingerprint) {
+        errors.push({ file: file.fileName, code: 'source_changed', message: 'The log changed while it was being scanned; results may be partial.' });
+      }
     } catch (error) {
       errors.push({ file: file.fileName || path.basename(file.path), code: error.code || 'read_failed', message: 'The log could not be read.' });
     }
   }
 
   onProgress({ phase: 'deduplicating', filesProcessed: filesScanned, filesTotal: sourceSet.files.length });
-  const unique = new Map();
-  for (const observation of observations) {
-    const record = normalizeBlueprint(observation);
-    const key = record.name.trim().toLocaleLowerCase();
-    if (!unique.has(key)) unique.set(key, { record, observation, observations: 1 });
-    else unique.get(key).observations += 1;
-  }
-  const records = [...unique.values()]
+  const records = [...observations.values()]
     .sort((left, right) => left.record.name.localeCompare(right.record.name))
     .map((entry) => entry.record);
   return {
     records,
-    observations: [...unique.values()].map((entry) => ({ ...entry.observation, duplicateObservations: entry.observations - 1 })),
-    files: sourceSet.files.map((file) => ({ file: file.fileName || path.basename(file.path), kind: file.kind, build: file.build })),
+    observations: [...observations.values()].map((entry) => ({ ...entry.observation, duplicateObservations: entry.duplicateObservations })),
+    files: sourceSet.files.map((file) => ({ file: file.fileName || path.basename(file.path), kind: file.kind, build: file.build, status: file.status, fingerprint: file.fingerprint || null })),
     filesScanned,
     filesTotal: sourceSet.files.length,
     linesRead,
-    duplicatesSuppressed: Math.max(0, observations.length - records.length),
+    duplicatesSuppressed: [...observations.values()].reduce((total, entry) => total + entry.duplicateObservations, 0),
     skippedFiles: sourceSet.skipped,
+    sourceFingerprint: sourceSet.fingerprint,
+    diagnostics: sourceSet.diagnostics,
     errors,
-    matched: observations.length > 0
+    matched: observations.size > 0
   };
+}
+
+function addObservation(observations, observation) {
+  const record = normalizeBlueprint(observation);
+  const key = record.name.trim().toLocaleLowerCase();
+  const existing = observations.get(key);
+  if (existing) existing.duplicateObservations += 1;
+  else observations.set(key, { record, observation, duplicateObservations: 0 });
 }
 
 async function writeBlueprintJson(filePath, records) {

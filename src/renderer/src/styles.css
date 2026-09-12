@@ -427,7 +427,8 @@ h2,
 
 .exporter-error,
 .exporter-warning,
-.exporter-empty {
+.exporter-empty,
+.exporter-source-note {
   margin-top: 14px;
   color: var(--text-muted);
   font-size: 12px;
@@ -435,6 +436,7 @@ h2,
 
 .exporter-error { color: var(--danger-text); }
 .exporter-warning { color: var(--warning); }
+.exporter-source-note { color: var(--text-label); font-family: var(--font-mono); font-size: 10px; }
 
 .exporter-results {
   min-height: 180px;

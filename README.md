@@ -38,6 +38,8 @@ To create the focused Exporter-only standalone test artifact, run `npm run dist:
 
 The parser is intentionally heuristic because Star Citizen log formats vary between builds. Inspecting a row requests bounded local evidence detail so the parser can be tightened against real logs without sending raw context by default.
 
+Exporter source scanning is local-only and source-ID based: it validates the selected LIVE `game.log`, scans its matching sibling `logbackups` files in deterministic order, streams one file at a time, reports skipped or changing inputs, and exposes a privacy-safe metadata fingerprint. See [`docs/exporter-focused-build.md`](docs/exporter-focused-build.md) for the source-set contract.
+
 Source discovery, validation states, privacy-safe DTOs, and local preference behavior are documented in [`docs/source-discovery.md`](docs/source-discovery.md).
 The hardened Electron lifecycle and renderer API are documented in [`docs/hardened-electron-boundary.md`](docs/hardened-electron-boundary.md).
 The resilient incremental monitor tailer is documented in [`docs/runtime-log-tailer.md`](docs/runtime-log-tailer.md).

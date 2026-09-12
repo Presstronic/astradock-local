@@ -65,6 +65,7 @@ test('scans current and backup logs, deduplicates repeated observations, and wri
   const result = await scanBlueprintLogs(current);
   assert.equal(result.filesTotal, 2);
   assert.equal(result.records.length, 2);
+  assert.equal(result.files.filter((file) => file.status === 'ready').length, 2);
   assert.equal(result.duplicatesSuppressed, 1);
   assert.deepEqual(result.records.map((record) => record.name), ['AMRS Laser Cannon', 'Medical Gun']);
   assert.equal(result.records[0].shared, null);
@@ -83,5 +84,48 @@ test('reports a missing logbackups directory without failing current-log export'
   assert.equal(sourceSet.files.length, 1);
   const result = await scanBlueprintLogs(current);
   assert.equal(result.records.length, 1);
+  await fs.rm(root, { recursive: true, force: true });
+});
+
+test('returns a deterministic source-set boundary and explains skipped or inaccessible inputs', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const backupDir = path.join(root, 'logbackups');
+  await fs.mkdir(backupDir);
+  const current = path.join(root, 'game.log');
+  await fs.writeFile(current, `${blueprintLine('Current Blueprint')}\n`);
+  await fs.writeFile(path.join(backupDir, 'Game Build(2) 02 Sep 26 (10 00 00).log'), `${blueprintLine('Older Blueprint')}\n`);
+  await fs.writeFile(path.join(backupDir, 'Game Build ( 1 ) 01 Sep 26 (09 00 00 ).LOG'), `${blueprintLine('First Blueprint')}\n`);
+  await fs.writeFile(path.join(backupDir, 'Game Build(9) malformed.log'), 'ignored');
+  await fs.mkdir(path.join(backupDir, 'Game Build(8) 08 Sep 26 (08 00 00).log'));
+
+  const sourceSet = await collectBlueprintLogFiles(current);
+  assert.deepEqual(sourceSet.files.map((file) => file.fileName), [
+    'game.log',
+    'Game Build ( 1 ) 01 Sep 26 (09 00 00 ).LOG',
+    'Game Build(2) 02 Sep 26 (10 00 00).log'
+  ]);
+  assert.equal(sourceSet.skipped, 2);
+  assert.ok(sourceSet.diagnostics.some((entry) => entry.reason === 'malformed_backup_name'));
+  assert.ok(sourceSet.diagnostics.some((entry) => entry.reason === 'not_a_file'));
+  assert.match(sourceSet.fingerprint, /^set_[a-f0-9]{24}$/);
+  await fs.rm(root, { recursive: true, force: true });
+});
+
+test('reports a source changed during scan without discarding bounded results', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const current = path.join(root, 'game.log');
+  await fs.writeFile(current, `${blueprintLine('Stable Blueprint')}\n`);
+  let changed = false;
+  const result = await scanBlueprintLogs(current, {
+    onProgress(progress) {
+      if (!changed && progress.phase === 'scanning') {
+        changed = true;
+        fsSync.appendFileSync(current, `${blueprintLine('Appended Blueprint')}\n`);
+      }
+    }
+  });
+  assert.equal(result.records.length, 2, 'the scan remains bounded while accepting bytes available to the opened stream');
+  assert.ok(result.errors.some((error) => error.code === 'source_changed'));
+  assert.match(result.sourceFingerprint, /^set_[a-f0-9]{24}$/);
   await fs.rm(root, { recursive: true, force: true });
 });
