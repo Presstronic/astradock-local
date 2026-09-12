@@ -8,6 +8,15 @@ const DEFAULT_BLUEPRINT_LABELS = Object.freeze([
   'Bauplan erhalten',
   'Bauplan überchoo'
 ]);
+const BLUEPRINT_EXTRACTION_CONTRACT_VERSION = 1;
+const BLUEPRINT_PARSER_VERSION = 'blueprint-notification-v1';
+const UNSUPPORTED_PROFILE = Object.freeze({
+  status: 'unsupported',
+  profileId: null,
+  version: null,
+  labels: Object.freeze([]),
+  reason: 'No owner-approved blueprint evidence profile is available for this build or locale.'
+});
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -15,6 +24,29 @@ function escapeRegExp(value) {
 
 function normalizeLabel(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function createBlueprintExtractionProfile(options = {}) {
+  const profile = options.profile;
+  if (!profile || profile.status !== 'approved' || !Array.isArray(profile.labels) || !profile.labels.length) {
+    return UNSUPPORTED_PROFILE;
+  }
+  return Object.freeze({
+    status: 'approved',
+    profileId: String(profile.profileId || 'blueprint-notification'),
+    version: Number(profile.version || BLUEPRINT_EXTRACTION_CONTRACT_VERSION),
+    build: profile.build == null ? null : String(profile.build),
+    builds: Object.freeze(Array.isArray(profile.builds) ? profile.builds.map(String) : profile.build == null ? [] : [String(profile.build)]),
+    locale: profile.locale == null ? null : String(profile.locale),
+    labels: Object.freeze([...new Set(profile.labels.map(normalizeLabel).filter(Boolean))]),
+    reason: null
+  });
+}
+
+function isProfileCompatible(profile, build) {
+  return profile.status === 'approved' && profile.builds.length > 0 && build != null
+    ? profile.builds.includes(String(build))
+    : profile.status === 'approved' && profile.builds.length === 0;
 }
 
 function compileBlueprintPatterns(labels = DEFAULT_BLUEPRINT_LABELS) {
@@ -41,27 +73,19 @@ function parseBlueprintNotification(line, options = {}) {
       notificationId: Number(match[2]),
       label: pattern.label,
       timestamp,
-      rawLine: line
+      parserVersion: BLUEPRINT_PARSER_VERSION
     };
   }
   return null;
 }
 
-function deriveBlueprintType(name) {
-  const value = String(name || '').toLowerCase();
-  if (/\b(pistol|rifle|shotgun|cannon|repeater|launcher|sniper|smg|gun)\b/.test(value)) return 'Weapon Gun';
-  if (/\b(helmet|helm|armor|armour|undersuit|arms|legs|core|backpack)\b/.test(value)) return 'Armor';
-  if (/\b(mining|tractor|multi-tool|multitool|salvage)\b/.test(value)) return 'Mining';
-  if (/\b(mag|magazine|ammo|ammunition|battery)\b/.test(value)) return 'Ammo';
-  if (/\b(med|medical|medpen|medgun)\b/.test(value)) return 'Medical';
-  return '';
-}
-
 function normalizeBlueprint(record) {
+  const name = normalizeLabel(record.name);
+  if (!name) return null;
   return {
-    name: record.name,
-    type: deriveBlueprintType(record.name),
-    shared: null
+    name,
+    type: typeof record.type === 'string' ? record.type.trim() : '',
+    shared: typeof record.shared === 'boolean' ? record.shared : null
   };
 }
 
@@ -159,12 +183,25 @@ function buildFromHeader(line) {
 
 async function scanBlueprintLogs(sourcePath, options = {}) {
   const sourceSet = await collectBlueprintLogFiles(sourcePath, options);
-  const patterns = compileBlueprintPatterns(options.labels);
+  const profile = createBlueprintExtractionProfile(options);
+  const patterns = compileBlueprintPatterns(profile.labels);
   const observations = new Map();
   const errors = [];
+  const extractionDiagnostics = [];
   let linesRead = 0;
   let filesScanned = 0;
+  let compatibleFiles = 0;
   const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
+
+  if (profile.status !== 'approved') {
+    return {
+      records: [], observations: [], files: sourceSet.files.map((file) => ({ file: file.fileName || path.basename(file.path), kind: file.kind, build: file.build, status: file.status, fingerprint: file.fingerprint || null })),
+      filesScanned: 0, filesTotal: sourceSet.files.length, linesRead: 0, duplicatesSuppressed: 0,
+      skippedFiles: sourceSet.skipped, sourceFingerprint: sourceSet.fingerprint, diagnostics: sourceSet.diagnostics,
+      extraction: { status: 'unsupported', profileId: null, profileVersion: null, parserVersion: BLUEPRINT_PARSER_VERSION, reason: profile.reason },
+      errors: [], matched: false
+    };
+  }
 
   for (let index = 0; index < sourceSet.files.length; index += 1) {
     if (options.shouldCancel?.()) {
@@ -182,6 +219,12 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     }
     try {
       if (!build) build = buildFromHeader(await readFirstLine(file.path));
+      if (!isProfileCompatible(profile, build)) {
+        extractionDiagnostics.push({ code: 'unsupported_profile', message: `No approved blueprint profile matches build ${build || 'unknown'}.` });
+        errors.push({ file: file.fileName, code: 'unsupported_profile', message: 'The log build is not covered by the approved blueprint extraction profile.' });
+        continue;
+      }
+      compatibleFiles += 1;
       await new Promise((resolve, reject) => {
         const input = fs.createReadStream(file.path, { encoding: 'utf8' });
         let remainder = '';
@@ -195,14 +238,14 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
             }
             linesRead += 1;
             const parsed = parseBlueprintNotification(line, { patterns });
-            if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build });
+            if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
           }
         });
         input.on('end', () => {
           if (remainder) {
             linesRead += 1;
             const parsed = parseBlueprintNotification(remainder, { patterns });
-            if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build });
+            if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
           }
           resolve();
         });
@@ -234,16 +277,30 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     sourceFingerprint: sourceSet.fingerprint,
     diagnostics: sourceSet.diagnostics,
     errors,
+    extraction: { status: compatibleFiles > 0 ? 'approved' : 'unsupported', profileId: compatibleFiles > 0 ? profile.profileId : null, profileVersion: compatibleFiles > 0 ? profile.version : null, parserVersion: BLUEPRINT_PARSER_VERSION, reason: compatibleFiles > 0 ? undefined : 'No scanned file matched the approved build profile.', diagnostics: extractionDiagnostics },
     matched: observations.size > 0
   };
 }
 
 function addObservation(observations, observation) {
   const record = normalizeBlueprint(observation);
-  const key = record.name.trim().toLocaleLowerCase();
+  if (!record) return;
+  const key = record.name.normalize('NFKC').toLocaleLowerCase('en-US');
   const existing = observations.get(key);
   if (existing) existing.duplicateObservations += 1;
-  else observations.set(key, { record, observation, duplicateObservations: 0 });
+  else observations.set(key, {
+    record,
+    observation: {
+      sourceFile: observation.sourceFile,
+      sourceKind: observation.sourceKind,
+      timestamp: observation.timestamp,
+      gameBuild: observation.gameBuild || null,
+      parserVersion: BLUEPRINT_PARSER_VERSION,
+      profileId: observation.profile.profileId,
+      confidence: 'observed-name-only'
+    },
+    duplicateObservations: 0
+  });
 }
 
 async function writeBlueprintJson(filePath, records) {
@@ -263,10 +320,12 @@ async function writeBlueprintJson(filePath, records) {
 module.exports = {
   BACKUP_NAME_PATTERN,
   DEFAULT_BLUEPRINT_LABELS,
+  BLUEPRINT_EXTRACTION_CONTRACT_VERSION,
+  BLUEPRINT_PARSER_VERSION,
+  createBlueprintExtractionProfile,
   backupLogInfo,
   collectBlueprintLogFiles,
   compileBlueprintPatterns,
-  deriveBlueprintType,
   normalizeBlueprint,
   parseBlueprintNotification,
   scanBlueprintLogs,

@@ -590,6 +590,14 @@ export interface BlueprintExportResult {
   sourceFingerprint: string;
   diagnostics: readonly { file: string; kind: string; status: string; reason: string; code?: string }[];
   errors: readonly { file: string; code: string; message: string }[];
+  extraction: {
+    status: 'approved' | 'unsupported';
+    profileId: string | null;
+    profileVersion: number | null;
+    parserVersion: string;
+    reason?: string;
+    diagnostics?: readonly { code: string; message: string }[];
+  };
 }
 
 export type Unsubscribe = () => void;
