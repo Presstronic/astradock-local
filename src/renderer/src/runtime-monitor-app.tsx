@@ -425,43 +425,58 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             <span className="product-name">AstraDock</span>
           </div>
         </div>
-        <section className="source-strip" aria-label="Source health">
-          <Metric label="Environment" value={viewModel.environmentLabel.toUpperCase()} />
-          <Metric label="Build" value={viewModel.buildLabel} />
-          <StatusPill state={viewModel.workspaceState} label={viewModel.monitorLabel} />
-          <Metric label="Source health" value={viewModel.sourceHealthLabel} title={viewModel.backlogDetail} />
-          <Metric label="Last activity" value={viewModel.freshnessLabel} title={viewModel.exactFreshness || undefined} />
-          <Metric label="Lifecycle" value={viewModel.lifecycleLabel} title={viewModel.lifecycleDetail} />
-          <Metric label="Last transition" value={formatFreshness(viewModel.lifecycleLastChangedAt, now)} title={viewModel.lifecycleLastChangedAt || undefined} />
-          <Metric label="Parser" value={viewModel.compatibilityState.replaceAll('_', ' ')} />
-          <button type="button" className="header-metric header-metric-action" aria-expanded={sourceDetailsOpen} onClick={() => setSourceDetailsOpen((open) => !open)}>
-            <small>Source</small><strong>{viewModel.source?.displayLabel || 'Awaiting source'}</strong>
-          </button>
-          {viewModel.headerTelemetry.map((instrument) => (
-            <HeaderTelemetryMetric
-              key={instrument.id}
-              instrument={instrument}
-              onSelect={openSyntheticDetail}
-            />
-          ))}
-          {viewModel.warningCount > 0 ? <Metric label="Warnings" value={String(viewModel.warningCount)} /> : null}
-        </section>
-        <div className="global-actions" aria-label="Monitor actions">
-          <button type="button" className="button secondary" onClick={() => void (viewModel.source ? scanSource() : chooseSource())}>
-            {viewModel.source ? 'Re-scan source' : 'Choose source'}
-          </button>
-          {snapshot?.monitor.active ? (
-            <>
-              <button type="button" className="button secondary" onClick={() => void scanSource({ bootstrapMode: 'current_state' })}>Recover current state</button>
-              <button type="button" className="button secondary follow-active" onClick={() => void stopMonitor()}>Pause follow</button>
-            </>
-          ) : (
-            <button type="button" className="button secondary" onClick={() => void startMonitor()} disabled={!viewModel.source}>Start follow</button>
-          )}
-        </div>
+        {workspace === 'exporter' ? <ExporterHeader
+          sources={sources}
+          source={viewModel.source}
+          onSelect={async (sourceId) => {
+            try {
+              setActionError(null);
+              const result = await client.source.select(sourceId);
+              if (!result.selected || !result.source) throw new Error(result.source?.validation.message || 'Environment is not available.');
+              setActiveSource(result.source);
+              setSources((current) => upsertSource(current, result.source!));
+              setScan(await client.monitor.scan({ sourceId, options: {} }));
+            } catch (error) { setActionError(error instanceof Error ? error.message : 'Environment selection failed.'); }
+          }}
+        /> : <>
+          <section className="source-strip" aria-label="Source health">
+            <Metric label="Environment" value={viewModel.environmentLabel.toUpperCase()} />
+            <Metric label="Build" value={viewModel.buildLabel} />
+            <StatusPill state={viewModel.workspaceState} label={viewModel.monitorLabel} />
+            <Metric label="Source health" value={viewModel.sourceHealthLabel} title={viewModel.backlogDetail} />
+            <Metric label="Last activity" value={viewModel.freshnessLabel} title={viewModel.exactFreshness || undefined} />
+            <Metric label="Lifecycle" value={viewModel.lifecycleLabel} title={viewModel.lifecycleDetail} />
+            <Metric label="Last transition" value={formatFreshness(viewModel.lifecycleLastChangedAt, now)} title={viewModel.lifecycleLastChangedAt || undefined} />
+            <Metric label="Parser" value={viewModel.compatibilityState.replaceAll('_', ' ')} />
+            <button type="button" className="header-metric header-metric-action" aria-expanded={sourceDetailsOpen} onClick={() => setSourceDetailsOpen((open) => !open)}>
+              <small>Source</small><strong>{viewModel.source?.displayLabel || 'Awaiting source'}</strong>
+            </button>
+            {viewModel.headerTelemetry.map((instrument) => (
+              <HeaderTelemetryMetric
+                key={instrument.id}
+                instrument={instrument}
+                onSelect={openSyntheticDetail}
+              />
+            ))}
+            {viewModel.warningCount > 0 ? <Metric label="Warnings" value={String(viewModel.warningCount)} /> : null}
+          </section>
+          <div className="global-actions" aria-label="Monitor actions">
+            <button type="button" className="button secondary" onClick={() => void (viewModel.source ? scanSource() : chooseSource())}>
+              {viewModel.source ? 'Re-scan source' : 'Choose source'}
+            </button>
+            {snapshot?.monitor.active ? (
+              <>
+                <button type="button" className="button secondary" onClick={() => void scanSource({ bootstrapMode: 'current_state' })}>Recover current state</button>
+                <button type="button" className="button secondary follow-active" onClick={() => void stopMonitor()}>Pause follow</button>
+              </>
+            ) : (
+              <button type="button" className="button secondary" onClick={() => void startMonitor()} disabled={!viewModel.source}>Start follow</button>
+            )}
+          </div>
+        </>}
       </header>
 
-      {sourceDetailsOpen ? <SourceDetails
+      {workspace === 'runtime' && sourceDetailsOpen ? <SourceDetails
         sources={viewModel.sourceCandidates}
         activeSource={viewModel.source}
         onSelect={async (sourceId) => {
@@ -1119,6 +1134,40 @@ function Metric({ label, value, title }: { label: string; value: string; title?:
       <strong>{value}</strong>
     </span>
   );
+}
+
+function ExporterHeader({
+  sources,
+  source,
+  onSelect
+}: {
+  sources: readonly PublicRuntimeSource[];
+  source: PublicRuntimeSource | null;
+  onSelect: (sourceId: string) => Promise<void>;
+}) {
+  const environments = sources.filter((candidate, index, all) => (
+    candidate.validation.isValid
+    && all.findIndex((other) => other.channelHint === candidate.channelHint) === index
+  ));
+  const found = Boolean(source?.validation.isValid);
+
+  return <section className="source-strip exporter-source-strip" aria-label="Exporter source selection">
+    <span className="header-metric exporter-environment-metric" data-found={found ? 'true' : 'false'}>
+      <small>Environment</small>
+      <strong>{source?.channelHint || 'Not detected'}</strong>
+    </span>
+    <span className="header-metric exporter-source-metric" title={source?.displayPath || undefined}>
+      <small>Source</small>
+      <strong>{source?.displayPath || 'No environment selected'}</strong>
+    </span>
+    <label className="header-metric exporter-environment-select">
+      <small>Available environments</small>
+      <select value={source?.sourceId || ''} onChange={(event) => void onSelect(event.currentTarget.value)} disabled={!environments.length}>
+        <option value="">Select environment</option>
+        {environments.map((candidate) => <option key={candidate.sourceId} value={candidate.sourceId}>{candidate.channelHint}</option>)}
+      </select>
+    </label>
+  </section>;
 }
 
 function SourceDetails({

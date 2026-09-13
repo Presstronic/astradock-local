@@ -106,6 +106,9 @@ function getCandidateLogPaths(options = {}) {
 async function discoverInstallationEnvironments(installationRoot, options = {}) {
   const requestedRoot = path.resolve(expandHome(installationRoot, options.home || os.homedir()));
   const entries = [];
+  if (path.basename(requestedRoot).toLowerCase() !== RSI_ROOT_NAME.toLowerCase()) {
+    return invalidInstallation(requestedRoot, 'Select the Roberts Space Industries directory itself.');
+  }
   let rootStat;
   try {
     rootStat = await fs.stat(requestedRoot);
