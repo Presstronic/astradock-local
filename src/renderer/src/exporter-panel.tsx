@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { PublicRuntimeSource, RuntimeMonitorClient } from './astradock-api';
-import type { BlueprintExportResult, MonitorChangeEnvelope } from '../../contracts/rendererApi';
+import type { BlueprintExportOptions, BlueprintExportResult, MonitorChangeEnvelope } from '../../contracts/rendererApi';
 
 interface ExporterPanelProps {
   client: RuntimeMonitorClient;
   source: PublicRuntimeSource | null;
   sources: readonly PublicRuntimeSource[];
   onChooseDirectory: () => Promise<void>;
-  onChooseSource: () => Promise<void>;
   onSelectSource: (sourceId: string) => Promise<void>;
 }
 
@@ -16,14 +15,16 @@ const phaseLabels: Record<string, string> = {
   scanning: 'Scanning logs',
   deduplicating: 'Removing duplicates',
   awaiting_save: 'Choose save location',
-  writing: 'Writing JSON',
+  writing: 'Writing output',
   completed: 'Export complete',
   no_matches: 'No blueprint matches',
   partial: 'Export completed with warnings',
   cancelled: 'Export cancelled'
 };
 
-export function ExporterPanel({ client, source, sources, onChooseDirectory, onChooseSource, onSelectSource }: ExporterPanelProps) {
+export function ExporterPanel({ client, source, sources, onChooseDirectory, onSelectSource }: ExporterPanelProps) {
+  const [exportType, setExportType] = useState<BlueprintExportOptions['exportType']>('blueprint_data');
+  const [outputFormat, setOutputFormat] = useState<BlueprintExportOptions['outputFormat']>('json');
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState('idle');
   const [progress, setProgress] = useState({ filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
@@ -39,7 +40,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onCh
     }
   }), [client]);
 
-  async function runExport() {
+  async function runExport(testOnly = false) {
     if (!source) {
       setError('Choose a validated game.log source first.');
       return;
@@ -49,11 +50,11 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onCh
     setResult(null);
     setPhase('validating');
     try {
-      const next = await client.exporter.run({ sourceId: source.sourceId, exportType: 'blueprint_data', environment: source.channelHint as 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'TECH-PREVIEW', outputFormat: 'json' });
+      const next = await client.exporter.run({ sourceId: source.sourceId, exportType, environment: source.channelHint as 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'TECH-PREVIEW', outputFormat, testOnly });
       setResult(next);
       setPhase(next.status);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Blueprint export failed.');
+      setError(cause instanceof Error ? cause.message : `${testOnly ? 'Test export' : 'Blueprint export'} failed.`);
       setPhase('error');
     } finally {
       setRunning(false);
@@ -66,6 +67,10 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onCh
 
   const progressLabel = progress.filesTotal ? `${progress.filesProcessed} of ${progress.filesTotal} files` : 'Preparing source scan';
   const progressPercent = progress.filesTotal ? Math.min(100, Math.round((progress.filesProcessed / progress.filesTotal) * 100)) : 0;
+  const availableSources = sources.filter((candidate, index, all) => (
+    candidate.validation.isValid
+    && all.findIndex((other) => other.channelHint === candidate.channelHint) === index
+  ));
 
   return (
     <main id="exporter-main" className="exporter-workspace" aria-label="Exporter">
@@ -73,21 +78,24 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onCh
         <div>
           <p className="eyebrow">Data export</p>
           <h1>Exporter</h1>
-          <p className="exporter-intro">Scan the active LIVE session and retained log backups for Station-compatible blueprint records.</p>
+          <p className="exporter-intro">Scan the selected environment and retained log backups for Station-compatible blueprint records.</p>
         </div>
         <div className="exporter-actions">
           <button type="button" className="button secondary" onClick={() => void onChooseDirectory()}>Choose install directory</button>
-          <button type="button" className="button secondary" onClick={() => void onChooseSource()}>Choose game.log directly</button>
-          {running ? <button type="button" className="button secondary" onClick={() => void cancelExport()}>Cancel export</button> : <button type="button" className="button primary" onClick={() => void runExport()}>Export JSON</button>}
+          {running ? <button type="button" className="button secondary" onClick={() => void cancelExport()}>Cancel export</button> : null}
         </div>
       </header>
 
       <section className="exporter-grid" aria-label="Export configuration and status">
         <section className="exporter-card" aria-labelledby="export-config-heading">
           <h2 id="export-config-heading">Export configuration</h2>
-          <label className="exporter-field"><span>Export type</span><select value="blueprint_data" disabled><option value="blueprint_data">Blueprint Data</option><option disabled>Inventory — future</option><option disabled>Fleet — future</option><option disabled>Reputation — future</option></select></label>
-          <label className="exporter-field"><span>Environment</span><select value={source?.sourceId || ''} onChange={(event) => void onSelectSource(event.target.value)} disabled={!sources.length}><option value="" disabled>Select environment</option>{sources.filter((candidate) => !['missing', 'not_file', 'inaccessible', 'permission_denied'].includes(candidate.validation.status)).map((candidate) => <option key={candidate.sourceId} value={candidate.sourceId}>{candidate.channelHint}</option>)}</select><span className="exporter-environment-status" data-found={source ? 'true' : 'false'}>{source?.channelHint || 'Not detected'}</span></label>
-          <label className="exporter-field"><span>Output format</span><select value="json" disabled><option value="json">JSON</option></select></label>
+          <label className="exporter-field"><span>Export type</span><select value={exportType} onChange={(event) => setExportType(event.target.value as BlueprintExportOptions['exportType'])} disabled={running}><option value="blueprint_data">Blueprint Data</option><option disabled value="inventory">Inventory — future</option><option disabled value="fleet">Fleet — future</option><option disabled value="reputation">Reputation — future</option></select></label>
+          <label className="exporter-field"><span>Environment</span><select value={source?.sourceId || ''} onChange={(event) => void onSelectSource(event.target.value)} disabled={!availableSources.length || running}><option value="" disabled>Select environment</option>{availableSources.map((candidate) => <option key={candidate.sourceId} value={candidate.sourceId}>{candidate.channelHint}</option>)}</select><span className="exporter-environment-status" data-found={source?.validation.isValid ? 'true' : 'false'}>{source?.validation.isValid ? source.channelHint : 'Not detected'}</span></label>
+          <label className="exporter-field"><span>Output format</span><select value={outputFormat} onChange={(event) => setOutputFormat(event.target.value as BlueprintExportOptions['outputFormat'])} disabled={running}><option value="json">JSON</option><option value="csv">CSV</option></select></label>
+          <div className="exporter-export-actions" aria-label="Export actions">
+            <button type="button" className="button secondary" onClick={() => void runExport(true)} disabled={running || !source?.validation.isValid}>Test export</button>
+            <button type="button" className="button primary" onClick={() => void runExport(false)} disabled={running || !source?.validation.isValid}>Export {outputFormat.toUpperCase()}</button>
+          </div>
           <div className="exporter-source-summary">
             <span className="eyebrow">Source</span>
             <strong title={source?.displayPath || undefined} className="exporter-path">{source?.displayPath || 'Choose Roberts Space Industries directory'}</strong>
@@ -108,7 +116,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onCh
           {result?.extraction.status === 'unsupported' ? <p className="exporter-warning" role="status">Blueprint extraction is unavailable for this source. No evidence-approved build and locale profile is enabled, so no records were exported.</p> : null}
           {result?.status === 'no_matches' && result.extraction.status === 'approved' ? <p className="exporter-empty">No qualifying blueprint notifications were found. The logs may predate blueprint activity or contain no blueprint acquisition events.</p> : null}
           {result?.errors.length ? <p className="exporter-warning" role="status">{result.errors.length} log file warning{result.errors.length === 1 ? '' : 's'}; the export may be partial.</p> : null}
-          {result ? <p className="exporter-source-note" role="status">Source set: {result.files.filter((file) => file.status === 'ready').length} included, {result.skippedFiles} skipped or unavailable; fingerprint {result.sourceFingerprint}.</p> : null}
+          {result ? <p className="exporter-source-note" role="status">{result.testOnly ? 'Test export; no file was written. ' : ''}Source set: {result.files.filter((file) => file.status === 'ready').length} included, {result.skippedFiles} skipped or unavailable; fingerprint {result.sourceFingerprint}.</p> : null}
         </section>
       </section>
 

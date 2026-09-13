@@ -11,6 +11,8 @@ const {
   normalizeBlueprint,
   parseBlueprintNotification,
   scanBlueprintLogs,
+  serializeBlueprintCsv,
+  writeBlueprintCsv,
   writeBlueprintJson
 } = require('../src/exporter/blueprintExporter');
 
@@ -62,6 +64,24 @@ test('validates backup filename shape and preserves only explicit Station fields
   assert.deepEqual(normalizeBlueprint({ name: ' AMRS Laser Cannon ', type: 'Weapon Gun', shared: true }), { name: 'AMRS Laser Cannon', type: 'Weapon Gun', shared: true });
   assert.deepEqual(normalizeBlueprint({ name: 'unknown blueprint' }), { name: 'unknown blueprint', type: '', shared: null });
   assert.equal(normalizeBlueprint({ name: '  ' }), null);
+});
+
+test('serializes approved blueprint fields as deterministic escaped CSV', () => {
+  assert.equal(serializeBlueprintCsv([
+    { name: 'Laser, "Mk II"', type: 'Weapon', shared: true },
+    { name: 'Unknown', type: '', shared: null }
+  ]), 'name,type,shared\r\n"Laser, ""Mk II""","Weapon","true"\r\n"Unknown","",""\r\n');
+});
+
+test('writes CSV atomically with the same normalized records as JSON', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const destination = await writeBlueprintCsv(path.join(root, 'out', 'blueprints.csv'), [
+    { name: 'AMRS Laser Cannon', type: 'Weapon', shared: null }
+  ]);
+  assert.equal(path.basename(destination), 'blueprints.csv');
+  assert.equal(await fs.readFile(destination, 'utf8'), 'name,type,shared\r\n"AMRS Laser Cannon","Weapon",""\r\n');
+  await assert.rejects(fs.access(`${destination}.${process.pid}.tmp`));
+  await fs.rm(root, { recursive: true, force: true });
 });
 
 test('does not enable an unapproved or incomplete extraction profile', () => {

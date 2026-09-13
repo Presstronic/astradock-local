@@ -37,6 +37,7 @@ const { createDiagnosticLogger } = require('./diagnosticLogger');
 const { DEFAULT_SETTINGS } = require('./settingsStore');
 const {
   scanBlueprintLogs,
+  writeBlueprintCsv,
   writeBlueprintJson
 } = require('./exporter/blueprintExporter');
 
@@ -277,9 +278,9 @@ register(CHANNELS.exporterCancel, async () => {
   return { cancelled: true };
 });
 
-register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outputFormat }) => {
-  if (exportType !== 'blueprint_data' || outputFormat !== 'json') {
-    throw createBoundaryError('invalid_payload', 'Only Blueprint Data JSON export is currently supported.');
+register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outputFormat, testOnly }) => {
+  if (exportType !== 'blueprint_data') {
+    throw createBoundaryError('invalid_payload', 'Only Blueprint Data export is currently supported.');
   }
   const source = await getApprovedSource(sourceId || activeSourceId);
   if (source.channelHint !== environment) {
@@ -299,32 +300,39 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     });
     if (result.extraction.status !== 'approved') {
       publishProgress({ phase: 'no_matches', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: 0, duplicatesSuppressed: 0 });
-      return { status: 'no_matches', outputPath: null, outputFileName: null, records: [], files: result.files, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: 0, skippedFiles: result.skippedFiles, sourceFingerprint: result.sourceFingerprint, diagnostics: result.diagnostics, errors: result.errors, extraction: result.extraction };
+      return createExporterResult(result, { status: 'no_matches', outputFormat, testOnly });
     }
     if (exporterCancelRequested) {
       publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], files: result.files, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, sourceFingerprint: result.sourceFingerprint, diagnostics: result.diagnostics, errors: result.errors, extraction: result.extraction };
+      return createExporterResult(result, { status: 'cancelled', outputFormat, testOnly, records: [] });
+    }
+    const status = result.errors.length ? 'partial' : result.records.length ? 'completed' : 'no_matches';
+    if (testOnly) {
+      publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
+      return createExporterResult(result, { status, outputFormat, testOnly });
     }
     publishProgress({ phase: 'awaiting_save', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
+    const extension = outputFormat === 'csv' ? 'csv' : 'json';
     const saveResult = await dialog.showSaveDialog(mainWindow, {
       title: 'Export Blueprint Data',
-      defaultPath: path.join(app.getPath('documents'), 'astradock-blueprints.json'),
-      filters: [{ name: 'JSON files', extensions: ['json'] }],
+      defaultPath: path.join(app.getPath('documents'), `astradock-blueprints.${extension}`),
+      filters: [{ name: `${outputFormat.toUpperCase()} files`, extensions: [extension] }],
       properties: ['showOverwriteConfirmation']
     });
     if (saveResult.canceled || !saveResult.filePath) {
       publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], files: result.files, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, sourceFingerprint: result.sourceFingerprint, diagnostics: result.diagnostics, errors: result.errors, extraction: result.extraction };
+      return createExporterResult(result, { status: 'cancelled', outputFormat, testOnly, records: [] });
     }
     publishProgress({ phase: 'writing', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-    const outputPath = await writeBlueprintJson(saveResult.filePath, result.records);
-    const status = result.errors.length ? 'partial' : result.records.length ? 'completed' : 'no_matches';
+    const outputPath = outputFormat === 'csv'
+      ? await writeBlueprintCsv(saveResult.filePath, result.records)
+      : await writeBlueprintJson(saveResult.filePath, result.records);
     publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed, outputFileName: path.basename(outputPath) });
-    return { status, outputPath, outputFileName: path.basename(outputPath), records: result.records, files: result.files, filesScanned: result.filesScanned, filesTotal: result.filesTotal, linesRead: result.linesRead, duplicatesSuppressed: result.duplicatesSuppressed, skippedFiles: result.skippedFiles, sourceFingerprint: result.sourceFingerprint, diagnostics: result.diagnostics, errors: result.errors, extraction: result.extraction };
+    return createExporterResult(result, { status, outputPath, outputFileName: path.basename(outputPath), outputFormat, testOnly });
   } catch (error) {
     if (error?.code === 'export_cancelled') {
       publishProgress({ phase: 'cancelled', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
-      return { status: 'cancelled', outputPath: null, outputFileName: null, records: [], files: [], filesScanned: 0, filesTotal: 0, linesRead: 0, duplicatesSuppressed: 0, skippedFiles: 0, sourceFingerprint: '', diagnostics: [], errors: [], extraction: { status: 'unsupported', profileId: null, profileVersion: null, parserVersion: 'blueprint-notification-v1', reason: 'Export cancelled before extraction completed.' } };
+      return { status: 'cancelled', outputPath: null, outputFileName: null, outputFormat, testOnly, records: [], files: [], filesScanned: 0, filesTotal: 0, linesRead: 0, duplicatesSuppressed: 0, skippedFiles: 0, sourceFingerprint: '', diagnostics: [], errors: [], extraction: { status: 'unsupported', profileId: null, profileVersion: null, parserVersion: 'blueprint-notification-v1', reason: 'Export cancelled before extraction completed.' } };
     }
     throw error;
   } finally {
@@ -332,6 +340,27 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     exporterRunning = false;
   }
 });
+
+function createExporterResult(result, overrides = {}) {
+  return {
+    status: overrides.status || 'no_matches',
+    outputPath: overrides.outputPath || null,
+    outputFileName: overrides.outputFileName || null,
+    outputFormat: overrides.outputFormat || 'json',
+    testOnly: Boolean(overrides.testOnly),
+    records: overrides.records || result.records,
+    files: result.files,
+    filesScanned: result.filesScanned,
+    filesTotal: result.filesTotal,
+    linesRead: result.linesRead,
+    duplicatesSuppressed: result.duplicatesSuppressed,
+    skippedFiles: result.skippedFiles,
+    sourceFingerprint: result.sourceFingerprint,
+    diagnostics: result.diagnostics,
+    errors: result.errors,
+    extraction: result.extraction
+  };
+}
 
 register(CHANNELS.eventsQuery, async (query) => queryEvents(query));
 
