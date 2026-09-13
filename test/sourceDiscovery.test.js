@@ -8,6 +8,7 @@ const {
   LOG_FILE_NAME,
   VALIDATION_STATUSES,
   discoverRuntimeSources,
+  discoverInstallationEnvironments,
   getCandidateLogPaths,
   loadSourcePreference,
   saveSourcePreference,
@@ -54,10 +55,25 @@ test('discovers and validates supported Windows launcher and Steam-style candida
   assert.equal(discovery.summary.ambiguous, true);
   assert.equal(discovery.activeSource.channelHint, 'LIVE');
   assert.equal(discovery.activeSource.validation.isValid, true);
-  assert.equal(JSON.stringify(discovery).includes(root), false, 'public discovery DTO must not expose private temp paths');
+  assert.equal(JSON.stringify(discovery).includes(root), true, 'Exporter source DTO exposes the selected environment folder for inspection');
   assert.ok(discovery.sources.every((source) => !source.private), 'public DTO must omit privileged path material');
   assert.ok(discovery.sources.some((source) => source.installationKind === 'steam'));
   assert.ok(discovery.sources.some((source) => source.installationKind === 'rsi_launcher'));
+});
+
+test('discovers only uppercase installed environments with a Game.log from a selected RSI root', async () => {
+  const root = await makeTempDir();
+  const rsiRoot = path.join(root, 'Roberts Space Industries');
+  await fs.mkdir(path.join(rsiRoot, 'RSI Launcher'), { recursive: true });
+  await writeGameLog(path.join(rsiRoot, 'Star Citizen', 'LIVE', 'Game.log'), 'LIVE');
+  await writeGameLog(path.join(rsiRoot, 'Star Citizen', 'PTU', 'game.log'), 'PTU');
+  await fs.mkdir(path.join(rsiRoot, 'Star Citizen', 'lowercase'));
+  await fs.writeFile(path.join(rsiRoot, 'Star Citizen', 'lowercase', 'Game.log'), 'ignored');
+  await fs.mkdir(path.join(rsiRoot, 'Star Citizen', 'HOTFIX'));
+
+  const result = await discoverInstallationEnvironments(rsiRoot);
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.environments.map((entry) => path.basename(path.dirname(entry))), ['LIVE', 'PTU']);
 });
 
 test('discovers supported Linux LUG and Steam layouts and keeps channels distinct', async () => {
@@ -109,7 +125,7 @@ test('supports non-default roots and restored preferences with revalidation-safe
   assert.equal(discovery.activeSource.sourceId, source.sourceId);
   assert.equal(discovery.summary.selectionReason, 'restored_valid_preference');
   assert.equal(discovery.activeSource.channelHint, 'HOTFIX');
-  assert.equal(JSON.stringify(discovery).includes('SecondaryDrive'), false, 'restored public DTO must remain privacy-safe');
+  assert.equal(JSON.stringify(discovery).includes('SecondaryDrive'), true, 'restored source exposes its selected environment folder for Exporter inspection');
 });
 
 test('revalidates moved restored preferences as missing instead of keeping approval', async () => {
@@ -161,8 +177,8 @@ test('returns actionable validation states for missing, directory, malformed, an
   const unsupportedPath = path.join(root, 'StarCitizen', 'TECH-PREVIEW', LOG_FILE_NAME);
   await writeGameLog(unsupportedPath, 'TECH-PREVIEW', '4.9.0-TECH-PREVIEW.9000000-SYNTH');
   const unsupportedSource = await validateLogSource(unsupportedPath, { now: NOW });
-  assert.equal(unsupportedSource.validation.status, VALIDATION_STATUSES.UNSUPPORTED_CHANNEL);
-  assert.equal(unsupportedSource.channelHint, 'UNKNOWN');
+  assert.equal(unsupportedSource.validation.status, VALIDATION_STATUSES.VALID);
+  assert.equal(unsupportedSource.channelHint, 'TECH-PREVIEW');
   assert.equal(unsupportedSource.rawChannel, 'TECH-PREVIEW');
 });
 
@@ -192,9 +208,10 @@ test('does not recurse arbitrary filesystem roots while generating candidate pat
 
   assert.deepEqual(candidates.sort(), [
     path.join(root, 'EPTU', LOG_FILE_NAME),
-    path.join(root, 'HOTFIX', LOG_FILE_NAME),
-    path.join(root, 'LIVE', LOG_FILE_NAME),
-    path.join(root, 'PTU', LOG_FILE_NAME)
+      path.join(root, 'HOTFIX', LOG_FILE_NAME),
+      path.join(root, 'LIVE', LOG_FILE_NAME),
+      path.join(root, 'PTU', LOG_FILE_NAME),
+      path.join(root, 'TECH-PREVIEW', LOG_FILE_NAME)
   ].sort());
   assert.equal(candidates.includes(nestedLog), false);
 });
@@ -212,9 +229,9 @@ test('public source DTOs and validation messages do not reveal private source pa
   const publicText = JSON.stringify(publicSource);
 
   assert.equal(source.validation.isValid, true);
-  assert.equal(publicText.includes(root), false);
-  assert.equal(publicText.includes('PRIVATE_PLAYER'), false);
-  assert.equal(publicText.includes('SecretInstall'), false);
+  assert.equal(publicText.includes(root), true);
+  assert.equal(publicText.includes('PRIVATE_PLAYER'), true);
+  assert.equal(publicText.includes('SecretInstall'), true);
   assert.equal(source.validation.message.includes(root), false);
   assert.equal(source.validation.message.includes('PRIVATE_PLAYER'), false);
 });

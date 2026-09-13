@@ -7,7 +7,7 @@ function createBrowserWindowOptions(preloadPath, options = {}) {
     height: 760,
     minWidth: 1024,
     minHeight: 640,
-    title: 'AstraDock Local',
+    title: 'AstraDock',
     backgroundColor: '#111417',
     show: false,
     webPreferences: {

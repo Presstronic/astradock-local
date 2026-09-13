@@ -265,13 +265,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       setActionError(null);
       const result = await client.source.choose();
       if (!result?.source) return;
-      setActiveSource(result.saved ? result.source : null);
-      setSources((current) => upsertSource(current, result.source));
+      const chosenSource = result.source;
+      setActiveSource(result.saved ? chosenSource : null);
+      setSources((current) => upsertSource(current, chosenSource));
       if (result.saved) {
-        const nextScan = await client.monitor.scan({ sourceId: result.source.sourceId, options: {} });
+        const nextScan = await client.monitor.scan({ sourceId: chosenSource.sourceId, options: {} });
         setScan(nextScan);
       } else {
-        setActionError(result.source.validation.message);
+        setActionError(chosenSource.validation.message);
       }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Source selection failed.');
@@ -282,14 +283,19 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     try {
       setActionError(null);
       const result = await client.source.chooseDirectory();
-      if (!result?.source) return;
-      setActiveSource(result.saved ? result.source : null);
-      setSources((current) => upsertSource(current, result.source));
+      if (!result?.source) {
+        setActionError(result?.installation?.reason || 'No valid Star Citizen environment was found in that directory.');
+        return;
+      }
+      const chosenSource = result.source;
+      if (result.sources?.length) setSources([...result.sources]);
+      setActiveSource(result.saved ? chosenSource : null);
+      setSources((current) => upsertSource(current, chosenSource));
       if (result.saved) {
-        const nextScan = await client.monitor.scan({ sourceId: result.source.sourceId, options: {} });
+        const nextScan = await client.monitor.scan({ sourceId: chosenSource.sourceId, options: {} });
         setScan(nextScan);
       } else {
-        setActionError(result.source.validation.message);
+        setActionError(chosenSource.validation.message);
       }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Installation directory selection failed.');
@@ -409,15 +415,15 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
   return (
     <div className="runtime-shell" data-density={currentDensity} data-detail-placement={effectivePlacement} data-has-detail={detail.status !== 'empty'}>
+      {workspace === 'runtime' ? <>
       <a className="skip-link" href="#runtime-stream">Skip to stream</a>
       <a className="skip-link" href="#current-state">Skip to current state</a>
 
       <header className="runtime-header" aria-label="Runtime Monitor source and health">
-        <div className="product-lockup" aria-label="AstraDock Local Runtime Monitor">
+        <div className="product-lockup" aria-label="AstraDock Runtime Monitor">
           <span className="brand-mark" aria-hidden="true" />
           <div>
             <span className="product-name">AstraDock</span>
-            <span className="workspace-name">Local</span>
           </div>
         </div>
         <section className="source-strip" aria-label="Source health">
@@ -463,9 +469,10 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           try {
             setActionError(null);
             const result = await client.source.select(sourceId);
-            setActiveSource(result.selected ? result.source : null);
-            setSources((current) => upsertSource(current, result.source));
-            if (result.selected) setScan(await client.monitor.scan({ sourceId, options: {} }));
+            setActiveSource(result.selected && result.source ? result.source : null);
+            const selectedSource = result.source;
+            if (selectedSource) setSources((current) => upsertSource(current, selectedSource));
+            if (result.selected && result.source) setScan(await client.monitor.scan({ sourceId, options: {} }));
           } catch (error) { setActionError(error instanceof Error ? error.message : 'Source selection failed.'); }
         }}
         onChoose={chooseSource}
@@ -476,6 +483,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           catch (error) { setActionError(error instanceof Error ? error.message : 'Source folder could not be opened.'); }
         }}
       /> : null}
+      </> : null}
 
       <nav className="workspace-tabs" aria-label="Workspaces">
         {workspaceMode === 'normal' ? <>
@@ -501,7 +509,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         }}
       /> : null}
 
-      {workspace === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} onChooseDirectory={chooseSourceDirectory} onChooseSource={chooseSource} /> : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
+      {workspace === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} sources={sources} onChooseDirectory={chooseSourceDirectory} onSelectSource={async (sourceId) => {
+        try {
+          const result = await client.source.select(sourceId);
+          if (!result.selected || !result.source) throw new Error(result.source?.validation.message || 'Environment is not available.');
+          setActiveSource(result.source);
+          setScan(await client.monitor.scan({ sourceId, options: {} }));
+        } catch (error) { setActionError(error instanceof Error ? error.message : 'Environment selection failed.'); }
+      }} /> : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
         <aside id="current-state" className="current-state" aria-label="Current runtime state">
           <section className="instrument-list" aria-label="Current-state instruments">
             <h2><span>Instruments</span><small>{viewModel.freshnessLabel}</small></h2>

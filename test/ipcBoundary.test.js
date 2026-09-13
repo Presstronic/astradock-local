@@ -74,7 +74,7 @@ test('IPC boundary accepts only bounded monitor command payloads', () => {
   );
 });
 
-test('IPC boundary accepts only the enabled Exporter configuration', () => {
+test('IPC boundary accepts the enabled Exporter configuration for detected environments', () => {
   assert.deepEqual(validatePayload(CHANNELS.exporterRun, {
     sourceId: 'src_0123456789abcdef01234567',
     exportType: 'blueprint_data',
@@ -93,9 +93,14 @@ test('IPC boundary accepts only the enabled Exporter configuration', () => {
   assert.throws(() => validatePayload(CHANNELS.exporterRun, {
     exportType: 'inventory', environment: 'LIVE', outputFormat: 'json'
   }), /request payload/i);
-  assert.throws(() => validatePayload(CHANNELS.exporterRun, {
+  assert.deepEqual(validatePayload(CHANNELS.exporterRun, {
     exportType: 'blueprint_data', environment: 'PTU', outputFormat: 'json'
-  }), /request payload/i);
+  }), {
+    sourceId: null,
+    exportType: 'blueprint_data',
+    environment: 'PTU',
+    outputFormat: 'json'
+  });
   assert.throws(() => validatePayload(CHANNELS.exporterRun, {
     exportType: 'blueprint_data', environment: 'LIVE', outputFormat: 'csv'
   }), /request payload/i);
