@@ -79,12 +79,14 @@ test('IPC boundary accepts the enabled Exporter configuration for detected envir
     sourceId: 'src_0123456789abcdef01234567',
     exportType: 'blueprint_data',
     environment: 'LIVE',
-    outputFormat: 'json'
+    outputFormat: 'json',
+    testOnly: false
   }), {
     sourceId: 'src_0123456789abcdef01234567',
     exportType: 'blueprint_data',
     environment: 'LIVE',
-    outputFormat: 'json'
+    outputFormat: 'json',
+    testOnly: false
   });
 
   assert.throws(() => validatePayload(CHANNELS.exporterRun, {
@@ -99,11 +101,18 @@ test('IPC boundary accepts the enabled Exporter configuration for detected envir
     sourceId: null,
     exportType: 'blueprint_data',
     environment: 'PTU',
-    outputFormat: 'json'
+    outputFormat: 'json',
+    testOnly: false
   });
-  assert.throws(() => validatePayload(CHANNELS.exporterRun, {
-    exportType: 'blueprint_data', environment: 'LIVE', outputFormat: 'csv'
-  }), /request payload/i);
+  assert.deepEqual(validatePayload(CHANNELS.exporterRun, {
+    exportType: 'blueprint_data', environment: 'LIVE', outputFormat: 'csv', testOnly: true
+  }), {
+    sourceId: null,
+    exportType: 'blueprint_data',
+    environment: 'LIVE',
+    outputFormat: 'csv',
+    testOnly: true
+  });
 });
 
 test('IPC boundary constrains event query pagination and environment-scoped evidence requests', () => {

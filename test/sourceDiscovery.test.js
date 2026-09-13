@@ -10,6 +10,7 @@ const {
   discoverRuntimeSources,
   discoverInstallationEnvironments,
   getCandidateLogPaths,
+  getDefaultInstallationRoots,
   loadSourcePreference,
   saveSourcePreference,
   toPublicSource,
@@ -39,6 +40,7 @@ test('discovers and validates supported Windows launcher and Steam-style candida
   const ptuLog = path.join(programFilesX86, 'Steam', 'steamapps', 'common', 'Star Citizen', 'PTU', LOG_FILE_NAME);
   await writeGameLog(liveLog, 'LIVE');
   await writeGameLog(ptuLog, 'PTU');
+  await fs.mkdir(path.join(programFiles, 'Roberts Space Industries', 'RSI Launcher'), { recursive: true });
 
   const discovery = await discoverRuntimeSources({
     platform: 'win32',
@@ -59,6 +61,17 @@ test('discovers and validates supported Windows launcher and Steam-style candida
   assert.ok(discovery.sources.every((source) => !source.private), 'public DTO must omit privileged path material');
   assert.ok(discovery.sources.some((source) => source.installationKind === 'steam'));
   assert.ok(discovery.sources.some((source) => source.installationKind === 'rsi_launcher'));
+});
+
+test('orders the requested Windows RSI roots before compatibility candidates', () => {
+  const roots = getDefaultInstallationRoots({
+    platform: 'win32',
+    env: { ProgramFiles: 'C:\\Program Files', 'ProgramFiles(x86)': 'C:\\Program Files (x86)' }
+  });
+  assert.deepEqual(roots.slice(0, 2), [
+    path.resolve(path.join('C:\\Program Files', 'Roberts Space Industries')),
+    path.resolve(path.join('D:\\Program Files', 'Roberts Space Industries'))
+  ]);
 });
 
 test('discovers only uppercase installed environments with a Game.log from a selected RSI root', async () => {

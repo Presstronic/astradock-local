@@ -49,12 +49,12 @@ function getDefaultInstallationRoots(options = {}) {
   const roots = [];
   if (platform === 'win32') {
     const programFiles = env.ProgramFiles || 'C:\\Program Files';
+    const secondaryProgramFiles = env.ASTRADOCK_SECONDARY_PROGRAM_FILES || 'D:\\Program Files';
     const programFilesX86 = env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
-    const programW6432 = env.ProgramW6432 || '';
     roots.push(
       path.join(programFiles, RSI_ROOT_NAME),
+      path.join(secondaryProgramFiles, RSI_ROOT_NAME),
       path.join(programFilesX86, RSI_ROOT_NAME),
-      programW6432 ? path.join(programW6432, RSI_ROOT_NAME) : null,
       path.join(programFilesX86, 'Steam', 'steamapps', 'common', 'Star Citizen'),
       path.join(programFiles, 'Steam', 'steamapps', 'common', 'Star Citizen')
     );
@@ -161,7 +161,7 @@ async function discoverRuntimeSources(options = {}) {
   const discoveredPaths = options.installationRoots
     ? (await Promise.all(options.installationRoots.map((root) => discoverInstallationEnvironments(root, options)))
       ).flatMap((result) => result.environments)
-    : getCandidateLogPaths(options);
+    : await discoverAutomaticRuntimePaths(options);
   const restoredPath = options.restoredSourcePath || null;
   const candidateInputs = discoveredPaths.map((sourcePath) => ({
     sourcePath,
@@ -192,10 +192,30 @@ async function discoverRuntimeSources(options = {}) {
   };
 }
 
+async function discoverAutomaticRuntimePaths(options = {}) {
+  if (options.roots) return getCandidateLogPaths(options);
+  if ((options.platform || process.platform) !== 'win32') return getCandidateLogPaths(options);
+
+  const roots = getDefaultInstallationRoots(options);
+  const rsiRoots = roots.filter((root) => path.basename(root).toLowerCase() === RSI_ROOT_NAME.toLowerCase());
+  let selectedRsiRoot = null;
+  for (const root of rsiRoots) {
+    const result = await discoverInstallationEnvironments(root, options);
+    if (result.valid && result.environments.length) {
+      selectedRsiRoot = result;
+      break;
+    }
+  }
+
+  const nonRsiRoots = roots.filter((root) => path.basename(root).toLowerCase() !== RSI_ROOT_NAME.toLowerCase());
+  const compatibilityPaths = getCandidateLogPaths({ ...options, roots: nonRsiRoots });
+  return unique((selectedRsiRoot?.environments || []).concat(compatibilityPaths));
+}
+
 async function validateCandidateInputs(candidateInputs, options = {}) {
   const byCanonicalCandidate = new Map();
 
-  for (const input of candidateInputs) {
+  for (const [discoveryOrder, input] of candidateInputs.entries()) {
     const sourcePath = path.resolve(expandHome(input.sourcePath, options.home || os.homedir()));
     const key = normalizePathForIdentity(sourcePath);
     const existing = byCanonicalCandidate.get(key);
@@ -205,14 +225,16 @@ async function validateCandidateInputs(candidateInputs, options = {}) {
     }
     byCanonicalCandidate.set(key, {
       sourcePath,
-      discoveryMethods: [input.discoveryMethod]
+      discoveryMethods: [input.discoveryMethod],
+      discoveryOrder
     });
   }
 
   const sources = await Promise.all(Array.from(byCanonicalCandidate.values()).map((input) => (
     validateLogSource(input.sourcePath, {
       ...options,
-      discoveryMethods: input.discoveryMethods
+      discoveryMethods: input.discoveryMethods,
+      discoveryOrder: input.discoveryOrder
     })
   )));
 
@@ -239,7 +261,8 @@ async function validateLogSource(sourcePath, options = {}) {
     platformHint: options.platform || process.platform,
     private: {
       sourcePath: requestedPath,
-      canonicalPath: requestedPath
+      canonicalPath: requestedPath,
+      discoveryOrder: options.discoveryOrder ?? Number.MAX_SAFE_INTEGER
     }
   };
 
@@ -281,7 +304,8 @@ async function validateLogSource(sourcePath, options = {}) {
     sourceId: createSourceId(canonicalPath),
     private: {
       sourcePath: requestedPath,
-      canonicalPath
+      canonicalPath,
+      discoveryOrder: options.discoveryOrder ?? Number.MAX_SAFE_INTEGER
     }
   };
 
@@ -506,6 +530,9 @@ function compareSources(left, right) {
 
   const methodDelta = methodPriority(left) - methodPriority(right);
   if (methodDelta) return methodDelta;
+
+  const orderDelta = (left.private?.discoveryOrder ?? Number.MAX_SAFE_INTEGER) - (right.private?.discoveryOrder ?? Number.MAX_SAFE_INTEGER);
+  if (orderDelta) return orderDelta;
 
   const channelDelta = channelPriority(left.channelHint) - channelPriority(right.channelHint);
   if (channelDelta) return channelDelta;

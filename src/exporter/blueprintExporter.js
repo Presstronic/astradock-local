@@ -10,6 +10,7 @@ const DEFAULT_BLUEPRINT_LABELS = Object.freeze([
 ]);
 const BLUEPRINT_EXTRACTION_CONTRACT_VERSION = 1;
 const BLUEPRINT_PARSER_VERSION = 'blueprint-notification-v1';
+const BLUEPRINT_CSV_COLUMNS = Object.freeze(['name', 'type', 'shared']);
 const UNSUPPORTED_PROFILE = Object.freeze({
   status: 'unsupported',
   profileId: null,
@@ -310,12 +311,28 @@ function addObservation(observations, observation) {
   });
 }
 
-async function writeBlueprintJson(filePath, records) {
+function serializeBlueprintCsv(records) {
+  const escapeCell = (value) => {
+    const text = value == null ? '' : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+  const rows = [BLUEPRINT_CSV_COLUMNS.join(',')];
+  for (const record of records || []) {
+    rows.push([
+      record?.name || '',
+      record?.type || '',
+      record?.shared == null ? '' : Boolean(record.shared) ? 'true' : 'false'
+    ].map(escapeCell).join(','));
+  }
+  return `${rows.join('\r\n')}\r\n`;
+}
+
+async function writeAtomicText(filePath, text) {
   const destination = path.resolve(filePath);
   await fsp.mkdir(path.dirname(destination), { recursive: true });
   const temporary = `${destination}.${process.pid}.tmp`;
   try {
-    await fsp.writeFile(temporary, `${JSON.stringify(records, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+    await fsp.writeFile(temporary, text, { encoding: 'utf8', mode: 0o600 });
     await fsp.rename(temporary, destination);
   } catch (error) {
     try { await fsp.unlink(temporary); } catch (cleanupError) { if (cleanupError.code !== 'ENOENT') error.cleanupError = cleanupError; }
@@ -324,11 +341,20 @@ async function writeBlueprintJson(filePath, records) {
   return destination;
 }
 
+async function writeBlueprintJson(filePath, records) {
+  return writeAtomicText(filePath, `${JSON.stringify(records, null, 2)}\n`);
+}
+
+async function writeBlueprintCsv(filePath, records) {
+  return writeAtomicText(filePath, serializeBlueprintCsv(records));
+}
+
 module.exports = {
   BACKUP_NAME_PATTERN,
   DEFAULT_BLUEPRINT_LABELS,
   BLUEPRINT_EXTRACTION_CONTRACT_VERSION,
   BLUEPRINT_PARSER_VERSION,
+  BLUEPRINT_CSV_COLUMNS,
   createBlueprintExtractionProfile,
   backupLogInfo,
   collectBlueprintLogFiles,
@@ -336,5 +362,7 @@ module.exports = {
   normalizeBlueprint,
   parseBlueprintNotification,
   scanBlueprintLogs,
+  serializeBlueprintCsv,
+  writeBlueprintCsv,
   writeBlueprintJson
 };

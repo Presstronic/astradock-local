@@ -66,6 +66,7 @@ const DEFAULT_PREFERENCES: LocalPreferences = {
 
 const preferenceKey = 'astradock.runtimeMonitor.preferences.v1';
 const systemClock = () => new Date();
+type AppView = 'runtime' | 'exporter' | 'settings';
 
 export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonitorAppProps) {
   const [loading, setLoading] = useState(true);
@@ -77,8 +78,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [scan, setScan] = useState<RendererScanResult | null>(null);
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
   const [settingsSnapshot, setSettingsSnapshot] = useState<SettingsSnapshot | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [workspace, setWorkspace] = useState<'runtime' | 'exporter'>(workspaceMode === 'exporter' ? 'exporter' : 'runtime');
+  const [activeView, setActiveView] = useState<AppView>(workspaceMode === 'exporter' ? 'exporter' : 'runtime');
   const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
   const [now, setNow] = useState<Date>(() => clock());
   const [search, setSearch] = useState('');
@@ -425,7 +425,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             <span className="product-name">AstraDock</span>
           </div>
         </div>
-        {workspace === 'exporter' ? <ExporterHeader
+        {activeView === 'exporter' ? <ExporterHeader
           sources={sources}
           source={viewModel.source}
           onSelect={async (sourceId) => {
@@ -438,7 +438,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
               setScan(await client.monitor.scan({ sourceId, options: {} }));
             } catch (error) { setActionError(error instanceof Error ? error.message : 'Environment selection failed.'); }
           }}
-        /> : <>
+        /> : activeView === 'runtime' ? <>
           <section className="source-strip" aria-label="Source health">
             <Metric label="Environment" value={viewModel.environmentLabel.toUpperCase()} />
             <Metric label="Build" value={viewModel.buildLabel} />
@@ -473,10 +473,10 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
               <button type="button" className="button secondary" onClick={() => void startMonitor()} disabled={!viewModel.source}>Start follow</button>
             )}
           </div>
-        </>}
+        </> : null}
       </header>
 
-      {workspace === 'runtime' && sourceDetailsOpen ? <SourceDetails
+      {activeView === 'runtime' && sourceDetailsOpen ? <SourceDetails
         sources={viewModel.sourceCandidates}
         activeSource={viewModel.source}
         onSelect={async (sourceId) => {
@@ -500,15 +500,15 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
       <nav className="workspace-tabs" aria-label="Workspaces">
         {workspaceMode === 'normal' ? <>
-          <button type="button" aria-current={workspace === 'runtime' ? 'page' : undefined} onClick={() => setWorkspace('runtime')}>Runtime Monitor</button>
-          <button type="button" aria-current={workspace === 'exporter' ? 'page' : undefined} onClick={() => { setWorkspace('exporter'); setSettingsOpen(false); }}>Exporter</button>
+          <button type="button" aria-current={activeView === 'runtime' ? 'page' : undefined} onClick={() => { setActiveView('runtime'); setSourceDetailsOpen(false); }}>Runtime Monitor</button>
+          <button type="button" aria-current={activeView === 'exporter' ? 'page' : undefined} onClick={() => { setActiveView('exporter'); setSourceDetailsOpen(false); }}>Exporter</button>
           <button type="button" disabled title="Post-MVP workspace">Data Operations <span>Post-MVP</span></button>
           <button type="button" disabled title="Post-MVP workspace">History &amp; Analytics <span>Post-MVP</span></button>
-        </> : <button type="button" aria-current="page">Exporter</button>}
-        <button type="button" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>Settings</button>
+        </> : <button type="button" aria-current={activeView === 'exporter' ? 'page' : undefined} onClick={() => setActiveView('exporter')}>Exporter</button>}
+        <button type="button" aria-current={activeView === 'settings' ? 'page' : undefined} onClick={() => { setActiveView('settings'); setSourceDetailsOpen(false); }}>Settings</button>
       </nav>
 
-      {settingsOpen ? <SettingsPanel
+      {activeView === 'settings' ? <SettingsPanel
         snapshot={settingsSnapshot}
         preferences={preferences}
         onPreferenceChange={updatePreference}
@@ -522,14 +522,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         }}
       /> : null}
 
-      {workspace === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} sources={sources} onChooseDirectory={chooseSourceDirectory} onChooseSource={chooseSource} onSelectSource={async (sourceId) => {
+      {activeView === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} sources={sources} onChooseDirectory={chooseSourceDirectory} onSelectSource={async (sourceId) => {
         try {
           const result = await client.source.select(sourceId);
           if (!result.selected || !result.source) throw new Error(result.source?.validation.message || 'Environment is not available.');
           setActiveSource(result.source);
           setScan(await client.monitor.scan({ sourceId, options: {} }));
         } catch (error) { setActionError(error instanceof Error ? error.message : 'Environment selection failed.'); }
-      }} /> : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
+      }} /> : activeView === 'settings' ? null : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
         <aside id="current-state" className="current-state" aria-label="Current runtime state">
           <section className="instrument-list" aria-label="Current-state instruments">
             <h2><span>Instruments</span><small>{viewModel.freshnessLabel}</small></h2>

@@ -575,13 +575,16 @@ export interface BlueprintExportOptions {
   sourceId?: string | null;
   exportType: 'blueprint_data';
   environment: 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'TECH-PREVIEW';
-  outputFormat: 'json';
+  outputFormat: 'json' | 'csv';
+  testOnly?: boolean;
 }
 
 export interface BlueprintExportResult {
   status: 'completed' | 'no_matches' | 'cancelled' | 'partial';
   outputPath: string | null;
   outputFileName: string | null;
+  outputFormat: 'json' | 'csv';
+  testOnly: boolean;
   records: readonly { name: string; type: string; shared: boolean | null }[];
   files: readonly { file: string; kind: string; build: string | null; status: string; fingerprint: string | null }[];
   filesScanned: number;

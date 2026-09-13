@@ -21,6 +21,10 @@ The local scan result retains provenance separately from the payload: source fil
 
 The extraction result is local diagnostic metadata. It does not authorize Station synchronization or claim that a community-reported pattern is official game telemetry.
 
+## Output formats and test export
+
+The real export preserves the approved normalized records in either JSON or CSV. CSV is versioned with the extraction contract and uses the deterministic columns `name`, `type`, and `shared`; every cell is quoted, embedded quotes are doubled, and `shared: null` is an empty cell. Test Export executes the same local scan and normalization path but skips the native save dialog and does not write an output file. Both paths retain the same privacy boundary and never include raw log lines or source paths.
+
 ## Verification
 
-The contract is covered by `test/blueprintExporter.test.js`: missing profiles, incomplete profiles, build mismatch, accepted notification parsing, localized profile labels, duplicate suppression, deterministic output, malformed source names, source changes, and atomic JSON writing. Synthetic approved profiles in tests are deliberately marked as test-only; they do not enable production recognition.
+The contract is covered by `test/blueprintExporter.test.js`: missing profiles, incomplete profiles, build mismatch, accepted notification parsing, localized profile labels, duplicate suppression, deterministic output, malformed source names, source changes, atomic JSON writing, and CSV escaping. Synthetic approved profiles in tests are deliberately marked as test-only; they do not enable production recognition.

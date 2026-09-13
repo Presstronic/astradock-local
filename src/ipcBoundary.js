@@ -155,14 +155,15 @@ function validatePayload(channel, payload) {
       };
     case CHANNELS.exporterRun:
       assertPlainObject(payload, 'export');
-      if (Object.keys(payload).some((key) => !['sourceId', 'exportType', 'environment', 'outputFormat'].includes(key))) {
+      if (Object.keys(payload).some((key) => !['sourceId', 'exportType', 'environment', 'outputFormat', 'testOnly'].includes(key))) {
         throw invalidPayload('Unsupported export field.');
       }
       return {
         sourceId: optionalSourceId(payload.sourceId),
         exportType: payload.exportType === 'blueprint_data' ? 'blueprint_data' : invalidPayload('Unsupported export type.'),
         environment: ['LIVE', 'PTU', 'EPTU', 'HOTFIX', 'TECH-PREVIEW'].includes(payload.environment) ? payload.environment : invalidPayload('Unsupported export environment.'),
-        outputFormat: payload.outputFormat === 'json' ? 'json' : invalidPayload('Unsupported export format.')
+        outputFormat: ['json', 'csv'].includes(payload.outputFormat) ? payload.outputFormat : invalidPayload('Unsupported export format.'),
+        testOnly: payload.testOnly === true
       };
     case CHANNELS.eventsQuery:
       return validateEventQuery(payload);

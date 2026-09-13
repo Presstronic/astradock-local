@@ -42,6 +42,8 @@ The discovery service:
 - Returns actionable states for missing, inaccessible, non-file, malformed, and unsupported-channel sources.
 - Produces renderer-safe DTOs that omit full paths and other privileged filesystem material.
 
+On Windows, automatic discovery checks the RSI launcher root under `C:\Program Files` first and the corresponding root under `D:\Program Files` second. The first valid RSI root is preferred for the primary environment set. A selected or automatically evaluated RSI root must contain `RSI Launcher`, `Star Citizen` (or legacy `StarCitizen`), and at least one immediate all-uppercase environment directory containing `Game.log`. Steam compatibility candidates remain bounded and are not used to recurse arbitrary drives.
+
 The Electron main process:
 
 - Keeps private source paths in an in-memory registry keyed by `sourceId`.
