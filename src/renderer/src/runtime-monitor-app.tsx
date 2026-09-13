@@ -415,7 +415,6 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
   return (
     <div className="runtime-shell" data-density={currentDensity} data-detail-placement={effectivePlacement} data-has-detail={detail.status !== 'empty'}>
-      {workspace === 'runtime' ? <>
       <a className="skip-link" href="#runtime-stream">Skip to stream</a>
       <a className="skip-link" href="#current-state">Skip to current state</a>
 
@@ -483,7 +482,6 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           catch (error) { setActionError(error instanceof Error ? error.message : 'Source folder could not be opened.'); }
         }}
       /> : null}
-      </> : null}
 
       <nav className="workspace-tabs" aria-label="Workspaces">
         {workspaceMode === 'normal' ? <>
@@ -509,7 +507,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         }}
       /> : null}
 
-      {workspace === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} sources={sources} onChooseDirectory={chooseSourceDirectory} onSelectSource={async (sourceId) => {
+      {workspace === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} sources={sources} onChooseDirectory={chooseSourceDirectory} onChooseSource={chooseSource} onSelectSource={async (sourceId) => {
         try {
           const result = await client.source.select(sourceId);
           if (!result.selected || !result.source) throw new Error(result.source?.validation.message || 'Environment is not available.');
