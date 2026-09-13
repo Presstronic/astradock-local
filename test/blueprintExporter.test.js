@@ -123,6 +123,8 @@ test('rejects an approved profile when the scanned build is outside its version 
   assert.equal(result.records.length, 0);
   assert.equal(result.extraction.status, 'unsupported');
   assert.ok(result.errors.some((error) => error.code === 'unsupported_profile'));
+  assert.equal(result.files[0].status, 'unsupported');
+  assert.equal(result.files[0].build, '99999999');
   await fs.rm(root, { recursive: true, force: true });
 });
 
@@ -200,5 +202,33 @@ test('reports a source changed during scan without discarding bounded results', 
   assert.equal(result.records.length, 2, 'the scan remains bounded while accepting bytes available to the opened stream');
   assert.ok(result.errors.some((error) => error.code === 'source_changed'));
   assert.match(result.sourceFingerprint, /^set_[a-f0-9]{24}$/);
+  await fs.rm(root, { recursive: true, force: true });
+});
+
+test('cancellation stops scanning instead of being reported as a read warning', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const current = path.join(root, 'game.log');
+  await fs.writeFile(current, `${blueprintLine('Cancelled Blueprint')}\n`);
+  let checks = 0;
+  await assert.rejects(
+    scanBlueprintLogs(current, {
+      profile: APPROVED_TEST_PROFILE,
+      shouldCancel: () => ++checks > 1
+    }),
+    (error) => error.code === 'export_cancelled'
+  );
+  await fs.rm(root, { recursive: true, force: true });
+});
+
+test('does not commit JSON when cancellation arrives before the atomic rename', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const destination = path.join(root, 'out', 'blueprints.json');
+  await assert.rejects(
+    writeBlueprintJson(destination, [{ name: 'Cancelled', type: '', shared: null }], {
+      shouldCancel: () => true
+    }),
+    (error) => error.code === 'export_cancelled'
+  );
+  await assert.rejects(fs.access(destination));
   await fs.rm(root, { recursive: true, force: true });
 });

@@ -298,7 +298,11 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     const result = await scanBlueprintLogs(source.private.canonicalPath, {
       profile: getDefaultBlueprintExtractionProfile(),
       shouldCancel: () => exporterCancelRequested,
-      onProgress: (progress) => publishProgress({ ...progress, recordsFound: 0, duplicatesSuppressed: 0 })
+      onProgress: (progress) => publishProgress({
+        ...progress,
+        recordsFound: progress.recordsFound ?? 0,
+        duplicatesSuppressed: progress.duplicatesSuppressed ?? 0
+      })
     });
     if (result.extraction.status !== 'approved') {
       publishProgress({ phase: 'no_matches', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: 0, duplicatesSuppressed: 0 });
@@ -313,22 +317,23 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
       publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
       return createExporterResult(result, { status, outputFormat, testOnly });
     }
-    publishProgress({ phase: 'awaiting_save', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
+    publishProgress({ phase: 'save_pending', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
     const extension = outputFormat === 'csv' ? 'csv' : 'json';
-    const saveResult = await dialog.showSaveDialog(mainWindow, {
+    const saveResult = await retryExporterOperation(() => dialog.showSaveDialog(mainWindow, {
       title: 'Export Blueprint Data',
       defaultPath: path.join(app.getPath('documents'), `astradock-blueprints.${extension}`),
       filters: [{ name: `${outputFormat.toUpperCase()} files`, extensions: [extension] }],
       properties: ['showOverwriteConfirmation']
-    });
+    }), 'The save dialog could not be opened.');
     if (saveResult.canceled || !saveResult.filePath) {
       publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
       return createExporterResult(result, { status: 'cancelled', outputFormat, testOnly, records: [] });
     }
     publishProgress({ phase: 'writing', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-    const outputPath = outputFormat === 'csv'
-      ? await writeBlueprintCsv(saveResult.filePath, result.records)
-      : await writeBlueprintJson(saveResult.filePath, result.records);
+    const outputPath = await retryExporterOperation(() => outputFormat === 'csv'
+      ? writeBlueprintCsv(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested })
+      : writeBlueprintJson(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested }), 'The export file could not be written.');
+    shell.showItemInFolder(outputPath);
     publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed, outputFileName: path.basename(outputPath) });
     return createExporterResult(result, { status, outputPath, outputFileName: path.basename(outputPath), outputFormat, testOnly });
   } catch (error) {
@@ -362,6 +367,18 @@ function createExporterResult(result, overrides = {}) {
     errors: result.errors,
     extraction: result.extraction
   };
+}
+
+async function retryExporterOperation(operation, message) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (error?.code === 'export_cancelled') throw error;
+      if (attempt === 1) break;
+    }
+  }
+  throw createBoundaryError('internal_error', message, { retryable: true, details: { operation: 'export' } });
 }
 
 register(CHANNELS.eventsQuery, async (query) => queryEvents(query));

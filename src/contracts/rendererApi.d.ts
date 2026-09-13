@@ -594,7 +594,7 @@ export interface BlueprintExportResult {
   skippedFiles: number;
   sourceFingerprint: string;
   diagnostics: readonly { file: string; kind: string; status: string; reason: string; code?: string }[];
-  errors: readonly { file: string; code: string; message: string }[];
+  errors: readonly { file: string; code: string; message: string; build?: string | null }[];
   extraction: {
     status: 'approved' | 'unsupported';
     profileId: string | null;
