@@ -123,6 +123,8 @@ test('rejects an approved profile when the scanned build is outside its version 
   assert.equal(result.records.length, 0);
   assert.equal(result.extraction.status, 'unsupported');
   assert.ok(result.errors.some((error) => error.code === 'unsupported_profile'));
+  assert.equal(result.files[0].status, 'unsupported');
+  assert.equal(result.files[0].build, '99999999');
   await fs.rm(root, { recursive: true, force: true });
 });
 

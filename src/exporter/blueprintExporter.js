@@ -204,6 +204,13 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
   let linesRead = 0;
   let filesScanned = 0;
   let compatibleFiles = 0;
+  const fileReports = sourceSet.files.map((file) => ({
+    file: file.fileName || path.basename(file.path),
+    kind: file.kind,
+    build: file.build || null,
+    status: file.status,
+    fingerprint: file.fingerprint || null
+  }));
   const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
   const noteUnsupportedLine = () => {
     const existing = extractionDiagnostics.find((entry) => entry.code === 'unrecognized_notification');
@@ -213,7 +220,7 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
 
   if (profile.status !== 'approved') {
     return {
-      records: [], observations: [], files: sourceSet.files.map((file) => ({ file: file.fileName || path.basename(file.path), kind: file.kind, build: file.build, status: file.status, fingerprint: file.fingerprint || null })),
+      records: [], observations: [], files: fileReports,
       filesScanned: 0, filesTotal: sourceSet.files.length, linesRead: 0, duplicatesSuppressed: 0,
       skippedFiles: sourceSet.skipped, sourceFingerprint: sourceSet.fingerprint, diagnostics: sourceSet.diagnostics,
       extraction: { status: 'unsupported', profileId: null, profileVersion: null, parserVersion: BLUEPRINT_PARSER_VERSION, reason: profile.reason },
@@ -238,10 +245,13 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     try {
       if (!build) build = buildFromHeader(await readFirstLine(file.path));
       if (!isProfileCompatible(profile, build)) {
+        fileReports[index].build = build || null;
+        fileReports[index].status = 'unsupported';
         extractionDiagnostics.push({ code: 'unsupported_profile', message: `No approved blueprint profile matches build ${build || 'unknown'}.` });
-        errors.push({ file: file.fileName, code: 'unsupported_profile', message: 'The log build is not covered by the approved blueprint extraction profile.' });
+        errors.push({ file: file.fileName, code: 'unsupported_profile', message: 'The log build is not covered by the approved blueprint extraction profile.', build: build || null });
         continue;
       }
+      fileReports[index].build = build || null;
       compatibleFiles += 1;
       await new Promise((resolve, reject) => {
         const input = fs.createReadStream(file.path, { encoding: 'utf8' });
@@ -295,7 +305,7 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
   return {
     records,
     observations: [...observations.values()].map((entry) => ({ ...entry.observation, duplicateObservations: entry.duplicateObservations })),
-    files: sourceSet.files.map((file) => ({ file: file.fileName || path.basename(file.path), kind: file.kind, build: file.build, status: file.status, fingerprint: file.fingerprint || null })),
+    files: fileReports,
     filesScanned,
     filesTotal: sourceSet.files.length,
     linesRead,

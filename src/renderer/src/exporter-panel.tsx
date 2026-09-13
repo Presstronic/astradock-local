@@ -64,6 +64,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
   ));
   const warningSummary = result ? summarizeExporterWarnings(result) : null;
   const readyFileCount = result?.files.filter((file) => file.status === 'ready').length || 0;
+  const unsupportedFiles = result?.files.filter((file) => file.status === 'unsupported') || [];
   const isTestExport = result?.testOnly === true;
 
   return (
@@ -110,6 +111,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
           {result?.extraction.status === 'unsupported' ? <p className="exporter-warning" role="status">Blueprint extraction is unavailable for this source. No evidence-approved build and locale profile is enabled, so no records were exported.</p> : null}
           {result?.status === 'no_matches' && result.extraction.status === 'approved' ? <p className="exporter-empty">No qualifying blueprint notifications were found. The logs may predate blueprint activity or contain no blueprint acquisition events.</p> : null}
           {warningSummary?.unsupportedProfileCount ? <p className="exporter-warning" role="status">{warningSummary.unsupportedProfileCount} log file{warningSummary.unsupportedProfileCount === 1 ? '' : 's'} {warningSummary.unsupportedProfileCount === 1 ? 'was' : 'were'} not scanned because {warningSummary.unsupportedProfileCount === 1 ? 'its build is' : 'their builds are'} outside the active approved extraction profile. {isTestExport ? 'The test export may be incomplete.' : 'The export may be partial.'}</p> : null}
+          {unsupportedFiles.length ? <details className="exporter-diagnostics"><summary>See affected files and builds</summary><p>These files were readable, but blueprint extraction is disabled for their detected build. Capture and approve evidence for that build before relying on its results.</p><ul>{unsupportedFiles.map((file) => <li key={`${file.kind}:${file.file}`}><code>{file.file}</code> — build {file.build || 'unknown'}</li>)}</ul></details> : null}
           {warningSummary?.otherWarningCount ? <p className="exporter-warning" role="status">{warningSummary.otherWarningCount} log file warning{warningSummary.otherWarningCount === 1 ? '' : 's'}; {isTestExport ? 'the test export may be incomplete.' : 'the export may be partial.'}</p> : null}
           {result ? <p className="exporter-source-note" role="status">{isTestExport ? 'Test export; no file was written. ' : ''}Source set: {result.filesScanned} scanned, {warningSummary?.unsupportedProfileCount || 0} outside approved profile, {readyFileCount} ready, {result.skippedFiles} skipped or unavailable; fingerprint {result.sourceFingerprint}.</p> : null}
         </section>
