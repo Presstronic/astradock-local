@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { PublicRuntimeSource, RuntimeMonitorClient } from './astradock-api';
 import type { BlueprintExportOptions, BlueprintExportResult, MonitorChangeEnvelope } from '../../contracts/rendererApi';
+import { getExporterStatusLabel, summarizeExporterWarnings, type ExportOperation } from './exporter-status';
 
 interface ExporterPanelProps {
   client: RuntimeMonitorClient;
@@ -10,21 +11,10 @@ interface ExporterPanelProps {
   onSelectSource: (sourceId: string) => Promise<void>;
 }
 
-const phaseLabels: Record<string, string> = {
-  validating: 'Validating source',
-  scanning: 'Scanning logs',
-  deduplicating: 'Removing duplicates',
-  awaiting_save: 'Choose save location',
-  writing: 'Writing output',
-  completed: 'Export complete',
-  no_matches: 'No blueprint matches',
-  partial: 'Export completed with warnings',
-  cancelled: 'Export cancelled'
-};
-
 export function ExporterPanel({ client, source, sources, onChooseDirectory, onSelectSource }: ExporterPanelProps) {
   const [exportType, setExportType] = useState<BlueprintExportOptions['exportType']>('blueprint_data');
   const [outputFormat, setOutputFormat] = useState<BlueprintExportOptions['outputFormat']>('json');
+  const [operation, setOperation] = useState<ExportOperation>('export');
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState('idle');
   const [progress, setProgress] = useState({ filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
@@ -46,6 +36,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
       return;
     }
     setRunning(true);
+    setOperation(testOnly ? 'test' : 'export');
     setError(null);
     setResult(null);
     setPhase('validating');
@@ -71,6 +62,9 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
     candidate.validation.isValid
     && all.findIndex((other) => other.channelHint === candidate.channelHint) === index
   ));
+  const warningSummary = result ? summarizeExporterWarnings(result) : null;
+  const readyFileCount = result?.files.filter((file) => file.status === 'ready').length || 0;
+  const isTestExport = result?.testOnly === true;
 
   return (
     <main id="exporter-main" className="exporter-workspace" aria-label="Exporter">
@@ -105,7 +99,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
 
         <section className="exporter-card" aria-labelledby="export-status-heading" aria-live="polite">
           <h2 id="export-status-heading">Export status</h2>
-          <div className="exporter-status-line"><span data-state={phase}>{phaseLabels[phase] || 'Ready to export'}</span><strong>{progressLabel}</strong></div>
+          <div className="exporter-status-line"><span data-state={phase}>{getExporterStatusLabel(phase, operation, outputFormat)}</span><strong>{progressLabel}</strong></div>
           <div className="export-progress" role="progressbar" aria-label="Log scan progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}><span style={{ width: `${progressPercent}%` }} /></div>
           <dl className="exporter-facts">
             <div><dt>Records found</dt><dd>{progress.recordsFound}</dd></div>
@@ -115,8 +109,9 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
           {error ? <p className="exporter-error" role="alert">{error}</p> : null}
           {result?.extraction.status === 'unsupported' ? <p className="exporter-warning" role="status">Blueprint extraction is unavailable for this source. No evidence-approved build and locale profile is enabled, so no records were exported.</p> : null}
           {result?.status === 'no_matches' && result.extraction.status === 'approved' ? <p className="exporter-empty">No qualifying blueprint notifications were found. The logs may predate blueprint activity or contain no blueprint acquisition events.</p> : null}
-          {result?.errors.length ? <p className="exporter-warning" role="status">{result.errors.length} log file warning{result.errors.length === 1 ? '' : 's'}; the export may be partial.</p> : null}
-          {result ? <p className="exporter-source-note" role="status">{result.testOnly ? 'Test export; no file was written. ' : ''}Source set: {result.files.filter((file) => file.status === 'ready').length} included, {result.skippedFiles} skipped or unavailable; fingerprint {result.sourceFingerprint}.</p> : null}
+          {warningSummary?.unsupportedProfileCount ? <p className="exporter-warning" role="status">{warningSummary.unsupportedProfileCount} log file{warningSummary.unsupportedProfileCount === 1 ? '' : 's'} {warningSummary.unsupportedProfileCount === 1 ? 'was' : 'were'} not scanned because {warningSummary.unsupportedProfileCount === 1 ? 'its build is' : 'their builds are'} outside the active approved extraction profile. {isTestExport ? 'The test export may be incomplete.' : 'The export may be partial.'}</p> : null}
+          {warningSummary?.otherWarningCount ? <p className="exporter-warning" role="status">{warningSummary.otherWarningCount} log file warning{warningSummary.otherWarningCount === 1 ? '' : 's'}; {isTestExport ? 'the test export may be incomplete.' : 'the export may be partial.'}</p> : null}
+          {result ? <p className="exporter-source-note" role="status">{isTestExport ? 'Test export; no file was written. ' : ''}Source set: {result.filesScanned} scanned, {warningSummary?.unsupportedProfileCount || 0} outside approved profile, {readyFileCount} ready, {result.skippedFiles} skipped or unavailable; fingerprint {result.sourceFingerprint}.</p> : null}
         </section>
       </section>
 
