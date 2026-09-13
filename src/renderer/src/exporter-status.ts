@@ -12,7 +12,8 @@ export function getExporterStatusLabel(
     case 'validating': return operation === 'test' ? 'Validating test export' : 'Validating source';
     case 'scanning': return operation === 'test' ? 'Scanning logs for test export' : 'Scanning logs';
     case 'deduplicating': return 'Removing duplicates';
-    case 'awaiting_save': return 'Choose save location';
+    case 'awaiting_save':
+    case 'save_pending': return 'Choose save location';
     case 'writing': return `Writing ${outputFormat.toUpperCase()} output`;
     case 'completed': return `${subject} completed without warnings`;
     case 'no_matches': return operation === 'test' ? 'Test export found no blueprint matches' : 'No blueprint matches';

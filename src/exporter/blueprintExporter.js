@@ -256,7 +256,10 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
             }
             linesRead += 1;
             const parsed = parseBlueprintNotification(line, { patterns });
-            if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
+            if (parsed) {
+              addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
+              onProgress({ ...progress, recordsFound: observations.size, duplicatesSuppressed: countSuppressed(observations) });
+            }
             else if (line.includes('Added notification')) noteUnsupportedLine();
           }
         });
@@ -264,7 +267,10 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
           if (remainder) {
             linesRead += 1;
             const parsed = parseBlueprintNotification(remainder, { patterns });
-            if (parsed) addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
+            if (parsed) {
+              addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
+              onProgress({ ...progress, recordsFound: observations.size, duplicatesSuppressed: countSuppressed(observations) });
+            }
             else if (remainder.includes('Added notification')) noteUnsupportedLine();
           }
           resolve();
@@ -277,6 +283,7 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
         errors.push({ file: file.fileName, code: 'source_changed', message: 'The log changed while it was being scanned; results may be partial.' });
       }
     } catch (error) {
+      if (error?.code === 'export_cancelled' || options.shouldCancel?.()) throw error;
       errors.push({ file: file.fileName || path.basename(file.path), code: error.code || 'read_failed', message: 'The log could not be read.' });
     }
   }
@@ -292,7 +299,7 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     filesScanned,
     filesTotal: sourceSet.files.length,
     linesRead,
-    duplicatesSuppressed: [...observations.values()].reduce((total, entry) => total + entry.duplicateObservations, 0),
+    duplicatesSuppressed: countSuppressed(observations),
     skippedFiles: sourceSet.skipped,
     sourceFingerprint: sourceSet.fingerprint,
     diagnostics: sourceSet.diagnostics,
@@ -300,6 +307,10 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     extraction: { status: compatibleFiles > 0 ? 'approved' : 'unsupported', profileId: compatibleFiles > 0 ? profile.profileId : null, profileVersion: compatibleFiles > 0 ? profile.version : null, parserVersion: BLUEPRINT_PARSER_VERSION, reason: compatibleFiles > 0 ? undefined : 'No scanned file matched the approved build profile.', diagnostics: extractionDiagnostics },
     matched: observations.size > 0
   };
+}
+
+function countSuppressed(observations) {
+  return [...observations.values()].reduce((total, entry) => total + entry.duplicateObservations, 0);
 }
 
 function addObservation(observations, observation) {
@@ -339,26 +350,37 @@ function serializeBlueprintCsv(records) {
   return `${rows.join('\r\n')}\r\n`;
 }
 
-async function writeAtomicText(filePath, text) {
+async function writeAtomicText(filePath, text, options = {}) {
   const destination = path.resolve(filePath);
   await fsp.mkdir(path.dirname(destination), { recursive: true });
-  const temporary = `${destination}.${process.pid}.tmp`;
+  const temporary = `${destination}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`;
+  let handle;
   try {
-    await fsp.writeFile(temporary, text, { encoding: 'utf8', mode: 0o600 });
+    handle = await fsp.open(temporary, 'wx', 0o600);
+    await handle.writeFile(text, { encoding: 'utf8' });
+    if (options.shouldCancel?.()) {
+      const error = new Error('Export cancelled.');
+      error.code = 'export_cancelled';
+      throw error;
+    }
+    await handle.sync();
+    await handle.close();
+    handle = null;
     await fsp.rename(temporary, destination);
   } catch (error) {
+    await handle?.close().catch(() => {});
     try { await fsp.unlink(temporary); } catch (cleanupError) { if (cleanupError.code !== 'ENOENT') error.cleanupError = cleanupError; }
     throw error;
   }
   return destination;
 }
 
-async function writeBlueprintJson(filePath, records) {
-  return writeAtomicText(filePath, `${JSON.stringify(records, null, 2)}\n`);
+async function writeBlueprintJson(filePath, records, options = {}) {
+  return writeAtomicText(filePath, `${JSON.stringify(records, null, 2)}\n`, options);
 }
 
-async function writeBlueprintCsv(filePath, records) {
-  return writeAtomicText(filePath, serializeBlueprintCsv(records));
+async function writeBlueprintCsv(filePath, records, options = {}) {
+  return writeAtomicText(filePath, serializeBlueprintCsv(records), options);
 }
 
 module.exports = {
