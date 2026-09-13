@@ -4,28 +4,28 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Issue #132 evidence spike — **not approved; owner capture required** |
+| Status | Narrow LIVE 4.7 name-extraction profile approved from owner-supplied capture; broader semantics remain evidence-pending |
 | Decision issue | [#132](https://github.com/Presstronic/astradock-local/issues/132) |
 | Applies to | Any `Game.log`-based Blueprint Data recognition profile and Station-shaped export |
-| Current fixture corpus | `test/fixtures/runtime-log/live/4.9-pub/sc-4.9-live/exporter/blueprint-acquisition.unavailable` |
+| Current fixture corpus | `test/fixtures/exporter/live-4.7-blueprint-capture.log` plus the reviewed negative corpus |
 | Fixture standard | [`runtime-log-fixture-corpus.md`](runtime-log-fixture-corpus.md) |
 
-This is a decision record, not evidence that a blueprint was acquired. The reviewed clean-install LIVE corpus has no `Received Blueprint`, `SHUDEvent_OnNotification` blueprint, schematic, recipe, crafting, manufacturing, unlock, or learned-record match. It therefore cannot justify promoting a log pattern into an ownership claim or Station export record.
+This is a decision record, not evidence that every blueprint field or ownership semantic is available. The owner-supplied LIVE 4.7 capture confirms the SHUDEvent_OnNotification Received Blueprint display-name pattern and exact build scope 11518367 in English. It supports a local name-only extraction profile, but does not by itself establish type, shared, or Station synchronization semantics.
 
 The community-reported `SHUDEvent_OnNotification` / `Added notification "Received Blueprint: <name>: " [<id>] to queue` shape is a capture lead only. It is neither an official CIG contract nor owner-reviewed evidence. A synthetically constructed line and a localized label hypothesis are useful parser tests, but do not approve a build, language, or semantic interpretation.
 
-Until this decision record is approved, Blueprint Data must be represented as evidence-pending/unsupported in release decisions. A no-match result is the only truthful conclusion for the present reviewed corpus. No future parser profile may treat generic inventory initialization, `AttachmentReceived`, reward-room asset paths, an arbitrary notification, or a repeated notification lifecycle line as blueprint ownership.
+The approved profile is limited to build 11518367 and the observed English label. Other builds/locales remain evidence-pending and unsupported. Generic inventory initialization, AttachmentReceived, reward-room asset paths, arbitrary notifications, update echoes, or repeated notification lifecycle lines are not blueprint records.
 
 ## Current Evidence and Promotion Decision
 
 | Candidate | Current result | Decision | Reason |
 | --- | --- | --- | --- |
-| Initial `Added notification` with an English received-blueprint label | No owner capture | Defer | The candidate shape is community evidence only; no reviewed source establishes the label, delimiter, build compatibility, or ownership meaning. |
+| Initial `Added notification` with an English received-blueprint label | Owner capture at LIVE build/changelist 11518367 | Approve narrow name extraction | The capture establishes the label/delimiter and build scope for local observed-name records. |
 | Queue/update/fade/replay follow-up for the same notification | No owner capture | Defer | No source proves identity, ordering, or whether the follow-up is a duplicate versus a separate acquisition. |
 | Localized label/value | No owner capture or installed-localization evidence | Defer | English must not be treated as universal and guessed translations must not widen matching. |
-| `name` | Unavailable | Defer | It may be a player-facing label, localized text, item identifier, or another display string; source semantics remain unproven. |
-| `type` | Unavailable | Defer | It is not directly observable in the reported notification. Name-based categorization would be an unapproved inference. |
-| `shared` | Unavailable | Defer | The candidate notification does not prove whether an acquisition is personal, party-shared, account-wide, or otherwise shareable. |
+| `name` | Captured display value, including Antium Legs Moss Camo and Quartz Black Op Energy SMG | Approve observed display name | Preserve the exact observed name after whitespace normalization. |
+| `type` | Unavailable in supplied capture | Defer; emit empty | Name-based categorization remains prohibited. |
+| `shared` | Unavailable in supplied capture | Defer; emit null | The notification does not prove whether an acquisition is personal, party-shared, account-wide, or otherwise shareable. |
 | Inventory/attachment/reward-room records | Reviewed negative evidence | Reject | Presence of an item or asset is not proof of a blueprint acquisition or ownership. |
 
 No `BlueprintObserved` canonical event is created by this decision. The Station payload is an export contract rather than a runtime event, and it must remain unavailable until the evidence and its field semantics are approved.
@@ -69,7 +69,7 @@ Approval cannot be inferred from passing tests, a community implementation, a sy
 
 Happy path after an owner capture is available:
 
-1. Sanitize and add minimal observed fixtures plus a manifest for each confirmed action/build/locale.
+1. Sanitize and add minimal observed fixtures plus a manifest for each confirmed action/build/locale. The supplied capture is represented by `test/fixtures/exporter/live-4.7-blueprint-capture.log`.
 2. Replay one initial notification and its follow-ups across current and backup logs; verify exactly one observation, stable identity, and provenance.
 3. Verify `name`, `type`, and `shared` against the owner action ledger and the authoritative Station contract.
 4. Run `npm test`, including fixture privacy scanning and the reviewed-corpus no-match guard; update the guard only as part of the same reviewed evidence decision.
@@ -89,4 +89,4 @@ Technology and libraries: None. This decision uses the existing fixture corpus, 
 
 ## Exit Condition
 
-Issue #132 is ready to close only when an owner-reviewed capture package resolves the approval checklist, accepted and rejected fixtures are committed, and the decision is recorded per compatible build/locale. At present it is deliberately blocked by missing owner-supplied runtime evidence; this document makes that handoff precise without fabricating it.
+Issue #132 remains open for broader field semantics and additional builds/locales. The narrow build/name profile is implemented from the owner-reviewed capture; no unsupported build or inferred type/shared value is enabled.

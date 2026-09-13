@@ -37,6 +37,7 @@ const { createDiagnosticLogger } = require('./diagnosticLogger');
 const { DEFAULT_SETTINGS } = require('./settingsStore');
 const {
   scanBlueprintLogs,
+  getDefaultBlueprintExtractionProfile,
   writeBlueprintCsv,
   writeBlueprintJson
 } = require('./exporter/blueprintExporter');
@@ -295,6 +296,7 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
   publishProgress({ phase: 'validating', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
   try {
     const result = await scanBlueprintLogs(source.private.canonicalPath, {
+      profile: getDefaultBlueprintExtractionProfile(),
       shouldCancel: () => exporterCancelRequested,
       onProgress: (progress) => publishProgress({ ...progress, recordsFound: 0, duplicatesSuppressed: 0 })
     });

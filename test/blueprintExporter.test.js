@@ -8,6 +8,7 @@ const {
   backupLogInfo,
   collectBlueprintLogFiles,
   createBlueprintExtractionProfile,
+  getDefaultBlueprintExtractionProfile,
   normalizeBlueprint,
   parseBlueprintNotification,
   scanBlueprintLogs,
@@ -100,6 +101,18 @@ test('returns an explicit unsupported result without scanning or exporting unapp
   assert.equal(result.extraction.profileId, null);
   assert.match(result.extraction.reason, /approved blueprint evidence profile/);
   await fs.rm(root, { recursive: true, force: true });
+});
+
+test('uses the owner-captured LIVE 4.7 profile for blueprint extraction', async () => {
+  const fixture = path.join(__dirname, 'fixtures', 'exporter', 'live-4.7-blueprint-capture.log');
+  const result = await scanBlueprintLogs(fixture, { profile: getDefaultBlueprintExtractionProfile() });
+  assert.equal(result.extraction.status, 'approved');
+  assert.equal(result.extraction.profileId, 'sc-4.7-live-11518367-blueprint-v1');
+  assert.deepEqual(result.records, [
+    { name: 'Antium Legs Moss Camo', type: '', shared: null },
+    { name: 'Quartz "Black Op" Energy SMG', type: '', shared: null }
+  ]);
+  assert.equal(result.observations.length, 2);
 });
 
 test('rejects an approved profile when the scanned build is outside its version scope', async () => {
