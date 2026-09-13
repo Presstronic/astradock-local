@@ -5,8 +5,9 @@ import type { BlueprintExportResult, MonitorChangeEnvelope } from '../../contrac
 interface ExporterPanelProps {
   client: RuntimeMonitorClient;
   source: PublicRuntimeSource | null;
+  sources: readonly PublicRuntimeSource[];
   onChooseDirectory: () => Promise<void>;
-  onChooseSource: () => Promise<void>;
+  onSelectSource: (sourceId: string) => Promise<void>;
 }
 
 const phaseLabels: Record<string, string> = {
@@ -21,7 +22,7 @@ const phaseLabels: Record<string, string> = {
   cancelled: 'Export cancelled'
 };
 
-export function ExporterPanel({ client, source, onChooseDirectory, onChooseSource }: ExporterPanelProps) {
+export function ExporterPanel({ client, source, sources, onChooseDirectory, onSelectSource }: ExporterPanelProps) {
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState('idle');
   const [progress, setProgress] = useState({ filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
@@ -47,7 +48,7 @@ export function ExporterPanel({ client, source, onChooseDirectory, onChooseSourc
     setResult(null);
     setPhase('validating');
     try {
-      const next = await client.exporter.run({ sourceId: source.sourceId, exportType: 'blueprint_data', environment: 'LIVE', outputFormat: 'json' });
+      const next = await client.exporter.run({ sourceId: source.sourceId, exportType: 'blueprint_data', environment: source.channelHint as 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'TECH-PREVIEW', outputFormat: 'json' });
       setResult(next);
       setPhase(next.status);
     } catch (cause) {
@@ -75,7 +76,6 @@ export function ExporterPanel({ client, source, onChooseDirectory, onChooseSourc
         </div>
         <div className="exporter-actions">
           <button type="button" className="button secondary" onClick={() => void onChooseDirectory()}>Choose install directory</button>
-          <button type="button" className="button secondary" onClick={() => void onChooseSource()}>Override source file</button>
           {running ? <button type="button" className="button secondary" onClick={() => void cancelExport()}>Cancel export</button> : <button type="button" className="button primary" onClick={() => void runExport()}>Export JSON</button>}
         </div>
       </header>
@@ -84,12 +84,12 @@ export function ExporterPanel({ client, source, onChooseDirectory, onChooseSourc
         <section className="exporter-card" aria-labelledby="export-config-heading">
           <h2 id="export-config-heading">Export configuration</h2>
           <label className="exporter-field"><span>Export type</span><select value="blueprint_data" disabled><option value="blueprint_data">Blueprint Data</option><option disabled>Inventory — future</option><option disabled>Fleet — future</option><option disabled>Reputation — future</option></select></label>
-          <label className="exporter-field"><span>Environment</span><select value="LIVE" disabled><option value="LIVE">LIVE</option></select></label>
+          <label className="exporter-field"><span>Environment</span><select value={source?.sourceId || ''} onChange={(event) => void onSelectSource(event.target.value)} disabled={!sources.length}><option value="" disabled>Select environment</option>{sources.filter((candidate) => !['missing', 'not_file', 'inaccessible', 'permission_denied'].includes(candidate.validation.status)).map((candidate) => <option key={candidate.sourceId} value={candidate.sourceId}>{candidate.channelHint}</option>)}</select><span className="exporter-environment-status" data-found={source ? 'true' : 'false'}>{source?.channelHint || 'Not detected'}</span></label>
           <label className="exporter-field"><span>Output format</span><select value="json" disabled><option value="json">JSON</option></select></label>
           <div className="exporter-source-summary">
             <span className="eyebrow">Source</span>
-            <strong>{source?.displayLabel || 'Awaiting source'}</strong>
-            <span>{source?.validation?.isValid ? 'Using Game.log and its logbackups directory' : 'Choose a Star Citizen channel directory'}</span>
+            <strong title={source?.displayPath || undefined} className="exporter-path">{source?.displayPath || 'Choose Roberts Space Industries directory'}</strong>
+            <span>{source?.validation?.isValid ? 'Using Game.log and its logbackups directory' : 'Choose a validated environment'}</span>
           </div>
         </section>
 

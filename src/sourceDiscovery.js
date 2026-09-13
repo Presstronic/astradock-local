@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const LOG_FILE_NAME = 'game.log';
 const SOURCE_PREFERENCE_VERSION = 1;
-const SUPPORTED_CHANNELS = Object.freeze(['LIVE', 'PTU', 'EPTU', 'HOTFIX']);
+const SUPPORTED_CHANNELS = Object.freeze(['LIVE', 'PTU', 'EPTU', 'HOTFIX', 'TECH-PREVIEW']);
 const CHANNEL_PRIORITY = Object.freeze(new Map(SUPPORTED_CHANNELS.map((channel, index) => [channel, index])));
 const VALIDATION_STATUSES = Object.freeze({
   VALID: 'valid',
@@ -18,6 +18,9 @@ const VALIDATION_STATUSES = Object.freeze({
 });
 
 const SOURCE_KIND = 'game_log';
+const RSI_ROOT_NAME = 'Roberts Space Industries';
+const RSI_LAUNCHER_DIR = 'RSI Launcher';
+const STAR_CITIZEN_DIR_NAMES = Object.freeze(['Star Citizen', 'StarCitizen']);
 
 function expandHome(value, home = os.homedir()) {
   if (!value || !String(value).startsWith('~')) return value;
@@ -49,16 +52,16 @@ function getDefaultInstallationRoots(options = {}) {
     const programFilesX86 = env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
     const programW6432 = env.ProgramW6432 || '';
     roots.push(
-      path.join(programFiles, 'Roberts Space Industries', 'StarCitizen'),
-      path.join(programFilesX86, 'Roberts Space Industries', 'StarCitizen'),
-      programW6432 ? path.join(programW6432, 'Roberts Space Industries', 'StarCitizen') : null,
+      path.join(programFiles, RSI_ROOT_NAME),
+      path.join(programFilesX86, RSI_ROOT_NAME),
+      programW6432 ? path.join(programW6432, RSI_ROOT_NAME) : null,
       path.join(programFilesX86, 'Steam', 'steamapps', 'common', 'Star Citizen'),
       path.join(programFiles, 'Steam', 'steamapps', 'common', 'Star Citizen')
     );
   } else {
     roots.push(
-      path.join(home, 'Games', 'star-citizen', 'drive_c', 'Program Files', 'Roberts Space Industries', 'StarCitizen'),
-      path.join(home, 'Games', 'star-citizen', 'drive_c', 'Program Files (x86)', 'Roberts Space Industries', 'StarCitizen'),
+      path.join(home, 'Games', 'star-citizen', 'drive_c', 'Program Files', RSI_ROOT_NAME),
+      path.join(home, 'Games', 'star-citizen', 'drive_c', 'Program Files (x86)', RSI_ROOT_NAME),
       path.join(home, '.local', 'share', 'Steam', 'steamapps', 'common', 'Star Citizen'),
       path.join(home, '.steam', 'steam', 'steamapps', 'common', 'Star Citizen'),
       path.join(home, '.var', 'app', 'com.valvesoftware.Steam', '.local', 'share', 'Steam', 'steamapps', 'common', 'Star Citizen')
@@ -87,16 +90,75 @@ function getCandidateLogPaths(options = {}) {
       candidates.push(path.join(resolvedRoot, LOG_FILE_NAME));
       continue;
     }
-    for (const channel of channels) {
-      candidates.push(path.join(resolvedRoot, channel, LOG_FILE_NAME));
+    const bases = path.basename(resolvedRoot).toUpperCase() === RSI_ROOT_NAME.toUpperCase()
+      ? STAR_CITIZEN_DIR_NAMES.map((name) => path.join(resolvedRoot, name))
+      : [resolvedRoot];
+    for (const base of bases) {
+      for (const channel of channels) {
+        candidates.push(path.join(base, channel, LOG_FILE_NAME));
+      }
     }
   }
 
   return unique(candidates);
 }
 
+async function discoverInstallationEnvironments(installationRoot, options = {}) {
+  const requestedRoot = path.resolve(expandHome(installationRoot, options.home || os.homedir()));
+  const entries = [];
+  let rootStat;
+  try {
+    rootStat = await fs.stat(requestedRoot);
+    if (!rootStat.isDirectory()) return invalidInstallation(requestedRoot, 'Selected path is not a directory.');
+  } catch (error) {
+    return invalidInstallation(requestedRoot, mapStatError(error));
+  }
+
+  const launcherPath = await findNamedEntry(requestedRoot, RSI_LAUNCHER_DIR, true);
+  const gameRootPath = await findNamedEntry(requestedRoot, STAR_CITIZEN_DIR_NAMES, true);
+  if (!launcherPath || !gameRootPath) {
+    return invalidInstallation(requestedRoot, 'Select the Roberts Space Industries folder containing RSI Launcher and Star Citizen.');
+  }
+
+  const children = await fs.readdir(gameRootPath, { withFileTypes: true });
+  for (const child of children) {
+    if (!child.isDirectory() || child.name !== child.name.toUpperCase()) continue;
+    const logPath = await findNamedEntry(path.join(gameRootPath, child.name), LOG_FILE_NAME, false);
+    if (!logPath) continue;
+    try {
+      const stat = await fs.stat(logPath);
+      if (!stat.isFile()) continue;
+      entries.push(logPath);
+    } catch (error) {
+      if (!['ENOENT', 'ENOTDIR'].includes(error?.code)) entries.push(logPath);
+    }
+  }
+
+  return {
+    valid: true,
+    rootPath: requestedRoot,
+    gameRootPath,
+    environments: entries.sort((left, right) => path.basename(path.dirname(left)).localeCompare(path.basename(path.dirname(right))))
+  };
+}
+
+async function findNamedEntry(rootPath, names, directoryOnly = false) {
+  const wanted = new Set((Array.isArray(names) ? names : [names]).map((name) => String(name).toLowerCase()));
+  let entries;
+  try { entries = await fs.readdir(rootPath, { withFileTypes: true }); } catch { return null; }
+  const found = entries.find((entry) => wanted.has(entry.name.toLowerCase()) && (!directoryOnly || entry.isDirectory()));
+  return found ? path.join(rootPath, found.name) : null;
+}
+
+function invalidInstallation(rootPath, reason) {
+  return { valid: false, rootPath, gameRootPath: null, environments: [], reason };
+}
+
 async function discoverRuntimeSources(options = {}) {
-  const discoveredPaths = getCandidateLogPaths(options);
+  const discoveredPaths = options.installationRoots
+    ? (await Promise.all(options.installationRoots.map((root) => discoverInstallationEnvironments(root, options)))
+      ).flatMap((result) => result.environments)
+    : getCandidateLogPaths(options);
   const restoredPath = options.restoredSourcePath || null;
   const candidateInputs = discoveredPaths.map((sourcePath) => ({
     sourcePath,
@@ -165,7 +227,7 @@ async function validateLogSource(sourcePath, options = {}) {
     sourceKind: SOURCE_KIND,
     discoveryMethods,
     displayLabel: formatDisplayLabel(pathChannelHint, discoveryMethods),
-    displayPath: formatDisplayPath(pathChannelHint),
+    displayPath: path.dirname(requestedPath),
     channelHint: pathChannelHint || 'UNKNOWN',
     channelConfidence: pathChannelHint ? 'path_hint' : 'unknown',
     buildVersion: null,
@@ -263,8 +325,8 @@ async function validateLogSource(sourcePath, options = {}) {
   const source = {
     ...canonicalBase,
     displayLabel: formatDisplayLabel(normalizedChannel, discoveryMethods),
-    displayPath: formatDisplayPath(normalizedChannel),
-    channelHint: normalizedChannel,
+    displayPath: path.dirname(canonicalPath),
+    channelHint: normalizedChannel === 'UNKNOWN' ? String(rawChannel).trim().toUpperCase() : normalizedChannel,
     channelConfidence: evidence.rawChannel ? 'observed' : pathChannelHint ? 'path_hint' : 'unknown',
     rawChannel,
     buildVersion: evidence.buildVersion || null,
@@ -478,11 +540,12 @@ async function loadSourcePreference(preferencePath) {
   try {
     const text = await fs.readFile(preferencePath, 'utf8');
     const parsed = JSON.parse(text);
-    if (parsed?.version !== SOURCE_PREFERENCE_VERSION) return null;
+    if (![SOURCE_PREFERENCE_VERSION, 2].includes(parsed?.version)) return null;
     if (typeof parsed.selectedSourcePath !== 'string' || !parsed.selectedSourcePath.trim()) return null;
     return {
       selectedSourcePath: parsed.selectedSourcePath,
       selectedSourceId: typeof parsed.selectedSourceId === 'string' ? parsed.selectedSourceId : null,
+      selectedInstallationRoot: typeof parsed.selectedInstallationRoot === 'string' ? parsed.selectedInstallationRoot : null,
       savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : null
     };
   } catch (error) {
@@ -496,10 +559,11 @@ async function saveSourcePreference(preferencePath, source, options = {}) {
     throw new Error('Only validated readable game.log sources can be saved.');
   }
   const body = {
-    version: SOURCE_PREFERENCE_VERSION,
+    version: 2,
     savedAt: options.now || new Date().toISOString(),
     selectedSourceId: source.sourceId,
-    selectedSourcePath: source.private?.canonicalPath || source.private?.sourcePath
+    selectedSourcePath: source.private?.canonicalPath || source.private?.sourcePath,
+    selectedInstallationRoot: options.installationRoot || source.private?.installationRoot || null
   };
   await fs.mkdir(path.dirname(preferencePath), { recursive: true });
   const tempPath = `${preferencePath}.${process.pid}.tmp`;
@@ -527,6 +591,7 @@ module.exports = {
   extractGameLogEvidence,
   getCandidateLogPaths,
   getDefaultInstallationRoots,
+  discoverInstallationEnvironments,
   loadSourcePreference,
   normalizeSupportedChannel,
   saveSourcePreference,

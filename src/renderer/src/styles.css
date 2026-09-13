@@ -353,6 +353,16 @@ h2,
   color: var(--foreground);
 }
 
+.exporter-environment-status {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.exporter-environment-status[data-found="true"] {
+  color: var(--success);
+}
+
 .exporter-source-summary {
   display: grid;
   gap: 4px;
@@ -364,6 +374,14 @@ h2,
 .exporter-source-summary strong,
 .exporter-status-line strong {
   color: var(--foreground);
+}
+
+.exporter-path {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .exporter-source-summary > span:last-child {

@@ -22,6 +22,7 @@ const {
 } = require('./settingsStore');
 const {
   assertSourceIsApproved,
+  discoverInstallationEnvironments,
   discoverRuntimeSources,
   loadSourcePreference,
   saveSourcePreference,
@@ -48,6 +49,7 @@ let mainWindow;
 let watchedLogPath = null;
 let watchedSourceId = null;
 let activeTailer = null;
+let selectedInstallationRoot = null;
 let watchOptions = {};
 let monitorGeneration = 0;
 let shuttingDown = false;
@@ -156,7 +158,7 @@ register(CHANNELS.sourceChoose, async () => {
 
   if (source.validation.isValid) {
     activeSourceId = source.sourceId;
-    await saveSourcePreference(getSourcePreferencePath(), source);
+    await saveSourcePreference(getSourcePreferencePath(), source, { installationRoot: selectedInstallationRoot });
   }
 
   return {
@@ -167,22 +169,27 @@ register(CHANNELS.sourceChoose, async () => {
 
 register(CHANNELS.sourceChooseDirectory, async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Choose Star Citizen channel directory',
+    title: 'Choose Roberts Space Industries directory',
     properties: ['openDirectory', 'createDirectory']
   });
 
   if (result.canceled) return null;
-  const source = await validateLogSource(path.join(result.filePaths[0], 'Game.log'), {
-    discoveryMethods: ['user_selected', 'directory_selected']
-  });
-  rememberSource(source);
-
-  if (source.validation.isValid) {
-    activeSourceId = source.sourceId;
-    await saveSourcePreference(getSourcePreferencePath(), source);
+  const installationRoot = result.filePaths[0];
+  const installation = await discoverInstallationEnvironments(installationRoot);
+  if (!installation.valid || !installation.environments.length) {
+    return { source: null, sources: [], saved: false, installation: { valid: installation.valid, reason: installation.reason || 'No uppercase Star Citizen environment with Game.log was found.' } };
   }
-
-  return { source: toPublicSource(source), saved: source.validation.isValid };
+  const discovered = await Promise.all(installation.environments.map((logPath) => validateLogSource(logPath, {
+    discoveryMethods: ['automatic', 'directory_selected']
+  })));
+  selectedInstallationRoot = installationRoot;
+  sourceRegistry.clear();
+  discovered.forEach(rememberSource);
+  const source = selectPreferredSource(discovered);
+  const saved = Boolean(source?.validation.isValid);
+  activeSourceId = saved ? source.sourceId : null;
+  if (saved) await saveSourcePreference(getSourcePreferencePath(), source, { installationRoot });
+  return { source: source ? toPublicSource(source) : null, sources: discovered.map(toPublicSource), saved, installation: { valid: true } };
 });
 
 register(CHANNELS.sourceSelect, async ({ sourceId }) => {
@@ -195,7 +202,7 @@ register(CHANNELS.sourceSelect, async ({ sourceId }) => {
   }
 
   activeSourceId = source.sourceId;
-  await saveSourcePreference(getSourcePreferencePath(), source);
+  await saveSourcePreference(getSourcePreferencePath(), source, { installationRoot: selectedInstallationRoot });
   return {
     source: toPublicSource(source),
     selected: true
@@ -252,12 +259,12 @@ register(CHANNELS.exporterCancel, async () => {
 });
 
 register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outputFormat }) => {
-  if (exportType !== 'blueprint_data' || environment !== 'LIVE' || outputFormat !== 'json') {
-    throw createBoundaryError('invalid_payload', 'Only LIVE Blueprint Data JSON export is currently supported.');
+  if (exportType !== 'blueprint_data' || outputFormat !== 'json') {
+    throw createBoundaryError('invalid_payload', 'Only Blueprint Data JSON export is currently supported.');
   }
   const source = await getApprovedSource(sourceId || activeSourceId);
-  if (source.channelHint !== 'LIVE') {
-    throw createBoundaryError('source_not_approved', 'Select a LIVE game.log source for this export.');
+  if (source.channelHint !== environment) {
+    throw createBoundaryError('source_not_approved', `Select the ${environment} game.log source for this export.`);
   }
   if (exporterRunning) {
     throw createBoundaryError('invalid_payload', 'An export is already running.');
@@ -414,7 +421,9 @@ async function fsUnlinkIfPresent(filePath) {
 
 async function discoverAndRegisterSources() {
   const preference = await loadSourcePreference(getSourcePreferencePath());
+  selectedInstallationRoot = preference?.selectedInstallationRoot || null;
   const discovery = await discoverRuntimeSources({
+    installationRoots: selectedInstallationRoot ? [selectedInstallationRoot] : undefined,
     restoredSourcePath: preference?.selectedSourcePath || null,
     includePrivate: true
   });
@@ -427,6 +436,13 @@ async function discoverAndRegisterSources() {
 
 function rememberSource(source) {
   sourceRegistry.set(source.sourceId, source);
+}
+
+function selectPreferredSource(sources) {
+  return sources.find((source) => source.channelHint === 'LIVE' && source.validation.isValid)
+    || sources.find((source) => source.validation.isValid)
+    || sources[0]
+    || null;
 }
 
 async function revalidateRegisteredSource(sourceId) {

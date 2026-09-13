@@ -39,7 +39,9 @@ export interface SourceDiscoveryResult {
 }
 
 export interface SourceSelectionResult {
-  source: PublicRuntimeSource;
+  source: PublicRuntimeSource | null;
+  sources?: readonly PublicRuntimeSource[];
+  installation?: { valid: boolean; reason?: string };
   saved?: boolean;
   selected?: boolean;
 }
@@ -572,7 +574,7 @@ export type MonitorChange =
 export interface BlueprintExportOptions {
   sourceId?: string | null;
   exportType: 'blueprint_data';
-  environment: 'LIVE';
+  environment: 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'TECH-PREVIEW';
   outputFormat: 'json';
 }
 
