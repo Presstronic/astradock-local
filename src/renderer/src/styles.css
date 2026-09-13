@@ -467,6 +467,19 @@ h2,
 .exporter-warning { color: var(--warning); }
 .exporter-source-note { color: var(--text-label); font-family: var(--font-mono); font-size: 10px; }
 
+.exporter-explanation-list {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.exporter-explanation-list li { padding-left: 3px; }
+.exporter-explanation-list strong { display: block; color: var(--foreground); font-family: var(--font-mono); font-size: 11px; }
+.exporter-explanation-list span { display: block; margin-top: 2px; }
+
 .exporter-results {
   min-height: 180px;
   overflow: auto;
