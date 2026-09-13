@@ -55,7 +55,7 @@ test('discovers and validates supported Windows launcher and Steam-style candida
   assert.equal(discovery.summary.ambiguous, true);
   assert.equal(discovery.activeSource.channelHint, 'LIVE');
   assert.equal(discovery.activeSource.validation.isValid, true);
-  assert.equal(JSON.stringify(discovery).includes(root), true, 'Exporter source DTO exposes the selected environment folder for inspection');
+  assert.equal(discovery.activeSource.displayPath, path.dirname(liveLog), 'Exporter source DTO exposes the selected environment folder for inspection');
   assert.ok(discovery.sources.every((source) => !source.private), 'public DTO must omit privileged path material');
   assert.ok(discovery.sources.some((source) => source.installationKind === 'steam'));
   assert.ok(discovery.sources.some((source) => source.installationKind === 'rsi_launcher'));
@@ -125,7 +125,7 @@ test('supports non-default roots and restored preferences with revalidation-safe
   assert.equal(discovery.activeSource.sourceId, source.sourceId);
   assert.equal(discovery.summary.selectionReason, 'restored_valid_preference');
   assert.equal(discovery.activeSource.channelHint, 'HOTFIX');
-  assert.equal(JSON.stringify(discovery).includes('SecondaryDrive'), true, 'restored source exposes its selected environment folder for Exporter inspection');
+  assert.equal(discovery.activeSource.displayPath, path.dirname(hotfixLog), 'restored source exposes its selected environment folder for Exporter inspection');
 });
 
 test('revalidates moved restored preferences as missing instead of keeping approval', async () => {
@@ -226,12 +226,10 @@ test('public source DTOs and validation messages do not reveal private source pa
     now: NOW
   });
   const publicSource = toPublicSource(source);
-  const publicText = JSON.stringify(publicSource);
-
   assert.equal(source.validation.isValid, true);
-  assert.equal(publicText.includes(root), true);
-  assert.equal(publicText.includes('PRIVATE_PLAYER'), true);
-  assert.equal(publicText.includes('SecretInstall'), true);
+  assert.equal(publicSource.displayPath, path.dirname(privateLog));
+  assert.ok(publicSource.displayPath.includes('PRIVATE_PLAYER'));
+  assert.ok(publicSource.displayPath.includes('SecretInstall'));
   assert.equal(source.validation.message.includes(root), false);
   assert.equal(source.validation.message.includes('PRIVATE_PLAYER'), false);
 });
