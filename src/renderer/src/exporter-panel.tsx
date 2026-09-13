@@ -7,6 +7,7 @@ interface ExporterPanelProps {
   source: PublicRuntimeSource | null;
   sources: readonly PublicRuntimeSource[];
   onChooseDirectory: () => Promise<void>;
+  onChooseSource: () => Promise<void>;
   onSelectSource: (sourceId: string) => Promise<void>;
 }
 
@@ -22,7 +23,7 @@ const phaseLabels: Record<string, string> = {
   cancelled: 'Export cancelled'
 };
 
-export function ExporterPanel({ client, source, sources, onChooseDirectory, onSelectSource }: ExporterPanelProps) {
+export function ExporterPanel({ client, source, sources, onChooseDirectory, onChooseSource, onSelectSource }: ExporterPanelProps) {
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState('idle');
   const [progress, setProgress] = useState({ filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
@@ -40,7 +41,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
 
   async function runExport() {
     if (!source) {
-      setError('Choose a validated LIVE game.log source first.');
+      setError('Choose a validated game.log source first.');
       return;
     }
     setRunning(true);
@@ -76,6 +77,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
         </div>
         <div className="exporter-actions">
           <button type="button" className="button secondary" onClick={() => void onChooseDirectory()}>Choose install directory</button>
+          <button type="button" className="button secondary" onClick={() => void onChooseSource()}>Choose game.log directly</button>
           {running ? <button type="button" className="button secondary" onClick={() => void cancelExport()}>Cancel export</button> : <button type="button" className="button primary" onClick={() => void runExport()}>Export JSON</button>}
         </div>
       </header>

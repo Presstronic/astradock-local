@@ -177,7 +177,26 @@ register(CHANNELS.sourceChooseDirectory, async () => {
   const installationRoot = result.filePaths[0];
   const installation = await discoverInstallationEnvironments(installationRoot);
   if (!installation.valid || !installation.environments.length) {
-    return { source: null, sources: [], saved: false, installation: { valid: installation.valid, reason: installation.reason || 'No uppercase Star Citizen environment with Game.log was found.' } };
+    const directSource = await validateLogSource(path.join(installationRoot, 'Game.log'), {
+      discoveryMethods: ['user_selected', 'directory_selected']
+    });
+    if (!directSource.validation.isValid) {
+      return {
+        source: null,
+        sources: [],
+        saved: false,
+        installation: {
+          valid: installation.valid,
+          reason: installation.reason || directSource.validation.message || 'No uppercase Star Citizen environment with Game.log was found.'
+        }
+      };
+    }
+    selectedInstallationRoot = null;
+    sourceRegistry.clear();
+    rememberSource(directSource);
+    activeSourceId = directSource.sourceId;
+    await saveSourcePreference(getSourcePreferencePath(), directSource);
+    return { source: toPublicSource(directSource), sources: [toPublicSource(directSource)], saved: true, installation: { valid: true } };
   }
   const discovered = await Promise.all(installation.environments.map((logPath) => validateLogSource(logPath, {
     discoveryMethods: ['automatic', 'directory_selected']
