@@ -76,6 +76,20 @@ test('discovers only uppercase installed environments with a Game.log from a sel
   assert.deepEqual(result.environments.map((entry) => path.basename(path.dirname(entry))), ['LIVE', 'PTU']);
 });
 
+test('requires the selected installation directory to be the Roberts Space Industries root', async () => {
+  const root = await makeTempDir();
+  const invalidRoot = path.join(root, 'Star Citizen');
+  await fs.mkdir(path.join(invalidRoot, 'RSI Launcher'), { recursive: true });
+  await fs.mkdir(path.join(invalidRoot, 'Star Citizen', 'LIVE'), { recursive: true });
+  await fs.writeFile(path.join(invalidRoot, 'Star Citizen', 'LIVE', LOG_FILE_NAME), 'not used');
+
+  const result = await discoverInstallationEnvironments(invalidRoot);
+
+  assert.equal(result.valid, false);
+  assert.match(result.reason, /Roberts Space Industries/);
+  assert.deepEqual(result.environments, []);
+});
+
 test('discovers supported Linux LUG and Steam layouts and keeps channels distinct', async () => {
   const home = await makeTempDir();
   const lugLog = path.join(home, 'Games', 'star-citizen', 'drive_c', 'Program Files', 'Roberts Space Industries', 'StarCitizen', 'EPTU', LOG_FILE_NAME);
