@@ -513,13 +513,14 @@ test('issue 11 destination and travel evidence gates unsupported transitions', (
   }
 });
 
-test('issue 132 blueprint export evidence remains explicitly unavailable pending owner review', () => {
+test('issue 132 blueprint export evidence records the approved narrow profile and deferred semantics', () => {
   const evidenceMatrixPath = path.join(__dirname, '..', 'docs', 'blueprint-exporter-evidence-matrix.md');
   assertNoSensitivePatterns(evidenceMatrixPath);
 
   const evidenceMatrix = fs.readFileSync(evidenceMatrixPath, 'utf8');
   for (const requiredText of [
-    'not approved; owner capture required',
+    'Narrow LIVE 4.7 name-extraction profile approved',
+    '11518367',
     'Received Blueprint',
     'AttachmentReceived',
     'crafting_hud_notification_received_blueprint',

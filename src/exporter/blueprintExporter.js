@@ -11,6 +11,14 @@ const DEFAULT_BLUEPRINT_LABELS = Object.freeze([
 const BLUEPRINT_EXTRACTION_CONTRACT_VERSION = 1;
 const BLUEPRINT_PARSER_VERSION = 'blueprint-notification-v1';
 const BLUEPRINT_CSV_COLUMNS = Object.freeze(['name', 'type', 'shared']);
+const APPROVED_BLUEPRINT_PROFILE = Object.freeze({
+  status: 'approved',
+  profileId: 'sc-4.7-live-11518367-blueprint-v1',
+  version: 1,
+  build: '11518367',
+  locale: 'English',
+  labels: Object.freeze(['Received Blueprint'])
+});
 const UNSUPPORTED_PROFILE = Object.freeze({
   status: 'unsupported',
   profileId: null,
@@ -42,6 +50,10 @@ function createBlueprintExtractionProfile(options = {}) {
     labels: Object.freeze([...new Set(profile.labels.map(normalizeLabel).filter(Boolean))]),
     reason: null
   });
+}
+
+function getDefaultBlueprintExtractionProfile() {
+  return createBlueprintExtractionProfile({ profile: APPROVED_BLUEPRINT_PROFILE });
 }
 
 function isProfileCompatible(profile, build) {
@@ -355,7 +367,9 @@ module.exports = {
   BLUEPRINT_EXTRACTION_CONTRACT_VERSION,
   BLUEPRINT_PARSER_VERSION,
   BLUEPRINT_CSV_COLUMNS,
+  APPROVED_BLUEPRINT_PROFILE,
   createBlueprintExtractionProfile,
+  getDefaultBlueprintExtractionProfile,
   backupLogInfo,
   collectBlueprintLogFiles,
   compileBlueprintPatterns,

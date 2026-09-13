@@ -1,0 +1,12 @@
+<2026-03-26T23:10:39.221Z> BackupNameAttachment=" Build(11518367) 26 Mar 26 (18 10 33)" -- used by backup system
+<2026-03-26T23:10:39.584Z> Branch: sc-alpha-4.7.0
+<2026-03-26T23:10:39.584Z> Changelist: 11518367
+<2026-03-26T23:10:39.584Z> [Trace] System language: English
+<2026-03-27T00:32:10.597Z> [Notice] <SHUDEvent_OnNotification> Added notification "Contract Complete: SYNTH_CONTRACT: " [52] to queue. New queue size: 2, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]
+<2026-03-27T00:32:10.872Z> [Notice] <SHUDEvent_OnNotification> Added notification "Received Blueprint: Antium Legs Moss Camo : " [53] to queue. New queue size: 3, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]
+<2026-03-27T00:32:10.872Z>    "Contract Complete: SYNTH_CONTRACT: " [52]
+<2026-03-27T00:32:10.872Z>    "Received Blueprint: Antium Legs Moss Camo : " [53]
+<2026-03-27T00:32:22.618Z> [Notice] <UpdateNotificationItem> Notification "Received Blueprint: Antium Legs Moss Camo : " [53], Action: Next [Team_CoreGameplayFeatures][Missions][Comms]
+<2026-03-27T00:32:27.625Z> [Notice] <UpdateNotificationItem> Notification "Received Blueprint: Antium Legs Moss Camo : " [53], Action: StartFade [Team_CoreGameplayFeatures][Missions][Comms]
+<2026-03-27T00:32:28.623Z> [Notice] <UpdateNotificationItem> Notification "Received Blueprint: Antium Legs Moss Camo : " [53], Action: Remove [Team_CoreGameplayFeatures][Missions][Comms]
+<2026-03-27T00:40:00.000Z> [Notice] <SHUDEvent_OnNotification> Added notification "Received Blueprint: Quartz "Black Op" Energy SMG : " [54] to queue. New queue size: 1, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]

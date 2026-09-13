@@ -1,6 +1,6 @@
 # Blueprint extraction contract
 
-The blueprint exporter has a versioned, profile-gated extraction boundary. A profile is enabled only when an owner-approved evidence record supplies its identifier, version, exact notification labels, and compatible build scope. The repository currently has no enabled production profile because [the evidence matrix](blueprint-exporter-evidence-matrix.md) remains unapproved.
+The blueprint exporter has a versioned, profile-gated extraction boundary. A profile is enabled only when an owner-approved evidence record supplies its identifier, version, exact notification labels, and compatible build scope. The owner-supplied LIVE capture for Star Citizen build/changelist 11518367 (4.7.175.49567, English) enables the narrow sc-4.7-live-11518367-blueprint-v1 profile. Other builds and locales remain unsupported until separately evidenced.
 
 ## Recognition
 
@@ -19,7 +19,7 @@ The local scan result retains provenance separately from the payload: source fil
 - `no_matches`: an approved profile was usable but found no qualifying notification.
 - `partial`: an approved scan produced records while one or more source inputs changed or failed.
 
-The extraction result is local diagnostic metadata. It does not authorize Station synchronization or claim that a community-reported pattern is official game telemetry.
+The extraction result is local diagnostic metadata. It does not authorize Station synchronization or claim that a community-reported pattern is official game telemetry. The enabled profile is limited to observed blueprint display names; type remains empty and shared remains null because the supplied capture does not establish those semantics.
 
 ## Output formats and test export
 
@@ -27,4 +27,4 @@ The real export preserves the approved normalized records in either JSON or CSV.
 
 ## Verification
 
-The contract is covered by `test/blueprintExporter.test.js`: missing profiles, incomplete profiles, build mismatch, accepted notification parsing, localized profile labels, duplicate suppression, deterministic output, malformed source names, source changes, atomic JSON writing, and CSV escaping. Synthetic approved profiles in tests are deliberately marked as test-only; they do not enable production recognition.
+The contract is covered by test/blueprintExporter.test.js: missing profiles, incomplete profiles, build mismatch, accepted notification parsing, the owner-captured LIVE 4.7 profile, localized profile labels, duplicate suppression, deterministic output, malformed source names, source changes, atomic JSON writing, and CSV escaping. The owner-captured fixture is sanitized and contains no real account, path, or identifier data.
