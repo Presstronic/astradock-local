@@ -24,6 +24,7 @@ const {
   assertSourceIsApproved,
   discoverInstallationEnvironments,
   discoverRuntimeSources,
+  getPreferredInstallationDirectory,
   loadSourcePreference,
   saveSourcePreference,
   toPublicSource,
@@ -37,7 +38,7 @@ const { createDiagnosticLogger } = require('./diagnosticLogger');
 const { DEFAULT_SETTINGS } = require('./settingsStore');
 const {
   scanBlueprintLogs,
-  getDefaultBlueprintExtractionProfile,
+  getDefaultBlueprintExtractionProfiles,
   writeBlueprintCsv,
   writeBlueprintJson
 } = require('./exporter/blueprintExporter');
@@ -170,9 +171,14 @@ register(CHANNELS.sourceChoose, async () => {
 });
 
 register(CHANNELS.sourceChooseDirectory, async () => {
+  const preference = await loadSourcePreference(getSourcePreferencePath());
+  const defaultPath = await getPreferredInstallationDirectory({
+    savedInstallationRoot: selectedInstallationRoot || preference?.selectedInstallationRoot || null
+  });
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Choose Roberts Space Industries directory',
-    properties: ['openDirectory', 'createDirectory']
+    properties: ['openDirectory', 'createDirectory'],
+    defaultPath: defaultPath || undefined
   });
 
   if (result.canceled) return null;
@@ -296,7 +302,7 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
   publishProgress({ phase: 'validating', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
   try {
     const result = await scanBlueprintLogs(source.private.canonicalPath, {
-      profile: getDefaultBlueprintExtractionProfile(),
+      profiles: getDefaultBlueprintExtractionProfiles(),
       shouldCancel: () => exporterCancelRequested,
       onProgress: (progress) => publishProgress({
         ...progress,

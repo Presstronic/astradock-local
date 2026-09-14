@@ -11,6 +11,7 @@ const {
   discoverInstallationEnvironments,
   getCandidateLogPaths,
   getDefaultInstallationRoots,
+  getPreferredInstallationDirectory,
   loadSourcePreference,
   saveSourcePreference,
   toPublicSource,
@@ -72,6 +73,35 @@ test('orders the requested Windows RSI roots before compatibility candidates', (
     path.resolve(path.join('C:\\Program Files', 'Roberts Space Industries')),
     path.resolve(path.join('D:\\Program Files', 'Roberts Space Industries'))
   ]);
+});
+
+test('prefers an existing saved installation directory for the directory picker', async () => {
+  const root = await makeTempDir();
+  const savedRoot = path.join(root, 'saved', 'Roberts Space Industries');
+  await fs.mkdir(savedRoot, { recursive: true });
+
+  const preferred = await getPreferredInstallationDirectory({
+    savedInstallationRoot: savedRoot,
+    roots: [path.join(root, 'default', 'Roberts Space Industries')]
+  });
+
+  assert.equal(preferred, path.resolve(savedRoot));
+});
+
+test('falls back to the first valid default installation directory', async () => {
+  const root = await makeTempDir();
+  const invalidRoot = path.join(root, 'first', 'Roberts Space Industries');
+  const validRoot = path.join(root, 'second', 'Roberts Space Industries');
+  await fs.mkdir(path.join(invalidRoot, 'RSI Launcher'), { recursive: true });
+  await fs.mkdir(path.join(validRoot, 'RSI Launcher'), { recursive: true });
+  await writeGameLog(path.join(validRoot, 'Star Citizen', 'LIVE', LOG_FILE_NAME), 'LIVE');
+
+  const preferred = await getPreferredInstallationDirectory({
+    savedInstallationRoot: path.join(root, 'missing', 'Roberts Space Industries'),
+    roots: [invalidRoot, validRoot]
+  });
+
+  assert.equal(preferred, path.resolve(validRoot));
 });
 
 test('discovers only uppercase installed environments with a Game.log from a selected RSI root', async () => {

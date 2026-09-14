@@ -19,6 +19,17 @@ const APPROVED_BLUEPRINT_PROFILE = Object.freeze({
   locale: 'English',
   labels: Object.freeze(['Received Blueprint'])
 });
+const APPROVED_BLUEPRINT_PROFILES = Object.freeze([
+  APPROVED_BLUEPRINT_PROFILE,
+  Object.freeze({
+    status: 'approved',
+    profileId: 'sc-4.10.1-blueprint-v1',
+    version: 1,
+    builds: Object.freeze(['12625701']),
+    locale: 'English',
+    labels: Object.freeze(['Received Blueprint'])
+  })
+]);
 const UNSUPPORTED_PROFILE = Object.freeze({
   status: 'unsupported',
   profileId: null,
@@ -56,10 +67,18 @@ function getDefaultBlueprintExtractionProfile() {
   return createBlueprintExtractionProfile({ profile: APPROVED_BLUEPRINT_PROFILE });
 }
 
+function getDefaultBlueprintExtractionProfiles() {
+  return APPROVED_BLUEPRINT_PROFILES.map((profile) => createBlueprintExtractionProfile({ profile }));
+}
+
 function isProfileCompatible(profile, build) {
   return profile.status === 'approved' && profile.builds.length > 0 && build != null
     ? profile.builds.includes(String(build))
     : profile.status === 'approved' && profile.builds.length === 0;
+}
+
+function selectBlueprintProfile(profiles, build) {
+  return profiles.find((profile) => isProfileCompatible(profile, build)) || null;
 }
 
 function compileBlueprintPatterns(labels = DEFAULT_BLUEPRINT_LABELS) {
@@ -196,14 +215,15 @@ function buildFromHeader(line) {
 
 async function scanBlueprintLogs(sourcePath, options = {}) {
   const sourceSet = await collectBlueprintLogFiles(sourcePath, options);
-  const profile = createBlueprintExtractionProfile(options);
-  const patterns = compileBlueprintPatterns(profile.labels);
+  const profiles = (options.profiles || (options.profile ? [options.profile] : getDefaultBlueprintExtractionProfiles()))
+    .map((profile) => createBlueprintExtractionProfile({ profile }));
   const observations = new Map();
   const errors = [];
   const extractionDiagnostics = [];
   let linesRead = 0;
   let filesScanned = 0;
   let compatibleFiles = 0;
+  const selectedProfileIds = new Set();
   const fileReports = sourceSet.files.map((file) => ({
     file: file.fileName || path.basename(file.path),
     kind: file.kind,
@@ -218,12 +238,12 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     else extractionDiagnostics.push({ code: 'unrecognized_notification', message: 'A blueprint-like notification did not match the approved profile shape.', count: 1 });
   };
 
-  if (profile.status !== 'approved') {
+  if (!profiles.some((profile) => profile.status === 'approved')) {
     return {
       records: [], observations: [], files: fileReports,
       filesScanned: 0, filesTotal: sourceSet.files.length, linesRead: 0, duplicatesSuppressed: 0,
       skippedFiles: sourceSet.skipped, sourceFingerprint: sourceSet.fingerprint, diagnostics: sourceSet.diagnostics,
-      extraction: { status: 'unsupported', profileId: null, profileVersion: null, parserVersion: BLUEPRINT_PARSER_VERSION, reason: profile.reason },
+      extraction: { status: 'unsupported', profileId: null, profileVersion: null, parserVersion: BLUEPRINT_PARSER_VERSION, reason: profiles[0]?.reason || UNSUPPORTED_PROFILE.reason },
       errors: [], matched: false
     };
   }
@@ -244,7 +264,8 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     }
     try {
       if (!build) build = buildFromHeader(await readFirstLine(file.path));
-      if (!isProfileCompatible(profile, build)) {
+      const profile = selectBlueprintProfile(profiles, build);
+      if (!profile) {
         fileReports[index].build = build || null;
         fileReports[index].status = 'unsupported';
         extractionDiagnostics.push({ code: 'unsupported_profile', message: `No approved blueprint profile matches build ${build || 'unknown'}.` });
@@ -253,6 +274,8 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
       }
       fileReports[index].build = build || null;
       compatibleFiles += 1;
+      selectedProfileIds.add(profile.profileId);
+      const patterns = compileBlueprintPatterns(profile.labels);
       await new Promise((resolve, reject) => {
         const input = fs.createReadStream(file.path, { encoding: 'utf8' });
         let remainder = '';
@@ -314,7 +337,7 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
     sourceFingerprint: sourceSet.fingerprint,
     diagnostics: sourceSet.diagnostics,
     errors,
-    extraction: { status: compatibleFiles > 0 ? 'approved' : 'unsupported', profileId: compatibleFiles > 0 ? profile.profileId : null, profileVersion: compatibleFiles > 0 ? profile.version : null, parserVersion: BLUEPRINT_PARSER_VERSION, reason: compatibleFiles > 0 ? undefined : 'No scanned file matched the approved build profile.', diagnostics: extractionDiagnostics },
+    extraction: { status: compatibleFiles > 0 ? 'approved' : 'unsupported', profileId: compatibleFiles > 0 ? selectedProfileIds.size === 1 ? [...selectedProfileIds][0] : 'multiple' : null, profileVersion: compatibleFiles > 0 ? selectedProfileIds.size === 1 ? profiles.find((profile) => profile.profileId === [...selectedProfileIds][0])?.version || null : 'per-file' : null, parserVersion: BLUEPRINT_PARSER_VERSION, reason: compatibleFiles > 0 ? undefined : 'No owner-approved blueprint evidence profile matched a scanned build.', diagnostics: extractionDiagnostics },
     matched: observations.size > 0
   };
 }
@@ -402,6 +425,7 @@ module.exports = {
   APPROVED_BLUEPRINT_PROFILE,
   createBlueprintExtractionProfile,
   getDefaultBlueprintExtractionProfile,
+  getDefaultBlueprintExtractionProfiles,
   backupLogInfo,
   collectBlueprintLogFiles,
   compileBlueprintPatterns,
