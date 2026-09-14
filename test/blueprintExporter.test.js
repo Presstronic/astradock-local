@@ -9,6 +9,7 @@ const {
   collectBlueprintLogFiles,
   createBlueprintExtractionProfile,
   getDefaultBlueprintExtractionProfile,
+  getDefaultBlueprintExtractionProfiles,
   normalizeBlueprint,
   parseBlueprintNotification,
   scanBlueprintLogs,
@@ -113,6 +114,24 @@ test('uses the owner-captured LIVE 4.7 profile for blueprint extraction', async 
     { name: 'Quartz "Black Op" Energy SMG', type: '', shared: null }
   ]);
   assert.equal(result.observations.length, 2);
+});
+
+test('selects blueprint profiles independently for mixed Star Citizen backup builds', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-mixed-'));
+  const backupDir = path.join(root, 'logbackups');
+  await fs.mkdir(backupDir);
+  const current = path.join(root, 'game.log');
+  await fs.writeFile(current, 'BackupNameAttachment=" Build(11518367) 03 Sep 26 (10 20 30)"\n' + blueprintLine('Legacy Blueprint') + '\n');
+  await fs.writeFile(path.join(backupDir, 'Game Build(12625701) 04 Sep 26 (10 20 30).log'), `${blueprintLine('Current Blueprint')}\n`);
+
+  const result = await scanBlueprintLogs(current, { profiles: getDefaultBlueprintExtractionProfiles() });
+
+  assert.equal(result.records.length, 2);
+  assert.equal(result.files.every((file) => file.status === 'ready'), true);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.observations.find((entry) => entry.gameBuild === '12625701').profileId, 'sc-4.10.1-blueprint-v1');
+  assert.equal(result.observations.find((entry) => entry.gameBuild === '11518367').profileId, 'sc-4.7-live-11518367-blueprint-v1');
+  await fs.rm(root, { recursive: true, force: true });
 });
 
 test('rejects an approved profile when the scanned build is outside its version scope', async () => {

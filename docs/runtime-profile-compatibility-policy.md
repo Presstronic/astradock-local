@@ -45,6 +45,14 @@ Compatibility is per event family as well as global. Extractor IDs define bounde
 
 Drift must never reinterpret historical events. Profile revisions are immutable for replay, and previously persisted events retain the profile version that emitted them.
 
+## Star Citizen release lifecycle
+
+Star Citizen game version/build identity is the compatibility dimension. AstraDock application version is not part of profile identity and does not create a backward-compatibility promise for older AstraDock releases. The MVP catalog must explicitly cover every known Star Citizen version in scope, including its active `Game.log` and applicable backup `Game.log` files. Future releases are added only after their log evidence is captured and reviewed; unknown releases are not automatically supported.
+
+Profile selection is per file, not per user-selected source set. The selected AstraDock environment supplies source context and user intent, while each active or backup file supplies its own Star Citizen build identity. A source-set operation may therefore combine files from multiple supported Star Citizen versions, such as 4.9.x and 4.10.x, provided every file is independently classified and parsed with its matching profile. No file may inherit the profile selected for a different file merely because both belong to the same environment or backup directory.
+
+The catalog may contain selected historical, current, and provisional future Star Citizen profiles. A new Star Citizen release receives a separate profile family or immutable revision when evidence shows changed semantics; it must not inherit a nearby release automatically. If a referenced historical revision is unavailable, replay reports `profile_unavailable` and preserves the event metadata rather than substituting another Star Citizen release's profile.
+
 ## PTU 4.10 capture policy
 
 The owner's PTU/TEST access is an opportunity to detect drift before release, not permission to treat PTU as LIVE evidence. Current 4.10 PTU builds remain `unsupported_profile` and cannot fall back to 4.9 LIVE. After annotated captures are supplied, create a provisional `sc-4.10-ptu` family with exact PTU builds and sanitized positive/negative fixtures. The capture sequence is: record exact build/channel/branch, retain raw logs locally, minimize and sanitize action-specific excerpts, declare exact builds and anchors, pass privacy/isolation replay, then approve semantic families. When 4.10 reaches LIVE, validate it in a separate `sc-4.10-live` family even if it appears textually identical to PTU.

@@ -33,6 +33,7 @@ A small corpus proves the exact supported build and event families, records know
 ## Dependencies and blockers
 
 - Annotated LIVE 4.10 capture from the owner.
+- The versioned runtime-profile catalog and lifecycle contract.
 - The profile, normalization, party, and gameplay tickets.
 
 ## Assumptions, constraints, and risks

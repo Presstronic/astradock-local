@@ -90,6 +90,8 @@ Automatic discovery ranks valid sources before invalid sources. Restored validat
 
 When multiple valid automatic sources exist, the deterministic active source is the highest-priority candidate and the discovery summary reports ambiguity so the UI can show explicit choices. Selecting a source saves it only after validation succeeds. Saved preferences are local app data and are revalidated on every discovery, scan, or monitor reuse; a moved, missing, malformed, inaccessible, or unsupported source becomes an actionable state rather than implicit approval.
 
+The native **Choose install directory** dialog uses the saved installation root as its initial directory when that directory still exists. If it no longer exists or is inaccessible, the dialog starts at the first default root that satisfies the same validated RSI installation criteria: the root must contain `RSI Launcher`, `Star Citizen` (or legacy `StarCitizen`), and at least one immediate uppercase environment directory containing a readable `Game.log`. If no default root satisfies those criteria, the dialog uses the operating system's normal initial directory.
+
 ## Privacy and Security Notes
 
 - Full paths remain local-only privileged data.
@@ -109,6 +111,7 @@ The source-discovery tests use temporary directories and synthetic logs to verif
 - Supported Windows launcher and Steam-like layouts.
 - Supported Linux LUG/Wine and Steam-like layouts.
 - Non-default roots and restored preference revalidation.
+- Saved-directory picker preference and first-valid-default fallback.
 - Missing, directory, malformed, and unsupported-channel states.
 - No recursive arbitrary filesystem scanning.
 - Public DTO and validation-message redaction.

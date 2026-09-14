@@ -145,6 +145,26 @@ async function discoverInstallationEnvironments(installationRoot, options = {}) 
   };
 }
 
+async function getPreferredInstallationDirectory(options = {}) {
+  const savedRoot = options.savedInstallationRoot;
+  if (savedRoot) {
+    const resolvedSavedRoot = path.resolve(expandHome(savedRoot, options.home || os.homedir()));
+    try {
+      const stat = await fs.stat(resolvedSavedRoot);
+      if (stat.isDirectory()) return resolvedSavedRoot;
+    } catch {
+      // A removed or inaccessible saved location should fall through to discovery.
+    }
+  }
+
+  for (const root of options.roots || getDefaultInstallationRoots(options)) {
+    const result = await discoverInstallationEnvironments(root, options);
+    if (result.valid && result.environments.length) return result.rootPath;
+  }
+
+  return null;
+}
+
 async function findNamedEntry(rootPath, names, directoryOnly = false) {
   const wanted = new Set((Array.isArray(names) ? names : [names]).map((name) => String(name).toLowerCase()));
   let entries;
@@ -621,6 +641,7 @@ module.exports = {
   extractGameLogEvidence,
   getCandidateLogPaths,
   getDefaultInstallationRoots,
+  getPreferredInstallationDirectory,
   discoverInstallationEnvironments,
   loadSourcePreference,
   normalizeSupportedChannel,

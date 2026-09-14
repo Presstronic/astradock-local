@@ -34,6 +34,7 @@ A 4.10 LIVE session has a truthful channel, universe, branch, changelist/build i
 ## Dependencies and blockers
 
 - Sanitized LIVE 4.10 captures with exact build/channel/branch metadata.
+- The versioned runtime-profile catalog and lifecycle contract.
 - The normalized record and event-family work in the companion parser ticket.
 - Owner approval of the initial 4.10 exact-build allowlist.
 
