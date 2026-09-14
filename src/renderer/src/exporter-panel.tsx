@@ -125,7 +125,10 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
 
       <section className="exporter-card exporter-results" aria-labelledby="export-results-heading">
         <div className="exporter-results-heading"><div><p className="eyebrow">Station import payload</p><h2 id="export-results-heading">Blueprint records</h2></div><span>{result ? `${result.records.length} unique` : 'No export yet'}</span></div>
-        {result?.records.length ? <div className="exporter-table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Shared</th></tr></thead><tbody>{result.records.map((record) => <tr key={record.name}><td>{record.name}</td><td>{record.type || 'Unknown'}</td><td>{record.shared === null ? 'Unknown' : record.shared ? 'Yes' : 'No'}</td></tr>)}</tbody></table></div> : <p className="exporter-empty">Run an export to inspect normalized records before importing them into Station.</p>}
+        {result?.records.length ? <>
+          <div className="exporter-table-wrap"><table><thead><tr><th scope="col" className="exporter-row-number-heading">#</th><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Shared</th></tr></thead><tbody>{result.records.map((record, index) => <tr key={record.name}><td className="exporter-row-number" aria-label={`Record ${index + 1}`}>{index + 1}</td><td>{record.name}</td><td>{record.type || 'Unknown'}</td><td>{record.shared === null ? 'Unknown' : record.shared ? 'Yes' : 'No'}</td></tr>)}</tbody></table></div>
+          {result.records.every((record) => !record.type && record.shared === null) ? <p className="exporter-metadata-note" role="note">Type and Shared are unknown for these records because the approved Game.log blueprint notification contains the blueprint name only. Those fields require trusted Station or extracted game-data metadata; they are left blank in the exported file rather than inferred.</p> : null}
+        </> : <p className="exporter-empty">Run an export to inspect normalized records before importing them into Station.</p>}
       </section>
     </main>
   );

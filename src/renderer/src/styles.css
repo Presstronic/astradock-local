@@ -503,6 +503,9 @@ h2,
 .exporter-table-wrap td { padding: 8px; border-bottom: 1px solid var(--line-inner); text-align: left; }
 .exporter-table-wrap th { color: var(--text-label); font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 .exporter-table-wrap td { color: var(--text-body); font-size: 12px; }
+.exporter-row-number-heading,
+.exporter-row-number { width: 1%; color: var(--text-label) !important; font-family: var(--font-mono); text-align: right !important; }
+.exporter-metadata-note { margin: 12px 0 0; color: var(--text-label); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 900px) {
   .exporter-grid { grid-template-columns: 1fr; }
