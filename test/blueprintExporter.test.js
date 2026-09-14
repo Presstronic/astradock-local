@@ -129,7 +129,7 @@ test('selects blueprint profiles independently for mixed Star Citizen backup bui
   assert.equal(result.records.length, 2);
   assert.equal(result.files.every((file) => file.status === 'ready'), true);
   assert.equal(result.errors.length, 0);
-  assert.equal(result.observations.find((entry) => entry.gameBuild === '12625701').profileId, 'sc-4.10.1-blueprint-v1');
+  assert.equal(result.observations.find((entry) => entry.gameBuild === '12625701').profileId, 'sc-4.10-blueprint-v1');
   assert.equal(result.observations.find((entry) => entry.gameBuild === '11518367').profileId, 'sc-4.7-live-11518367-blueprint-v1');
   await fs.rm(root, { recursive: true, force: true });
 });
@@ -159,6 +159,29 @@ test('recognizes observed 4.10.x builds without requiring blueprint evidence', a
     assert.equal(result.files[0].build, build);
     assert.equal(result.files[0].status, 'ready');
     assert.equal(result.records.length, 0);
+    assert.equal(result.errors.length, 0);
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('recognizes all supplied Star Citizen 4.4 through 4.10 build families', async () => {
+  const builds = [
+    '10694190', '10717260', '10840216', '10879294', '10957089', '10967244', '10989003', '11010425',
+    '11135423', '11218823', '11303722', '11319298', '11377160', '11518367', '11545720', '11576750',
+    '11617053', '11638371', '11674325', '11715810', '11825000', '11952564', '12030094', '12061511',
+    '12122953', '12232306', '12248363', '12269732', '12286454', '12302499', '12326004', '12344265',
+    '12519617', '12545750', '12572603'
+  ];
+  for (const build of builds) {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), `astradock-exporter-known-${build}-`));
+    const current = path.join(root, 'game.log');
+    await fs.writeFile(current, `BackupNameAttachment=\" Build(${build}) 01 Sep 26 (15 30 12)\"\n`);
+
+    const result = await scanBlueprintLogs(current, { profiles: getDefaultBlueprintExtractionProfiles() });
+
+    assert.equal(result.extraction.status, 'approved', build);
+    assert.equal(result.files[0].build, build);
+    assert.equal(result.files[0].status, 'ready');
     assert.equal(result.errors.length, 0);
     await fs.rm(root, { recursive: true, force: true });
   }
