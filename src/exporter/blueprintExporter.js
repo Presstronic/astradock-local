@@ -25,7 +25,7 @@ const APPROVED_BLUEPRINT_PROFILES = Object.freeze([
     status: 'approved',
     profileId: 'sc-4.10.1-blueprint-v1',
     version: 1,
-    builds: Object.freeze(['12625701']),
+    builds: Object.freeze(['12572603', '12625701']),
     locale: 'English',
     labels: Object.freeze(['Received Blueprint'])
   })

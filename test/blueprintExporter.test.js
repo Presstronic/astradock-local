@@ -134,6 +134,19 @@ test('selects blueprint profiles independently for mixed Star Citizen backup bui
   await fs.rm(root, { recursive: true, force: true });
 });
 
+test('accepts the observed 4.10.1 LIVE backup build 12572603', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-4101-'));
+  const current = path.join(root, 'game.log');
+  await fs.writeFile(current, 'BackupNameAttachment=" Build(12572603) 11 Sep 26 (19 55 56)"\n' + blueprintLine('Zenith "Darkwave" Laser Sniper Rifle') + '\n');
+
+  const result = await scanBlueprintLogs(current, { profiles: getDefaultBlueprintExtractionProfiles() });
+
+  assert.equal(result.extraction.status, 'approved');
+  assert.equal(result.files[0].build, '12572603');
+  assert.deepEqual(result.records.map((record) => record.name), ['Zenith "Darkwave" Laser Sniper Rifle']);
+  await fs.rm(root, { recursive: true, force: true });
+});
+
 test('rejects an approved profile when the scanned build is outside its version scope', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
   const current = path.join(root, 'game.log');
