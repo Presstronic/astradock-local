@@ -38,7 +38,7 @@ A 4.10 LIVE session has a truthful channel, universe, branch, changelist/build i
 - The normalized record and event-family work in the companion parser ticket.
 - Owner approval of the initial 4.10 exact-build allowlist.
 
-The observed LIVE 4.10.1 backup `Game Build(12572603) 11 Sep 26 (19 55 56).log` identifies build `12572603`; this exact build must be included in the approved profile evidence alongside any separately verified 4.10.1 build such as `12625701`.
+The observed 4.10.x backups identify builds `12519617`, `12545750`, and `12572603`; these exact builds must be recognized by the profile. Blueprint extraction may legitimately return zero records for a recognized file when no blueprint notification occurred. Any separately verified 4.10.1 build such as `12625701` must be added independently.
 
 ## Assumptions, constraints, and risks
 
