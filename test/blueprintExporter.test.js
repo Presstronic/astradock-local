@@ -147,6 +147,23 @@ test('accepts the observed 4.10.1 LIVE backup build 12572603', async () => {
   await fs.rm(root, { recursive: true, force: true });
 });
 
+test('recognizes observed 4.10.x builds without requiring blueprint evidence', async () => {
+  for (const build of ['12519617', '12545750']) {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), `astradock-exporter-${build}-`));
+    const current = path.join(root, 'game.log');
+    await fs.writeFile(current, `BackupNameAttachment=\" Build(${build}) 01 Sep 26 (15 30 12)\"\n`);
+
+    const result = await scanBlueprintLogs(current, { profiles: getDefaultBlueprintExtractionProfiles() });
+
+    assert.equal(result.extraction.status, 'approved');
+    assert.equal(result.files[0].build, build);
+    assert.equal(result.files[0].status, 'ready');
+    assert.equal(result.records.length, 0);
+    assert.equal(result.errors.length, 0);
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test('rejects an approved profile when the scanned build is outside its version scope', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
   const current = path.join(root, 'game.log');
