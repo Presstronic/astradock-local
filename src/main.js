@@ -35,6 +35,7 @@ const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 const { CanonicalEventStore } = require('./persistence/canonicalEventStore');
 const { createElectronStorageKeyProvider } = require('./persistence/storageKeyProvider');
 const { createDiagnosticLogger } = require('./diagnosticLogger');
+const { createDiagnosticsSupportService } = require('./diagnosticsSupport');
 const { DEFAULT_SETTINGS } = require('./settingsStore');
 const {
   scanBlueprintLogs,
@@ -71,6 +72,7 @@ let activeSourceId = null;
 let eventStore = null;
 let eventStoreHealth = { status: 'initializing', errorCode: null, recoverable: true };
 let diagnosticLogger = null;
+let diagnosticsSupport = null;
 let exporterCancelRequested = false;
 let exporterRunning = false;
 const subscriptions = new SubscriptionHub({ channel: CHANNELS.subscriptionEvent, maxSubscribers: 8 });
@@ -102,6 +104,11 @@ app.whenReady().then(async () => {
     // Diagnostics are best effort and must not prevent the app from starting.
     console.error('AstraDock diagnostic logger could not start.', error?.message || error);
   }
+  diagnosticsSupport = createDiagnosticsSupportService({
+    logDirectory: path.join(app.getPath('userData'), 'logs'),
+    getHealth: () => getDiagnosticsHealth(),
+    metadata: { appVersion: app.getVersion(), build: app.isPackaged ? 'packaged' : 'development', platform: process.platform, arch: process.arch, packaged: app.isPackaged }
+  });
   await initializeEventStore();
   createWindow();
 }).catch((error) => {
@@ -129,6 +136,7 @@ app.on('before-quit', async () => {
   eventStore?.close();
   eventStore = null;
   diagnosticLogger?.close();
+  diagnosticsSupport = null;
 });
 
 app.on('activate', () => {
@@ -407,6 +415,7 @@ register(CHANNELS.settingsReset, async () => {
     eventStore.deleteAllTelemetry();
     eventStoreHealth = eventStore.getStorageSummary();
   }
+  diagnosticsSupport?.deleteLocalDiagnostics();
   await Promise.all([
     fsUnlinkIfPresent(getSettingsPath()),
     fsUnlinkIfPresent(getSourcePreferencePath())
@@ -417,6 +426,31 @@ register(CHANNELS.settingsReset, async () => {
 });
 
 register(CHANNELS.diagnosticsHealth, async () => getDiagnosticsHealth());
+
+register(CHANNELS.diagnosticsPreview, async () => {
+  if (!diagnosticsSupport) throw createBoundaryError('internal_error', 'Diagnostics are not ready.');
+  return diagnosticsSupport.preview();
+});
+
+register(CHANNELS.diagnosticsExport, async () => {
+  if (!diagnosticsSupport) throw createBoundaryError('internal_error', 'Diagnostics are not ready.');
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export sanitized AstraDock diagnostics',
+    defaultPath: path.join(app.getPath('documents'), 'astradock-diagnostics.json'),
+    filters: [{ name: 'Diagnostics bundle', extensions: ['json'] }],
+    properties: ['showOverwriteConfirmation']
+  });
+  if (result.canceled || !result.filePath) return { status: 'cancelled', outputFileName: null };
+  const exported = diagnosticsSupport.export(result.filePath);
+  diagnosticLogger?.info('diagnostics_exported', { outputFileName: exported.outputFileName, bytes: exported.bytes });
+  return exported;
+});
+
+register(CHANNELS.diagnosticsDelete, async () => {
+  if (!diagnosticsSupport) throw createBoundaryError('internal_error', 'Diagnostics are not ready.');
+  const deleted = diagnosticsSupport.deleteLocalDiagnostics();
+  return { ...deleted, health: getDiagnosticsHealth() };
+});
 
 register(CHANNELS.subscriptionSubscribe, async (payload, event) => {
   const subscription = subscriptions.add(event.sender, payload);
@@ -879,6 +913,20 @@ function getDiagnosticsHealth() {
   return {
     status: activeTailer ? 'monitoring' : 'idle',
     checkedAt: new Date().toISOString(),
+    application: { version: app.getVersion(), build: app.isPackaged ? 'packaged' : 'development', platform: process.platform, arch: process.arch },
+    source: lastScanSource ? {
+      label: lastScanSource.displayLabel,
+      channel: lastScanSource.channelHint,
+      build: lastScanSource.buildVersion,
+      environment: lastScan?.environment?.environment || lastScan?.environmentKey || null
+    } : null,
+    subsystems: {
+      tailer: tailerHealth ? tailerHealth.status : 'idle',
+      parser: lastScan?.parserCompatibility?.status || 'unknown',
+      store: eventStoreHealth.status,
+      projection: lastScan ? 'available' : 'idle',
+      renderer: mainWindow && !mainWindow.isDestroyed() ? 'available' : 'unavailable'
+    },
     monitor: getMonitorState(),
     activeSourceId,
     sourceRegistryCount: sourceRegistry.size,

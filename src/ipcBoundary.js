@@ -28,6 +28,9 @@ const CHANNELS = Object.freeze({
   settingsDelete: 'astradock:v1:settings:delete',
   settingsReset: 'astradock:v1:settings:reset',
   diagnosticsHealth: 'astradock:v1:diagnostics:health',
+  diagnosticsPreview: 'astradock:v1:diagnostics:preview',
+  diagnosticsExport: 'astradock:v1:diagnostics:export',
+  diagnosticsDelete: 'astradock:v1:diagnostics:delete',
   subscriptionSubscribe: 'astradock:v1:subscription:subscribe',
   subscriptionUnsubscribe: 'astradock:v1:subscription:unsubscribe',
   subscriptionEvent: 'astradock:v1:subscription:event'
@@ -41,7 +44,12 @@ const SAFE_ERROR_MESSAGES = Object.freeze({
   source_not_approved: 'The selected source is not approved for this operation.',
   evidence_not_found: 'That evidence detail is not available in the current local snapshot.',
   unsupported_query: 'That query is not supported by this renderer API version.',
-  subscription_not_found: 'That subscription is no longer active.'
+  subscription_not_found: 'That subscription is no longer active.',
+  invalid_destination: 'Choose a valid local diagnostics destination.',
+  disk_full: 'There is not enough local disk space to write diagnostics.',
+  destination_denied: 'The selected diagnostics destination is not writable.',
+  export_failed: 'The diagnostics export could not be written.',
+  delete_failed: 'Local diagnostics could not be deleted.'
 });
 
 class BoundaryError extends Error {
@@ -127,6 +135,10 @@ function validatePayload(channel, payload) {
     case CHANNELS.exporterCancel:
     case CHANNELS.settingsGet:
     case CHANNELS.diagnosticsHealth:
+    case CHANNELS.diagnosticsPreview:
+    case CHANNELS.diagnosticsDelete:
+      return assertNoPayload(payload);
+    case CHANNELS.diagnosticsExport:
       return assertNoPayload(payload);
     case CHANNELS.settingsRetention:
       return { environmentKey: optionalBoundedText(payload?.environmentKey, 'environmentKey', 64) };

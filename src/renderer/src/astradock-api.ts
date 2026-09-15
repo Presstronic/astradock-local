@@ -84,7 +84,10 @@ function createUnavailableClient(): RuntimeMonitorClient {
       reset: async () => ({ settings: FALLBACK_SETTINGS, storage: { status: 'initializing', errorCode: null }, activeSourceId: null } as SettingsSnapshot)
     },
     diagnostics: {
-      getHealth: unavailable as AstraDockApi['diagnostics']['getHealth']
+      getHealth: unavailable as AstraDockApi['diagnostics']['getHealth'],
+      preview: unavailable as AstraDockApi['diagnostics']['preview'],
+      export: unavailable as AstraDockApi['diagnostics']['export'],
+      deleteLocal: unavailable as AstraDockApi['diagnostics']['deleteLocal']
     }
   };
 }

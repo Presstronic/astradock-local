@@ -93,6 +93,7 @@ The project currently uses AstraDock-owned branding and does not bundle RSI/CIG 
 - [`docs/hardened-electron-boundary.md`](docs/hardened-electron-boundary.md) — renderer and IPC security boundary
 - [`docs/runtime-log-tailer.md`](docs/runtime-log-tailer.md) — incremental log monitoring behavior
 - [`docs/local-settings-and-privacy-controls.md`](docs/local-settings-and-privacy-controls.md) — local settings, retention, and reset behavior
+- [`docs/diagnostics-and-support-export.md`](docs/diagnostics-and-support-export.md) — privacy-aware local diagnostics and support export
 - [`docs/cig-community-guidance.md`](docs/cig-community-guidance.md) — current CIG/RSI disclosure and imagery policy used by the project
 - [`docs/user-guide.md`](docs/user-guide.md) — installation, source selection, monitoring, privacy, troubleshooting, and uninstall guidance
 - [`docs/mvp-requirement-traceability.md`](docs/mvp-requirement-traceability.md) — requirement-to-evidence audit and MVP non-goal review
