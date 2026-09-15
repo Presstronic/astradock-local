@@ -20,7 +20,7 @@ This matrix audits the settled MVP boundary in [`product-requirements.md`](produ
 | 11 Station synchronization | no authentication/network/sync surface in MVP | Proven non-goal | Future phase; no remote readiness claim |
 | 12 installed-data mining | no mining surface in MVP | Proven non-goal | Future phase; no extraction claim |
 | 13 security/privacy | Electron boundary, encrypted store, privacy docs, CI audit, security review | Partial | Security review does not replace signing/update qualification (#45, #50) |
-| 14 performance/reliability | ADR targets, benchmarks, tailer/store tests | Partial | Full load, recovery, and soak qualification open (#48) |
+| 14 performance/reliability | ADR targets, `scripts/qualifyRuntime.js`, `runtimeQualification.test.js`, qualification procedure | Automated synthetic load/recovery/store/renderer checks pass on Linux x64 | Packaged Windows resource sampling, failure matrix, and four-hour soak require release-run evidence (#48) |
 | 15 UX/workspaces/stream/drilldown | React implementation, renderer tests, design/interaction docs | Partial | Cross-platform accessibility qualification open (#46); no release screenshots/recording |
 | 16 packaging/platform | ADR and package targets; Linux CI build | Partial | Installer/update/signing and supported-platform evidence open (#45, #50) |
 | 17 evidence/fixtures | sanitized corpus manifests and fixture tests | Proven for committed corpus | Owner captures and future profile drift remain open |
