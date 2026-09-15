@@ -42,6 +42,9 @@ jobs:
       - name: Run documentation audit
         run: npm run docs:check
 
+      - name: Run release packaging audit
+        run: npm run release:audit
+
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 

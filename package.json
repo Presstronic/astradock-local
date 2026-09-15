@@ -26,10 +26,13 @@
     "build:renderer": "vite build",
     "build:renderer:exporter": "vite build --mode exporter",
     "build": "npm run typecheck && npm run build:renderer && electron-builder --dir",
-    "dist": "npm run typecheck && npm run build:renderer && electron-builder",
+    "dist": "npm run typecheck && npm run build:renderer && electron-builder --publish never",
+    "dist:win": "npm run typecheck && npm run build:renderer && electron-builder --win nsis --x64 --publish never --config.directories.output=dist/release/win",
+    "dist:linux": "npm run typecheck && npm run build:renderer && electron-builder --linux AppImage --x64 --publish never --config.directories.output=dist/release/linux",
+    "release:audit": "node scripts/releaseAudit.js",
     "dist:standalone:win": "npm run typecheck && npm run build:renderer && electron-builder --win portable --x64 --publish never --config.directories.output=dist/standalone",
     "dist:standalone:exporter:win": "npm run typecheck && npm run build:renderer:exporter && electron-builder --win portable --x64 --publish never --config.directories.output=dist/standalone-exporter --config.portable.artifactName='AstraDock-Local-${version}-blueprint-exporter-${arch}.${ext}'",
-    "dist:standalone:exporter:linux": "npm run typecheck && npm run build:renderer:exporter && electron-builder --linux AppImage --x64 --publish never --config.directories.output=dist/standalone-exporter-linux",
+    "dist:standalone:exporter:linux": "npm run typecheck && npm run build:renderer:exporter && electron-builder --linux AppImage --x64 --publish never --config.directories.output=dist/standalone-exporter-linux --config.artifactName='AstraDock-Local-${version}-blueprint-exporter-${arch}.${ext}'",
     "dist:standalone:linux": "npm run typecheck && npm run build:renderer && electron-builder --linux AppImage --x64 --publish never --config.directories.output=dist/standalone"
   },
   "keywords": [
@@ -67,12 +70,19 @@
         "AppImage"
       ],
       "category": "Utility",
-      "artifactName": "AstraDock-Local-${version}-standalone-${arch}.${ext}"
+      "desktopName": "astradock-local",
+      "artifactName": "AstraDock-Local-${version}-${arch}.${ext}"
     },
     "win": {
-      "target": [
-        "nsis"
-      ]
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "perMachine": false,
+      "oneClick": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true
     },
     "portable": {
       "artifactName": "AstraDock-Local-${version}-standalone-test-${arch}.${ext}"
