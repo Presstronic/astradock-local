@@ -19,6 +19,7 @@
     "test:renderer": "vitest run --passWithNoTests",
     "test": "npm run typecheck && npm run test:node && npm run test:renderer",
     "security:check": "node scripts/securityReview.js",
+    "docs:check": "node scripts/documentationAudit.js",
     "benchmark:parser": "node scripts/benchmarkRuntimeLogParserEngine.js",
     "benchmark:tailer": "node scripts/benchmarkRuntimeLogTailer.js",
     "benchmark:store": "node scripts/benchmarkCanonicalEventStore.js",
