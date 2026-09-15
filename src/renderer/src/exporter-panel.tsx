@@ -74,6 +74,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
           <p className="eyebrow">Data export</p>
           <h1>Exporter</h1>
           <p className="exporter-intro">Scan the selected environment and retained log backups for Station-compatible blueprint records.</p>
+          <p className="community-disclosure" role="note">AstraDock Local is an unofficial, community-made Star Citizen tool. It is not affiliated with, endorsed by, sponsored by, or licensed by Cloud Imperium Games or Roberts Space Industries. <span>Official site: robertsspaceindustries.com</span></p>
         </div>
         <div className="exporter-actions">
           <button type="button" className="button secondary" onClick={() => void onChooseDirectory()}>Choose install directory</button>
