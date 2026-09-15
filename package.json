@@ -23,6 +23,7 @@
     "benchmark:parser": "node scripts/benchmarkRuntimeLogParserEngine.js",
     "benchmark:tailer": "node scripts/benchmarkRuntimeLogTailer.js",
     "benchmark:store": "node scripts/benchmarkCanonicalEventStore.js",
+    "qualify:runtime": "node scripts/qualifyRuntime.js",
     "build:renderer": "vite build",
     "build:renderer:exporter": "vite build --mode exporter",
     "build": "npm run typecheck && npm run build:renderer && electron-builder --dir",
