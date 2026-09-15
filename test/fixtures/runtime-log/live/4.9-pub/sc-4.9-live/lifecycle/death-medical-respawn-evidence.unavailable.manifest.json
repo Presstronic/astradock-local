@@ -1,0 +1,42 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/lifecycle/death-medical-respawn-evidence.unavailable",
+  "title": "Death and medical respawn evidence promotion gate",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-09-15.1",
+  "domain": "lifecycle",
+  "action": "local-player death, incapacitation, revival, medical respawn, and self-termination evidence investigation",
+  "outcome": "unavailable",
+  "provenance": "unavailable_evidence_annotation",
+  "evidenceBasis": "docs/issue-101-death-medical-respawn-evidence-matrix.md",
+  "privacyClassification": ["gameplay_sensitive", "local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["handle", "accountId", "playerId", "entityId", "sessionId", "sourcePath", "endpoint"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "No raw owner capture is committed. The repository contains only the promotion gate and a sanitized noise control fixture."
+  },
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {"eventType": "LocalPlayerEmergencyTransitionObserved", "reason": "The single owner-described emergency notification does not establish local-player-specific semantics or repeatable positive evidence."},
+    {"eventType": "LocalPlayerMedicalRespawnObserved", "reason": "MedBed and local telemetry initialization are not unique to medical respawn and lack controlled positive and negative captures."},
+    {"eventType": "LocalPlayerLifecycleResetObserved", "reason": "The promising reset sequence has no established correlation identity, boundary, or repeated build coverage."},
+    {"eventType": "LocalPlayerSelfTerminationInferred", "reason": "Backspace is owner annotation only and has no direct or uniquely discriminating log cause marker."},
+    {"eventType": "DeathObserved", "reason": "No direct local-player death marker is present in the reviewed repository evidence."},
+    {"eventType": "IncapacitationObserved", "reason": "No controlled incapacitation capture distinguishes incapacitation from emergency, revival, or respawn."},
+    {"eventType": "MedicalRevivalObserved", "reason": "No party-assisted revival capture is available."},
+    {"eventType": "MedicalRespawnObserved", "reason": "No repeated direct medical respawn evidence is available."}
+  ],
+  "correlation": {
+    "dedupeKey": "issue101+unavailable-death-medical-lifecycle",
+    "sequence": [],
+    "notes": "Promotion requires bounded environment, session, source-generation, local-identity, and time correlation plus positive and negative fixtures."
+  },
+  "knownLimitations": [
+    "Owner action annotations are not parser evidence.",
+    "Party-assisted revival requires another participant and remains externally blocked.",
+    "No candidate event is registered in runtime-event/v1 by this issue."
+  ],
+  "verificationNotes": "This manifest is an explicit gate: tests must ensure every candidate remains unpromoted until controlled captures and contract review establish meaning."
+}
