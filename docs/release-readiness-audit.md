@@ -24,7 +24,7 @@ Audit date: 2026-09-15. Scope: AstraDock Local MVP and the live GitHub repositor
 | Security/privacy | [`security-threat-model.md`](security-threat-model.md), tests, audit | Pass for current local boundary; not a signing/update approval |
 | Accessibility | Issue #46 | Blocked: qualification open |
 | Performance/reliability/soak | Issue #48, ADR-0004 | Blocked: qualification open |
-| Installers/artifacts/update/recovery | Issue #45, ADR-0002 | Blocked: qualification open |
+| Installers/artifacts/update/recovery | Issue #45, ADR-0002, release-candidate workflow | Partial: reproducible candidate packaging is implemented; lifecycle qualification remains open |
 | Windows signing/provenance | Issue #50, ADR-0002 | Blocked: signing not acquired |
 | Support diagnostics export | Issue #47 | Blocked: workflow open |
 | Build artifacts | Linux CI build; local build may require artifact network | Partial: Windows installer and complete release matrix pending |
