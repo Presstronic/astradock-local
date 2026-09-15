@@ -1,0 +1,29 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/lifecycle/death-medical-respawn-noise.non-event",
+  "title": "Death and medical respawn vocabulary noise guard",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.188-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "draft-2026-09-15.1",
+  "domain": "lifecycle",
+  "action": "replication cleanup, MedBed component initialization, and telemetry initialization without a lifecycle transition",
+  "outcome": "non-event",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/issue-101-death-medical-respawn-evidence-matrix.md#marker-classification",
+  "logFile": "death-medical-respawn-noise.non-event.log",
+  "privacyClassification": ["gameplay_sensitive", "local", "sanitized"],
+  "sensitivityHandling": {"redactedFields": [], "syntheticPlaceholderPrefix": "SYNTH_", "notes": "All values are synthetic and contain no identity, endpoint, path, or raw owner evidence."},
+  "expectedCanonicalEvents": [],
+  "expectedNonEvents": [
+    {"eventType": "LocalPlayerEmergencyTransitionObserved", "reason": "No emergency notification or local-player-specific transition marker is present."},
+    {"eventType": "LocalPlayerMedicalRespawnObserved", "reason": "MedBed and telemetry initialization are contextual noise without a proven respawn sequence."},
+    {"eventType": "LocalPlayerLifecycleResetObserved", "reason": "Replication cleanup and telemetry initialization do not establish a lifecycle reset."},
+    {"eventType": "LocalPlayerSelfTerminationInferred", "reason": "No cause marker or owner annotation is present."},
+    {"eventType": "DeathObserved", "reason": "CleanupDeadReplicationLayers is replication cleanup, not character-death evidence."},
+    {"eventType": "MedicalRespawnObserved", "reason": "EntityComponentMedBed initialization is not sufficient evidence of respawn."}
+  ],
+  "correlation": {"dedupeKey": "issue101+noise-vocabulary", "sequence": [], "notes": "Every line is intentionally insufficient for lifecycle promotion."},
+  "knownLimitations": ["Synthetic noise does not replace controlled gameplay negatives."],
+  "verificationNotes": "Replay must produce no issue 101 candidate events."
+}
