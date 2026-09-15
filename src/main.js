@@ -42,6 +42,7 @@ const {
   writeBlueprintCsv,
   writeBlueprintJson
 } = require('./exporter/blueprintExporter');
+const { createPublicBlueprintExportResult } = require('./exporter/blueprintExportContract');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -312,16 +313,16 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     });
     if (result.extraction.status !== 'approved') {
       publishProgress({ phase: 'no_matches', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: 0, duplicatesSuppressed: 0 });
-      return createExporterResult(result, { status: 'no_matches', outputFormat, testOnly });
+      return createPublicBlueprintExportResult(result, { status: 'no_matches', outputFormat, testOnly });
     }
     if (exporterCancelRequested) {
       publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-      return createExporterResult(result, { status: 'cancelled', outputFormat, testOnly, records: [] });
+      return createPublicBlueprintExportResult(result, { status: 'cancelled', outputFormat, testOnly, records: [] });
     }
     const status = result.errors.length ? 'partial' : result.records.length ? 'completed' : 'no_matches';
     if (testOnly) {
       publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-      return createExporterResult(result, { status, outputFormat, testOnly });
+      return createPublicBlueprintExportResult(result, { status, outputFormat, testOnly });
     }
     publishProgress({ phase: 'save_pending', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
     const extension = outputFormat === 'csv' ? 'csv' : 'json';
@@ -341,7 +342,7 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
       : writeBlueprintJson(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested }), 'The export file could not be written.');
     shell.showItemInFolder(outputPath);
     publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed, outputFileName: path.basename(outputPath) });
-    return createExporterResult(result, { status, outputPath, outputFileName: path.basename(outputPath), outputFormat, testOnly });
+    return createPublicBlueprintExportResult(result, { status, outputFileName: path.basename(outputPath), outputFormat, testOnly });
   } catch (error) {
     if (error?.code === 'export_cancelled') {
       publishProgress({ phase: 'cancelled', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
@@ -353,27 +354,6 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     exporterRunning = false;
   }
 });
-
-function createExporterResult(result, overrides = {}) {
-  return {
-    status: overrides.status || 'no_matches',
-    outputPath: overrides.outputPath || null,
-    outputFileName: overrides.outputFileName || null,
-    outputFormat: overrides.outputFormat || 'json',
-    testOnly: Boolean(overrides.testOnly),
-    records: overrides.records || result.records,
-    files: result.files,
-    filesScanned: result.filesScanned,
-    filesTotal: result.filesTotal,
-    linesRead: result.linesRead,
-    duplicatesSuppressed: result.duplicatesSuppressed,
-    skippedFiles: result.skippedFiles,
-    sourceFingerprint: result.sourceFingerprint,
-    diagnostics: result.diagnostics,
-    errors: result.errors,
-    extraction: result.extraction
-  };
-}
 
 async function retryExporterOperation(operation, message) {
   for (let attempt = 0; attempt < 2; attempt += 1) {

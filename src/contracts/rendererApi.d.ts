@@ -581,7 +581,8 @@ export interface BlueprintExportOptions {
 
 export interface BlueprintExportResult {
   status: 'completed' | 'no_matches' | 'cancelled' | 'partial';
-  outputPath: string | null;
+  /** Always null across the renderer boundary; the main process retains the private path. */
+  outputPath: null;
   outputFileName: string | null;
   outputFormat: 'json' | 'csv';
   testOnly: boolean;
