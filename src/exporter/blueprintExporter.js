@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
+const { validateBlueprintRecords } = require('./blueprintExportContract');
 
 const BACKUP_NAME_PATTERN = /^Game\s+Build\s*\(\s*(?<build>\d+)\s*\)\s+(?<date>\d{1,2}\s+[A-Za-z]{3}\s+\d{2})\s+\(\s*(?<time>\d{2}\s+\d{2}\s+\d{2})\s*\)(?:\.[^.]+)?\.log$/i;
 const DEFAULT_BLUEPRINT_LABELS = Object.freeze([
@@ -379,6 +380,7 @@ function addObservation(observations, observation) {
 }
 
 function serializeBlueprintCsv(records) {
+  validateBlueprintRecords(records);
   const escapeCell = (value) => {
     const text = value == null ? '' : String(value);
     return `"${text.replace(/"/g, '""')}"`;
@@ -420,10 +422,12 @@ async function writeAtomicText(filePath, text, options = {}) {
 }
 
 async function writeBlueprintJson(filePath, records, options = {}) {
+  validateBlueprintRecords(records);
   return writeAtomicText(filePath, `${JSON.stringify(records, null, 2)}\n`, options);
 }
 
 async function writeBlueprintCsv(filePath, records, options = {}) {
+  validateBlueprintRecords(records);
   return writeAtomicText(filePath, serializeBlueprintCsv(records), options);
 }
 
@@ -444,6 +448,7 @@ module.exports = {
   parseBlueprintNotification,
   scanBlueprintLogs,
   serializeBlueprintCsv,
+  validateBlueprintRecords,
   writeBlueprintCsv,
   writeBlueprintJson
 };

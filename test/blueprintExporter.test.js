@@ -14,9 +14,11 @@ const {
   parseBlueprintNotification,
   scanBlueprintLogs,
   serializeBlueprintCsv,
+  validateBlueprintRecords,
   writeBlueprintCsv,
   writeBlueprintJson
 } = require('../src/exporter/blueprintExporter');
+const { createPublicBlueprintExportResult } = require('../src/exporter/blueprintExportContract');
 
 const APPROVED_TEST_PROFILE = {
   status: 'approved',
@@ -75,6 +77,31 @@ test('serializes approved blueprint fields as deterministic escaped CSV', () => 
   ]), 'name,type,shared\r\n"Laser, ""Mk II""","Weapon","true"\r\n"Unknown","",""\r\n');
 });
 
+test('validates the provisional Station payload contract before serialization', () => {
+  assert.deepEqual(validateBlueprintRecords([
+    { name: 'Alpha', type: '', shared: null },
+    { name: 'Beta', type: 'Weapon Gun', shared: true }
+  ]), [
+    { name: 'Alpha', type: '', shared: null },
+    { name: 'Beta', type: 'Weapon Gun', shared: true }
+  ]);
+  assert.throws(() => validateBlueprintRecords([{ name: 'Alpha', type: '', shared: null, sourceFile: 'private.log' }]), /invalid record/i);
+  assert.throws(() => validateBlueprintRecords([{ name: 'Alpha', type: '', shared: null }, { name: 'alpha', type: '', shared: false }]), /invalid record/i);
+  assert.throws(() => validateBlueprintRecords([{ name: 'Beta', type: '', shared: null }, { name: 'Alpha', type: '', shared: null }]), /invalid record/i);
+  assert.throws(() => validateBlueprintRecords([{ name: 'Alpha', type: '', shared: 'unknown' }]), /invalid record/i);
+});
+
+test('projects exporter results without exposing private output paths', () => {
+  const result = createPublicBlueprintExportResult({
+    records: [], files: [], filesScanned: 0, filesTotal: 0, linesRead: 0,
+    duplicatesSuppressed: 0, skippedFiles: 0, sourceFingerprint: 'set_test',
+    diagnostics: [], errors: [], extraction: { status: 'approved' }
+  }, { status: 'completed', outputFileName: '/home/private/blueprints.json', outputFormat: 'json' });
+  assert.equal(result.outputPath, null);
+  assert.equal(result.outputFileName, 'blueprints.json');
+  assert.equal(JSON.stringify(result).includes('/home/private'), false);
+});
+
 test('writes CSV atomically with the same normalized records as JSON', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
   const destination = await writeBlueprintCsv(path.join(root, 'out', 'blueprints.csv'), [
@@ -114,6 +141,7 @@ test('uses the owner-captured LIVE 4.7 profile for blueprint extraction', async 
     { name: 'Quartz "Black Op" Energy SMG', type: '', shared: null }
   ]);
   assert.equal(result.observations.length, 2);
+  assert.equal(JSON.stringify(result).includes(path.dirname(fixture)), false);
 });
 
 test('selects blueprint profiles independently for mixed Star Citizen backup builds', async () => {
@@ -300,6 +328,26 @@ test('does not commit JSON when cancellation arrives before the atomic rename', 
       shouldCancel: () => true
     }),
     (error) => error.code === 'export_cancelled'
+  );
+  await assert.rejects(fs.access(destination));
+  await fs.rm(root, { recursive: true, force: true });
+});
+
+test('cleans the temporary file when the final output rename fails', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const destination = path.join(root, 'existing-directory');
+  await fs.mkdir(destination);
+  await assert.rejects(writeBlueprintJson(destination, [{ name: 'Alpha', type: '', shared: null }]));
+  assert.deepEqual((await fs.readdir(root)).filter((name) => name.includes('.tmp')), []);
+  await fs.rm(root, { recursive: true, force: true });
+});
+
+test('rejects unapproved fields before creating an export file', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
+  const destination = path.join(root, 'blueprints.json');
+  await assert.rejects(
+    writeBlueprintJson(destination, [{ name: 'Alpha', type: '', shared: null, sourceFile: 'private.log' }]),
+    (error) => error.code === 'invalid_blueprint_export'
   );
   await assert.rejects(fs.access(destination));
   await fs.rm(root, { recursive: true, force: true });
