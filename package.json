@@ -18,6 +18,7 @@
     "test:node": "node --test test/*.test.js",
     "test:renderer": "vitest run --passWithNoTests",
     "test": "npm run typecheck && npm run test:node && npm run test:renderer",
+    "security:check": "node scripts/securityReview.js",
     "benchmark:parser": "node scripts/benchmarkRuntimeLogParserEngine.js",
     "benchmark:tailer": "node scripts/benchmarkRuntimeLogTailer.js",
     "benchmark:store": "node scripts/benchmarkCanonicalEventStore.js",
@@ -53,6 +54,8 @@
   "build": {
     "appId": "local.astradock.shards",
     "productName": "AstraDock Local",
+    "asar": true,
+    "npmRebuild": true,
     "files": [
       "src/**/*",
       "dist/renderer/**/*",

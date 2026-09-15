@@ -36,6 +36,12 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run security surface review
+        run: npm run security:check
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Run tailer benchmark
         run: npm run benchmark:tailer
 
