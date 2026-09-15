@@ -8,7 +8,9 @@ Run it from the repository root:
 npm run dist:standalone:exporter:win
 ```
 
-The command type-checks the application, compiles the renderer with Vite's `exporter` mode, and packages only a Windows x64 standalone test artifact with publication disabled. Output is isolated under `dist/standalone-exporter/` and is named `AstraDock-Local-<version>-exporter-standalone-test-x64.exe`.
+The command type-checks the application, compiles the renderer with Vite's `exporter` mode, and packages only a Windows x64 standalone test artifact with publication disabled. Output is isolated under `dist/standalone-exporter/` and is named `AstraDock-Local-<version>-blueprint-exporter-x64.exe`.
+
+Tagged pre-alpha releases are built automatically for Windows x64 and Linux x64 AppImage by [`.github/workflows/blueprint-prealpha-release.yml`](../.github/workflows/blueprint-prealpha-release.yml). They are GitHub pre-releases, not supported production releases or automatic-update targets.
 
 The normal `npm run build`, `npm run dist`, and `npm run dist:standalone:win` commands use the normal renderer mode and retain Runtime Monitor, Exporter, and Settings as peer views. The focused renderer starts in Exporter and exposes only Exporter and Settings; unfinished workspaces and Runtime Monitor are not presented in that artifact. Settings remains available because it controls local retention, privacy, and source preferences used by Exporter.
 
