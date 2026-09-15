@@ -94,6 +94,10 @@ The project currently uses AstraDock-owned branding and does not bundle RSI/CIG 
 - [`docs/runtime-log-tailer.md`](docs/runtime-log-tailer.md) — incremental log monitoring behavior
 - [`docs/local-settings-and-privacy-controls.md`](docs/local-settings-and-privacy-controls.md) — local settings, retention, and reset behavior
 - [`docs/cig-community-guidance.md`](docs/cig-community-guidance.md) — current CIG/RSI disclosure and imagery policy used by the project
+- [`docs/user-guide.md`](docs/user-guide.md) — installation, source selection, monitoring, privacy, troubleshooting, and uninstall guidance
+- [`docs/mvp-requirement-traceability.md`](docs/mvp-requirement-traceability.md) — requirement-to-evidence audit and MVP non-goal review
+- [`docs/release-readiness-audit.md`](docs/release-readiness-audit.md) — current v0.1.0 go/no-go decision and open release gates
+- [`docs/release-notes-v0.1.0.md`](docs/release-notes-v0.1.0.md) — draft scope and limitations for v0.1.0
 
 ## License
 
