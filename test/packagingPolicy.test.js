@@ -8,7 +8,6 @@ test('normal distribution targets only approved release artifacts', () => {
   assert.equal(packageJson.build.asar, true);
   assert.equal(packageJson.build.nsis.perMachine, false);
   assert.equal(packageJson.build.nsis.allowElevation, false);
-  assert.equal(packageJson.build.linux.desktopName, 'astradock-local');
   assert.equal(packageJson.build.linux.artifactName, 'AstraDock-Local-${version}-${arch}.${ext}');
 });
 

@@ -70,7 +70,6 @@
         "AppImage"
       ],
       "category": "Utility",
-      "desktopName": "astradock-local",
       "artifactName": "AstraDock-Local-${version}-${arch}.${ext}"
     },
     "win": {

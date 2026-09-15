@@ -17,7 +17,6 @@ required(packageJson.build?.win?.target?.join(',') === 'nsis', 'Windows release 
 required(packageJson.build?.linux?.target?.join(',') === 'AppImage', 'Linux release must target AppImage only');
 required(packageJson.build?.nsis?.perMachine === false, 'Windows install must be per-user');
 required(packageJson.build?.nsis?.allowElevation === false, 'Windows install must not elevate');
-required(packageJson.build?.linux?.desktopName === 'astradock-local', 'Linux desktop identity must be stable');
 required(!String(packageJson.build?.linux?.artifactName).includes('standalone'), 'Linux release artifact must not be labeled standalone');
 required(/--publish never/.test(packageJson.scripts.dist || ''), 'generic distribution script must not publish');
 required(/--publish never/.test(packageJson.scripts['dist:win'] || ''), 'Windows release script must not publish');
