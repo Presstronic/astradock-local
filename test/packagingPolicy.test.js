@@ -32,6 +32,6 @@ test('Exporter-focused standalone build is isolated from normal packaging', () =
   assert.match(command, /electron-builder --win portable --x64/);
   assert.match(command, /--publish never/);
   assert.match(command, /dist\/standalone-exporter/);
-  assert.match(command, /exporter-standalone-test/);
+  assert.match(command, /blueprint-exporter/);
   assert.doesNotMatch(packageJson.scripts.dist, /exporter|standalone/);
 });
