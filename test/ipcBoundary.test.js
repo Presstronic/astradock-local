@@ -168,6 +168,13 @@ test('IPC errors are structured and do not echo paths or raw sensitive details',
   assert.deepEqual(result.error.details, { reason: 'bounded failure' });
 });
 
+test('diagnostics support operations accept no renderer-controlled destination or scope', () => {
+  assert.deepEqual(validatePayload(CHANNELS.diagnosticsPreview), {});
+  assert.deepEqual(validatePayload(CHANNELS.diagnosticsExport), {});
+  assert.deepEqual(validatePayload(CHANNELS.diagnosticsDelete), {});
+  assert.throws(() => validatePayload(CHANNELS.diagnosticsExport, { destination: '/tmp/support.json' }), /request payload/i);
+});
+
 test('settings updates allow only supported local renderer preferences', () => {
   assert.deepEqual(validatePayload(CHANNELS.settingsUpdate, {
     theme: 'dark',

@@ -11,7 +11,7 @@ import type {
   RendererScanResult,
   RuntimeMonitorClient
 } from './astradock-api';
-import type { SettingsSnapshot } from '../../contracts/rendererApi';
+import type { DiagnosticsPreview, SettingsSnapshot } from '../../contracts/rendererApi';
 import {
   createRuntimeMonitorViewModel,
   type Density,
@@ -521,6 +521,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       </nav>
 
       {activeView === 'settings' ? <SettingsPanel
+        client={client}
         snapshot={settingsSnapshot}
         preferences={preferences}
         onPreferenceChange={updatePreference}
@@ -1223,7 +1224,8 @@ function formatLifecycleChange(lifecycle: unknown): string {
   return `${type}${status}`;
 }
 
-function SettingsPanel({ snapshot, preferences, onPreferenceChange, onRetentionChange, onDelete, onReset }: {
+function SettingsPanel({ client, snapshot, preferences, onPreferenceChange, onRetentionChange, onDelete, onReset }: {
+  client: Pick<RuntimeMonitorClient, 'diagnostics'>;
   snapshot: SettingsSnapshot | null;
   preferences: LocalPreferences;
   onPreferenceChange: (patch: Partial<LocalPreferences>) => void;
@@ -1232,6 +1234,22 @@ function SettingsPanel({ snapshot, preferences, onPreferenceChange, onRetentionC
   onReset: () => Promise<void>;
 }) {
   const storage = snapshot?.storage;
+  const [preview, setPreview] = useState<DiagnosticsPreview | null>(null);
+  const [diagnosticsBusy, setDiagnosticsBusy] = useState(false);
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
+  async function previewDiagnostics() {
+    setDiagnosticsBusy(true);
+    setDiagnosticsError(null);
+    try { setPreview(await client.diagnostics.preview()); } catch (error) { setDiagnosticsError(error instanceof Error ? error.message : 'Diagnostics preview failed.'); } finally { setDiagnosticsBusy(false); }
+  }
+  async function exportDiagnostics() {
+    setDiagnosticsBusy(true);
+    setDiagnosticsError(null);
+    try {
+      const result = await client.diagnostics.export();
+      if (result.status === 'completed') setPreview(null);
+    } catch (error) { setDiagnosticsError(error instanceof Error ? error.message : 'Diagnostics export failed.'); } finally { setDiagnosticsBusy(false); }
+  }
   return <section className="settings-panel" aria-label="Local settings and privacy">
     <h2>Local settings &amp; privacy</h2>
     <p>These controls affect this device only. Preferences and raw evidence are not synchronized.</p>
@@ -1246,6 +1264,22 @@ function SettingsPanel({ snapshot, preferences, onPreferenceChange, onRetentionC
       <div><dt>Oldest event</dt><dd>{storage?.oldestEventAt ? new Date(storage.oldestEventAt).toLocaleString() : 'None'}</dd></div>
       <div><dt>Newest event</dt><dd>{storage?.newestEventAt ? new Date(storage.newestEventAt).toLocaleString() : 'None'}</dd></div>
     </dl>
+    <section aria-labelledby="diagnostics-heading">
+      <h3 id="diagnostics-heading">Support diagnostics</h3>
+      <p>Creates a local, previewable sanitized bundle. Raw game logs and automatic upload are excluded.</p>
+      <div className="settings-actions">
+        <button type="button" onClick={() => void previewDiagnostics()} disabled={diagnosticsBusy}>Preview sanitized export</button>
+        {preview ? <button type="button" onClick={() => void exportDiagnostics()} disabled={diagnosticsBusy}>Choose destination &amp; export</button> : null}
+        <button type="button" onClick={() => { if (window.confirm('Delete local application diagnostics? This cannot be undone.')) void client.diagnostics.deleteLocal().then(() => setPreview(null)).catch((error) => setDiagnosticsError(error instanceof Error ? error.message : 'Diagnostics deletion failed.')); }} disabled={diagnosticsBusy}>Delete diagnostics</button>
+      </div>
+      {diagnosticsError ? <p role="alert">{diagnosticsError}</p> : null}
+      {preview ? <div className="diagnostics-preview" aria-live="polite">
+        <strong>Export preview</strong>
+        <p>{preview.scope}</p>
+        <ul>{preview.files.map((file) => <li key={file.name}>{file.name}: {formatBytes(file.bytes)} ({file.category})</li>)}</ul>
+        <p>Estimated size: {formatBytes(preview.estimatedBytes)} · Redactions: {preview.redaction.total} · Automatic upload: No</p>
+      </div> : null}
+    </section>
     <div className="settings-actions" aria-label="Destructive local data actions">
       <button type="button" onClick={() => void onDelete('sensitive_evidence')}>Delete sensitive evidence</button>
       <button type="button" onClick={() => void onDelete('environment')}>Delete current environment</button>
