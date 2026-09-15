@@ -96,6 +96,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [partyAnnouncement, setPartyAnnouncement] = useState('');
   const [destinationAnnouncement, setDestinationAnnouncement] = useState('');
   const [monitorAnnouncement, setMonitorAnnouncement] = useState('');
+  const [streamAnnouncement, setStreamAnnouncement] = useState('');
+  const lastStreamAnnouncement = useRef('');
   const [detail, setDetail] = useState<DetailState>({
     status: 'empty',
     selected: null,
@@ -244,6 +246,16 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       setDestinationAnnouncement(`Destination update: ${latest.label}, ${latest.destinationLabel}.`);
     }
   }, [viewModel.mission.transition]);
+
+  useEffect(() => {
+    const message = `${formatStreamMode(eventStream.mode)} stream: ${eventStream.totalCount} matching events${eventStream.unseenCount ? `, ${eventStream.unseenCount} unseen` : ''}.`;
+    if (message === lastStreamAnnouncement.current) return undefined;
+    const timer = window.setTimeout(() => {
+      lastStreamAnnouncement.current = message;
+      setStreamAnnouncement(message);
+    }, 750);
+    return () => window.clearTimeout(timer);
+  }, [eventStream.mode, eventStream.totalCount, eventStream.unseenCount]);
 
   const visibleEvents = useMemo(() => getStreamWindow(eventStream), [eventStream]);
   const filterValues = useMemo(() => {
@@ -645,7 +657,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             }}
           />
 
-          <div className="stream-mode" aria-live="polite">
+          <div className="stream-mode">
             <span><i data-state={viewModel.workspaceState} />{formatStreamMode(eventStream.mode)}</span>
             <span>{visibleEvents.length} shown · {eventStream.totalCount} matching{eventStream.unseenCount ? ` · ${eventStream.unseenCount} unseen` : ''}</span>
             {eventStream.mode === 'browsing' ? <button type="button" className="button secondary" onClick={() => setEventStream(returnToLive)}>Return to live</button> : null}
@@ -657,8 +669,9 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
                 if (anchor) setEventStream((current) => browseFrom(current, anchor.id));
               }}>Browse older</button>
             ) : null}
-            <span id="stream-filter-status" role="status">{eventStream.totalCount} matching events in the active environment</span>
+            <span id="stream-filter-status">{eventStream.totalCount} matching events in the active environment</span>
           </div>
+          <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{streamAnnouncement}</p>
 
           {preferences.streamView === 'terminal' ? (
             <TerminalStream
@@ -952,13 +965,13 @@ function DetailDock({
   onClose: () => void;
 }) {
   return (
-    <aside className="detail-dock" data-placement={placement} aria-label="Shared drilldown detail">
+    <aside className="detail-dock" data-placement={placement} aria-labelledby="detail-dock-heading">
       <div className="dock-heading">
         <div>
           <p className="dock-kicker">Event detail</p>
-          <h2 ref={headingRef} tabIndex={-1}>{detail.selected?.summary || 'Detail host'}</h2>
+          <h2 id="detail-dock-heading" ref={headingRef} tabIndex={-1}>{detail.selected?.summary || 'Detail host'}</h2>
         </div>
-        <button type="button" className="icon-button" title="Close detail" onClick={onClose}>
+        <button type="button" className="icon-button" aria-label="Close detail" title="Close detail" onClick={onClose}>
           ESC
         </button>
       </div>
