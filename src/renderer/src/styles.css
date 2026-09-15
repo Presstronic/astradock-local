@@ -506,6 +506,8 @@ h2,
 .exporter-row-number-heading,
 .exporter-row-number { width: 1%; color: var(--text-label) !important; font-family: var(--font-mono); text-align: right !important; }
 .exporter-metadata-note { margin: 12px 0 0; color: var(--text-label); font-size: 11px; line-height: 1.5; }
+.community-disclosure { max-width: 72ch; margin: 10px 0 0; color: var(--text-label); font-size: 11px; line-height: 1.5; }
+.community-disclosure span { white-space: nowrap; }
 
 @media (max-width: 900px) {
   .exporter-grid { grid-template-columns: 1fr; }

@@ -1222,6 +1222,7 @@ function SettingsPanel({ snapshot, preferences, onPreferenceChange, onRetentionC
   return <section className="settings-panel" aria-label="Local settings and privacy">
     <h2>Local settings &amp; privacy</h2>
     <p>These controls affect this device only. Preferences and raw evidence are not synchronized.</p>
+    <p className="community-disclosure" role="note">AstraDock Local is an unofficial, community-made Star Citizen tool and is not affiliated with, endorsed by, sponsored by, or licensed by Cloud Imperium Games or Roberts Space Industries. Official site: robertsspaceindustries.com</p>
     <label>Stream view <select value={preferences.streamView} onChange={(event) => onPreferenceChange({ streamView: event.target.value as LocalPreferences['streamView'] })}>
       <option value="terminal">Terminal</option><option value="table">Table</option>
     </select></label>

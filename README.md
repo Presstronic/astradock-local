@@ -82,7 +82,9 @@ Other test artifacts and focused-build details are documented in [`docs/windows-
 
 Keep real logs, credentials, account identifiers, IP addresses, local paths, and extracted game data out of issues, pull requests, fixtures, and releases. Raw logs remain local by default. Review generated files before sharing them; even sanitized-looking game logs may contain identifying or sensitive information.
 
-The application is not affiliated with or endorsed by Cloud Imperium Games. Star Citizen, Roberts Space Industries, and related marks belong to their respective owners.
+> **Community disclosure:** AstraDock Local is an unofficial, community-made Star Citizen tool. It is not affiliated with, endorsed by, sponsored by, or licensed by Cloud Imperium Games or Roberts Space Industries. Star Citizen and all related marks, logos, characters, and content belong to their respective owners. Official site: <https://robertsspaceindustries.com/>.
+
+The project currently uses AstraDock-owned branding and does not bundle RSI/CIG imagery. Any future use of Fan Kit assets will be considered only after reviewing and accepting the current Fan Kit Agreement and confirming that its terms cover this public software distribution.
 
 ## Documentation
 
@@ -91,6 +93,7 @@ The application is not affiliated with or endorsed by Cloud Imperium Games. Star
 - [`docs/hardened-electron-boundary.md`](docs/hardened-electron-boundary.md) — renderer and IPC security boundary
 - [`docs/runtime-log-tailer.md`](docs/runtime-log-tailer.md) — incremental log monitoring behavior
 - [`docs/local-settings-and-privacy-controls.md`](docs/local-settings-and-privacy-controls.md) — local settings, retention, and reset behavior
+- [`docs/cig-community-guidance.md`](docs/cig-community-guidance.md) — current CIG/RSI disclosure and imagery policy used by the project
 
 ## License
 
