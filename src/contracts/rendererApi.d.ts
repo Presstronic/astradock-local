@@ -446,6 +446,25 @@ export interface MonitorSnapshot {
   };
 }
 
+export interface BuildCompatibilityCapability {
+  status: 'supported' | 'not_evaluated';
+  profileId: string | null;
+  detail: string;
+}
+
+export interface BuildCompatibilityEntry {
+  build: string;
+  family: string;
+  observedFileCount: number;
+  source: string;
+  capabilities: { blueprint: BuildCompatibilityCapability };
+}
+
+export interface BuildCompatibilityCatalog {
+  version: number;
+  builds: readonly BuildCompatibilityEntry[];
+}
+
 export interface MonitorStartResult {
   monitor: MonitorState;
   scan: RendererScanResult;
@@ -640,6 +659,9 @@ export interface AstraDockApi {
   readonly exporter: {
     run(options: BlueprintExportOptions): Promise<BlueprintExportResult>;
     cancel(): Promise<{ cancelled: boolean }>;
+  };
+  readonly compatibility: {
+    getCatalog(): Promise<BuildCompatibilityCatalog>;
   };
   readonly events: {
     query(query?: EventQuery): Promise<EventPage>;

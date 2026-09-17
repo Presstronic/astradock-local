@@ -44,6 +44,7 @@ const {
   writeBlueprintJson
 } = require('./exporter/blueprintExporter');
 const { createPublicBlueprintExportResult } = require('./exporter/blueprintExportContract');
+const { getBuildCompatibilityCatalog } = require('./buildCompatibilityCatalog');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -293,6 +294,8 @@ register(CHANNELS.exporterCancel, async () => {
   exporterCancelRequested = true;
   return { cancelled: true };
 });
+
+register(CHANNELS.compatibilityCatalog, async () => getBuildCompatibilityCatalog());
 
 register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outputFormat, testOnly }) => {
   if (exportType !== 'blueprint_data') {

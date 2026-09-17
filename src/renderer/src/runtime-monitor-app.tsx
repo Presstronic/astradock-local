@@ -42,6 +42,8 @@ import { formatTerminalEvent } from './terminal-event-format';
 import { formatTableEvent } from './table-event-format';
 import { ExporterPanel } from './exporter-panel';
 import { workspaceMode } from './workspace-mode';
+import { CompatibilityPanel } from './compatibility-panel';
+import type { BuildCompatibilityCatalog } from '../../contracts/rendererApi';
 
 interface RuntimeMonitorAppProps {
   client: RuntimeMonitorClient;
@@ -66,7 +68,7 @@ const DEFAULT_PREFERENCES: LocalPreferences = {
 
 const preferenceKey = 'astradock.runtimeMonitor.preferences.v1';
 const systemClock = () => new Date();
-type AppView = 'runtime' | 'exporter' | 'settings';
+type AppView = 'runtime' | 'exporter' | 'compatibility' | 'settings';
 
 export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonitorAppProps) {
   const [loading, setLoading] = useState(true);
@@ -78,6 +80,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [scan, setScan] = useState<RendererScanResult | null>(null);
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
   const [settingsSnapshot, setSettingsSnapshot] = useState<SettingsSnapshot | null>(null);
+  const [compatibilityCatalog, setCompatibilityCatalog] = useState<BuildCompatibilityCatalog | null>(null);
   const [activeView, setActiveView] = useState<AppView>(workspaceMode === 'exporter' ? 'exporter' : 'runtime');
   const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
   const [now, setNow] = useState<Date>(() => clock());
@@ -117,10 +120,11 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     async function boot() {
       setLoading(true);
       try {
-        const [discovery, nextSnapshot, nextSettings] = await Promise.all([
+        const [discovery, nextSnapshot, nextSettings, catalog] = await Promise.all([
           client.source.discover(),
           client.monitor.getSnapshot(),
-          client.settings.get()
+          client.settings.get(),
+          client.compatibility.getCatalog()
         ]);
         if (!active) return;
         setSources([...discovery.sources]);
@@ -128,6 +132,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         setSnapshot(nextSnapshot);
         setScan(nextSnapshot.scan);
         setSettingsSnapshot(nextSettings);
+        setCompatibilityCatalog(catalog);
         setPreferences((current) => ({
           ...current,
           streamView: nextSettings.settings.streamView,
@@ -514,13 +519,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         {workspaceMode === 'normal' ? <>
           <button type="button" aria-current={activeView === 'runtime' ? 'page' : undefined} onClick={() => { setActiveView('runtime'); setSourceDetailsOpen(false); }}>Runtime Monitor</button>
           <button type="button" aria-current={activeView === 'exporter' ? 'page' : undefined} onClick={() => { setActiveView('exporter'); setSourceDetailsOpen(false); }}>Exporter</button>
+          <button type="button" aria-current={activeView === 'compatibility' ? 'page' : undefined} onClick={() => { setActiveView('compatibility'); setSourceDetailsOpen(false); }}>Compatibility</button>
           <button type="button" disabled title="Post-MVP workspace">Data Operations <span>Post-MVP</span></button>
           <button type="button" disabled title="Post-MVP workspace">History &amp; Analytics <span>Post-MVP</span></button>
         </> : <button type="button" aria-current={activeView === 'exporter' ? 'page' : undefined} onClick={() => setActiveView('exporter')}>Exporter</button>}
         <button type="button" aria-current={activeView === 'settings' ? 'page' : undefined} onClick={() => { setActiveView('settings'); setSourceDetailsOpen(false); }}>Settings</button>
       </nav>
 
-      {activeView === 'settings' ? <SettingsPanel
+      {activeView === 'compatibility' ? <CompatibilityPanel catalog={compatibilityCatalog} /> : activeView === 'settings' ? <SettingsPanel
         client={client}
         snapshot={settingsSnapshot}
         preferences={preferences}
@@ -542,7 +548,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           setActiveSource(result.source);
           setScan(await client.monitor.scan({ sourceId, options: {} }));
         } catch (error) { setActionError(error instanceof Error ? error.message : 'Environment selection failed.'); }
-      }} /> : activeView === 'settings' ? null : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
+      }} /> : ['settings', 'compatibility'].includes(activeView) ? null : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
         <aside id="current-state" className="current-state" aria-label="Current runtime state">
           <section className="instrument-list" aria-label="Current-state instruments">
             <h2><span>Instruments</span><small>{viewModel.freshnessLabel}</small></h2>
@@ -1250,22 +1256,17 @@ function SettingsPanel({ client, snapshot, preferences, onPreferenceChange, onRe
       if (result.status === 'completed') setPreview(null);
     } catch (error) { setDiagnosticsError(error instanceof Error ? error.message : 'Diagnostics export failed.'); } finally { setDiagnosticsBusy(false); }
   }
-  return <section className="settings-panel" aria-label="Local settings and privacy">
-    <h2>Local settings &amp; privacy</h2>
-    <p>These controls affect this device only. Preferences and raw evidence are not synchronized.</p>
-    <p className="community-disclosure" role="note">AstraDock Local is an unofficial, community-made Star Citizen tool and is not affiliated with, endorsed by, sponsored by, or licensed by Cloud Imperium Games or Roberts Space Industries. Official site: robertsspaceindustries.com</p>
-    <label>Stream view <select value={preferences.streamView} onChange={(event) => onPreferenceChange({ streamView: event.target.value as LocalPreferences['streamView'] })}>
-      <option value="terminal">Terminal</option><option value="table">Table</option>
-    </select></label>
-    <label>Retain telemetry (days) <input type="number" min="1" max="365" value={snapshot?.settings.retentionDays ?? 30} onChange={(event) => void onRetentionChange(Number(event.target.value))} /></label>
-    <dl>
+  return <main className="settings-page" aria-label="Local settings and privacy">
+    <header className="page-heading settings-heading"><div><p className="eyebrow">DEVICE CONFIGURATION</p><h1>Settings</h1><p>These controls affect this device only. Preferences and raw evidence are not synchronized.</p></div><span className="settings-local-badge">LOCAL ONLY</span></header>
+    <div className="settings-grid">
+      <section className="settings-card" aria-labelledby="display-heading"><div className="panel-heading"><div><p className="eyebrow">PREFERENCES</p><h2 id="display-heading">Display</h2></div></div><div className="settings-fields"><label><span>Default stream view</span><small>Choose the presentation used when Runtime Monitor opens.</small><select value={preferences.streamView} onChange={(event) => onPreferenceChange({ streamView: event.target.value as LocalPreferences['streamView'] })}><option value="terminal">Terminal</option><option value="table">Table</option></select></label><label><span>Retain telemetry (days)</span><small>Older local events are removed automatically.</small><input type="number" min="1" max="365" value={snapshot?.settings.retentionDays ?? 30} onChange={(event) => void onRetentionChange(Number(event.target.value))} /></label></div></section>
+      <section className="settings-card" aria-labelledby="storage-heading"><div className="panel-heading"><div><p className="eyebrow">LOCAL STORE</p><h2 id="storage-heading">Storage</h2></div><span className={`settings-state settings-state-${storage?.status || 'initializing'}`}>{storage?.status || 'initializing'}</span></div><dl className="settings-facts">
       <div><dt>Stored events</dt><dd>{storage?.eventCount ?? 'Calculating'}</dd></div>
       <div><dt>Storage</dt><dd>{storage?.databaseSizeBytes == null ? 'Calculating' : formatBytes(storage.databaseSizeBytes)}</dd></div>
       <div><dt>Oldest event</dt><dd>{storage?.oldestEventAt ? new Date(storage.oldestEventAt).toLocaleString() : 'None'}</dd></div>
       <div><dt>Newest event</dt><dd>{storage?.newestEventAt ? new Date(storage.newestEventAt).toLocaleString() : 'None'}</dd></div>
-    </dl>
-    <section aria-labelledby="diagnostics-heading">
-      <h3 id="diagnostics-heading">Support diagnostics</h3>
+      </dl></section>
+      <details className="settings-card settings-wide" open><summary><span><p className="eyebrow">SUPPORT</p><h2 id="diagnostics-heading">Support diagnostics</h2></span><small>Sanitized local bundle</small></summary>
       <p>Creates a local, previewable sanitized bundle. Raw game logs and automatic upload are excluded.</p>
       <div className="settings-actions">
         <button type="button" onClick={() => void previewDiagnostics()} disabled={diagnosticsBusy}>Preview sanitized export</button>
@@ -1279,14 +1280,11 @@ function SettingsPanel({ client, snapshot, preferences, onPreferenceChange, onRe
         <ul>{preview.files.map((file) => <li key={file.name}>{file.name}: {formatBytes(file.bytes)} ({file.category})</li>)}</ul>
         <p>Estimated size: {formatBytes(preview.estimatedBytes)} · Redactions: {preview.redaction.total} · Automatic upload: No</p>
       </div> : null}
-    </section>
-    <div className="settings-actions" aria-label="Destructive local data actions">
-      <button type="button" onClick={() => void onDelete('sensitive_evidence')}>Delete sensitive evidence</button>
-      <button type="button" onClick={() => void onDelete('environment')}>Delete current environment</button>
-      <button type="button" onClick={() => void onDelete('all_telemetry')}>Delete all telemetry</button>
-      <button type="button" onClick={() => void onReset()}>Reset app data</button>
+      </details>
+      <details className="settings-card settings-wide settings-danger"><summary><span><p className="eyebrow">IRREVERSIBLE ACTIONS</p><h2>Data management</h2></span><small>Review before deleting</small></summary><p>These actions affect local telemetry only. Deleted data cannot be recovered.</p><div className="settings-actions" aria-label="Destructive local data actions"><button type="button" onClick={() => void onDelete('sensitive_evidence')}>Delete sensitive evidence</button><button type="button" onClick={() => void onDelete('environment')}>Delete current environment</button><button type="button" onClick={() => void onDelete('all_telemetry')}>Delete all telemetry</button><button type="button" onClick={() => void onReset()}>Reset app data</button></div></details>
+      <p className="community-disclosure settings-wide" role="note">AstraDock Local is an unofficial, community-made Star Citizen tool and is not affiliated with, endorsed by, sponsored by, or licensed by Cloud Imperium Games or Roberts Space Industries. Official site: robertsspaceindustries.com</p>
     </div>
-  </section>;
+  </main>;
 }
 
 function formatBytes(bytes: number): string {
