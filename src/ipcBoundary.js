@@ -176,7 +176,7 @@ function validatePayload(channel, payload) {
         sourceId: optionalSourceId(payload.sourceId),
         exportType: payload.exportType === 'blueprint_data' ? 'blueprint_data' : invalidPayload('Unsupported export type.'),
         environment: ['LIVE', 'PTU', 'EPTU', 'HOTFIX', 'TECH-PREVIEW'].includes(payload.environment) ? payload.environment : invalidPayload('Unsupported export environment.'),
-        outputFormat: ['json', 'csv'].includes(payload.outputFormat) ? payload.outputFormat : invalidPayload('Unsupported export format.'),
+        outputFormat: ['json', 'csv', 'xml'].includes(payload.outputFormat) ? payload.outputFormat : invalidPayload('Unsupported export format.'),
         testOnly: payload.testOnly === true
       };
     case CHANNELS.eventsQuery:

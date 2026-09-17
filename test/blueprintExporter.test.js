@@ -14,6 +14,7 @@ const {
   parseBlueprintNotification,
   scanBlueprintLogs,
   serializeBlueprintCsv,
+  serializeBlueprintXml,
   validateBlueprintRecords,
   writeBlueprintCsv,
   writeBlueprintJson
@@ -75,6 +76,16 @@ test('serializes approved blueprint fields as deterministic escaped CSV', () => 
     { name: 'Laser, "Mk II"', type: 'Weapon', shared: true },
     { name: 'Unknown', type: '', shared: null }
   ]), 'name,type,shared\r\n"Laser, ""Mk II""","Weapon","true"\r\n"Unknown","",""\r\n');
+});
+
+test('serializes XML with required fields and explicit nil for unknown shared values', () => {
+  const xml = serializeBlueprintXml([
+    { name: 'Beta', type: 'Weapon', shared: false },
+    { name: 'Laser & <Mk II>', type: '', shared: null }
+  ]);
+  assert.match(xml, /<name>Beta<\/name>\n\s*<type>Weapon<\/type>\n\s*<shared>false<\/shared>/);
+  assert.match(xml, /<name>Laser &amp; &lt;Mk II&gt;<\/name>\n\s*<type><\/type>\n\s*<shared xsi:nil="true" \/>/);
+  assert.match(xml, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
 });
 
 test('validates the provisional Station payload contract before serialization', () => {

@@ -607,7 +607,7 @@ export interface BlueprintExportOptions {
   sourceId?: string | null;
   exportType: 'blueprint_data';
   environment: 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'TECH-PREVIEW';
-  outputFormat: 'json' | 'csv';
+  outputFormat: 'json' | 'csv' | 'xml';
   testOnly?: boolean;
 }
 
@@ -616,7 +616,7 @@ export interface BlueprintExportResult {
   /** Always null across the renderer boundary; the main process retains the private path. */
   outputPath: null;
   outputFileName: string | null;
-  outputFormat: 'json' | 'csv';
+  outputFormat: 'json' | 'csv' | 'xml';
   testOnly: boolean;
   records: readonly { name: string; type: string; shared: boolean | null }[];
   files: readonly { file: string; kind: string; build: string | null; status: string; fingerprint: string | null }[];
