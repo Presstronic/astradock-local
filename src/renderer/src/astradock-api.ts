@@ -13,13 +13,14 @@ import type {
   RendererSettings,
   BlueprintExportOptions,
   BlueprintExportResult,
+  BuildCompatibilityCatalog,
   SettingsSnapshot,
   SourceDiscoveryResult,
   SourceSelectionResult,
   Unsubscribe
 } from '../../contracts/rendererApi';
 
-export type RuntimeMonitorClient = Pick<AstraDockApi, 'version' | 'source' | 'monitor' | 'exporter' | 'events' | 'settings' | 'diagnostics'>;
+export type RuntimeMonitorClient = Pick<AstraDockApi, 'version' | 'source' | 'monitor' | 'exporter' | 'compatibility' | 'events' | 'settings' | 'diagnostics'>;
 
 export const FALLBACK_SETTINGS: RendererSettings = {
   version: 2,
@@ -71,6 +72,9 @@ function createUnavailableClient(): RuntimeMonitorClient {
     exporter: {
       run: unavailable as (options: BlueprintExportOptions) => Promise<BlueprintExportResult>,
       cancel: unavailable as () => Promise<{ cancelled: boolean }>
+    },
+    compatibility: {
+      getCatalog: unavailable as () => Promise<BuildCompatibilityCatalog>
     },
     events: {
       query: unavailable as AstraDockApi['events']['query'],

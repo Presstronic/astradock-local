@@ -20,6 +20,7 @@ const CHANNELS = Object.freeze({
   monitorStop: 'astradock:v1:monitor:stop',
   exporterRun: 'astradock:v1:exporter:run',
   exporterCancel: 'astradock:v1:exporter:cancel',
+  compatibilityCatalog: 'astradock:v1:compatibility:catalog',
   eventsQuery: 'astradock:v1:events:query',
   evidenceGet: 'astradock:v1:evidence:get',
   settingsGet: 'astradock:v1:settings:get',
@@ -132,6 +133,7 @@ function validatePayload(channel, payload) {
     case CHANNELS.sourceChooseDirectory:
     case CHANNELS.monitorSnapshot:
     case CHANNELS.monitorStop:
+    case CHANNELS.compatibilityCatalog:
     case CHANNELS.exporterCancel:
     case CHANNELS.settingsGet:
     case CHANNELS.diagnosticsHealth:

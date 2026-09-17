@@ -34,10 +34,10 @@ function makeBuildScopedBlueprintProfile(profileId, version, builds) {
 
 const APPROVED_BLUEPRINT_PROFILES = Object.freeze([
   APPROVED_BLUEPRINT_PROFILE,
-  makeBuildScopedBlueprintProfile('sc-4.7-blueprint-v1', 1, ['11545720', '11576750', '11617053', '11638371', '11674325', '11715810']),
-  makeBuildScopedBlueprintProfile('sc-4.8-blueprint-v1', 1, ['11825000', '11952564', '12030094', '12061511', '12122953']),
+  makeBuildScopedBlueprintProfile('sc-4.7-blueprint-v1', 1, ['11545720', '11576750', '11592622', '11617053', '11638371', '11674325', '11715810']),
+  makeBuildScopedBlueprintProfile('sc-4.8-blueprint-v1', 1, ['11825000', '11854421', '11875683', '11952564', '12030094', '12061511', '12122953']),
   makeBuildScopedBlueprintProfile('sc-4.9-blueprint-v1', 1, ['12232306', '12248363', '12269732', '12286454', '12302499', '12326004', '12344265']),
-  makeBuildScopedBlueprintProfile('sc-4.10-blueprint-v1', 1, ['12519617', '12545750', '12572603', '12625701']),
+  makeBuildScopedBlueprintProfile('sc-4.10-blueprint-v1', 1, ['12519617', '12535871', '12545750', '12572603', '12625701']),
   makeBuildScopedBlueprintProfile('sc-4.5-blueprint-v1', 1, ['10840216', '10879294', '10957089', '10967244', '10989003', '11010425']),
   makeBuildScopedBlueprintProfile('sc-4.6-blueprint-v1', 1, ['11135423', '11218823', '11303722', '11319298', '11377160']),
   makeBuildScopedBlueprintProfile('sc-4.4-blueprint-v1', 1, ['10694190', '10717260'])
