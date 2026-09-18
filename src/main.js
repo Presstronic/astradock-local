@@ -41,7 +41,8 @@ const {
   scanBlueprintLogs,
   getDefaultBlueprintExtractionProfiles,
   writeBlueprintCsv,
-  writeBlueprintJson
+  writeBlueprintJson,
+  writeBlueprintXml
 } = require('./exporter/blueprintExporter');
 const { createPublicBlueprintExportResult } = require('./exporter/blueprintExportContract');
 const { getBuildCompatibilityCatalog } = require('./buildCompatibilityCatalog');
@@ -336,7 +337,7 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
       return createPublicBlueprintExportResult(result, { status, outputFormat, testOnly });
     }
     publishProgress({ phase: 'save_pending', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-    const extension = outputFormat === 'csv' ? 'csv' : 'json';
+    const extension = outputFormat === 'csv' ? 'csv' : outputFormat === 'xml' ? 'xml' : 'json';
     const saveResult = await retryExporterOperation(() => dialog.showSaveDialog(mainWindow, {
       title: 'Export Blueprint Data',
       defaultPath: path.join(app.getPath('documents'), `astradock-blueprints.${extension}`),
@@ -350,7 +351,9 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     publishProgress({ phase: 'writing', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
     const outputPath = await retryExporterOperation(() => outputFormat === 'csv'
       ? writeBlueprintCsv(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested })
-      : writeBlueprintJson(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested }), 'The export file could not be written.');
+      : outputFormat === 'xml'
+        ? writeBlueprintXml(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested })
+        : writeBlueprintJson(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested }), 'The export file could not be written.');
     shell.showItemInFolder(outputPath);
     publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed, outputFileName: path.basename(outputPath) });
     return createPublicBlueprintExportResult(result, { status, outputFileName: path.basename(outputPath), outputFormat, testOnly });

@@ -396,6 +396,27 @@ function serializeBlueprintCsv(records) {
   return `${rows.join('\r\n')}\r\n`;
 }
 
+function escapeXml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function serializeBlueprintXml(records) {
+  validateBlueprintRecords(records);
+  const rows = (records || []).map((record) => [
+    '  <blueprint>',
+    `    <name>${escapeXml(record.name)}</name>`,
+    `    <type>${escapeXml(record.type)}</type>`,
+    record.shared === null ? '    <shared xsi:nil="true" />' : `    <shared>${record.shared ? 'true' : 'false'}</shared>`,
+    '  </blueprint>'
+  ].join('\n'));
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<blueprints xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n${rows.length ? `${rows}\n` : ''}</blueprints>\n`;
+}
+
 async function writeAtomicText(filePath, text, options = {}) {
   const destination = path.resolve(filePath);
   await fsp.mkdir(path.dirname(destination), { recursive: true });
@@ -431,6 +452,10 @@ async function writeBlueprintCsv(filePath, records, options = {}) {
   return writeAtomicText(filePath, serializeBlueprintCsv(records), options);
 }
 
+async function writeBlueprintXml(filePath, records, options = {}) {
+  return writeAtomicText(filePath, serializeBlueprintXml(records), options);
+}
+
 module.exports = {
   BACKUP_NAME_PATTERN,
   DEFAULT_BLUEPRINT_LABELS,
@@ -448,7 +473,9 @@ module.exports = {
   parseBlueprintNotification,
   scanBlueprintLogs,
   serializeBlueprintCsv,
+  serializeBlueprintXml,
   validateBlueprintRecords,
   writeBlueprintCsv,
+  writeBlueprintXml,
   writeBlueprintJson
 };

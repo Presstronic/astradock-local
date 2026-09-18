@@ -10,7 +10,7 @@ AstraDock Local is an open-source Electron companion for Star Citizen. The proje
 
 ## Primary use: build the blueprint exporter locally
 
-The main reason to clone this repository today is to build the focused, Exporter-only test application and generate a local blueprint file from supported Star Citizen logs. This workflow scans the selected environment's `Game.log` and matching `logbackups` files, deduplicates observed blueprint names, and writes a JSON or CSV file for manual use with AstraDock Station.
+The main reason to clone this repository today is to build the focused, Exporter-only test application and generate a local blueprint file from supported Star Citizen logs. This workflow scans the selected environment's `Game.log` and matching `logbackups` files, deduplicates observed blueprint names, and writes a JSON, CSV, or XML file for manual use with AstraDock Station.
 
 The exporter is local-only. It does not upload logs or automatically synchronize with Station.
 
@@ -27,7 +27,7 @@ npm ci
 npm run dist:standalone:exporter:win
 ```
 
-The artifact is written to `dist/standalone-exporter/` as a non-release, portable Windows executable. Start it, choose the Star Citizen installation directory, select the detected environment, run **Test export** if you want a preview, then run the JSON or CSV export and choose a destination file.
+The artifact is written to `dist/standalone-exporter/` as a non-release, portable Windows executable. Start it, choose the Star Citizen installation directory, select the detected environment, run **Test export** if you want a preview, then run the JSON, CSV, or XML export and choose a destination file.
 
 The current blueprint profile is intentionally narrow. It recognizes only owner-reviewed English `Received Blueprint` evidence for approved builds. The log evidence currently supplies the blueprint name, but not authoritative `type` or `shared` values; those fields remain empty in exported files rather than being guessed. See [`docs/exporter-focused-build.md`](docs/exporter-focused-build.md) and [`docs/blueprint-exporter-evidence-matrix.md`](docs/blueprint-exporter-evidence-matrix.md).
 
@@ -39,7 +39,7 @@ Currently implemented or explored:
 
 - Local Star Citizen `game.log` discovery, validation, parsing, and incremental monitoring.
 - Runtime telemetry views for selected log activity.
-- A profile-gated, local blueprint export workflow with JSON, CSV, preview, deduplication, and source diagnostics.
+- A profile-gated, local blueprint export workflow with JSON, CSV, XML, preview, deduplication, and source diagnostics.
 - Electron isolation, validated IPC, local filesystem boundaries, and privacy-oriented defaults.
 
 The broader Runtime Monitor, Station integration, account/authentication workflows, data retention model, and production packaging are not ready for deployment. Expect breaking changes, incomplete screens, unsupported Star Citizen builds, parser drift, and behavior that may change without notice.
