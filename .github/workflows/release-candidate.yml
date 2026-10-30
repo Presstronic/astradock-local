@@ -1,0 +1,66 @@
+name: v0.1.0 release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to package
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22.14.0
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            command: npm run dist:win
+            artifact: dist/release/win/*.exe
+          - os: ubuntu-latest
+            command: npm run dist:linux
+            artifact: dist/release/linux/*.AppImage
+
+    steps:
+      - name: Check out requested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit release configuration
+        run: npm run release:audit
+
+      - name: Build approved release artifact
+        run: ${{ matrix.command }}
+
+      - name: Generate artifact checksums
+        shell: bash
+        run: sha256sum ${{ matrix.artifact }} > checksums-${{ matrix.os }}.sha256
+
+      - name: Upload release candidate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: astradock-v0.1.0-${{ matrix.os }}
+          path: |
+            ${{ matrix.artifact }}
+            checksums-${{ matrix.os }}.sha256
+          if-no-files-found: error
+          retention-days: 14

@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
+const { validateBlueprintRecords } = require('./blueprintExportContract');
 
 const BACKUP_NAME_PATTERN = /^Game\s+Build\s*\(\s*(?<build>\d+)\s*\)\s+(?<date>\d{1,2}\s+[A-Za-z]{3}\s+\d{2})\s+\(\s*(?<time>\d{2}\s+\d{2}\s+\d{2})\s*\)(?:\.[^.]+)?\.log$/i;
 const DEFAULT_BLUEPRINT_LABELS = Object.freeze([
@@ -33,10 +34,10 @@ function makeBuildScopedBlueprintProfile(profileId, version, builds) {
 
 const APPROVED_BLUEPRINT_PROFILES = Object.freeze([
   APPROVED_BLUEPRINT_PROFILE,
-  makeBuildScopedBlueprintProfile('sc-4.7-blueprint-v1', 1, ['11545720', '11576750', '11617053', '11638371', '11674325', '11715810']),
-  makeBuildScopedBlueprintProfile('sc-4.8-blueprint-v1', 1, ['11825000', '11952564', '12030094', '12061511', '12122953']),
+  makeBuildScopedBlueprintProfile('sc-4.7-blueprint-v1', 1, ['11545720', '11576750', '11592622', '11617053', '11638371', '11674325', '11715810']),
+  makeBuildScopedBlueprintProfile('sc-4.8-blueprint-v1', 1, ['11825000', '11854421', '11875683', '11952564', '12030094', '12061511', '12122953']),
   makeBuildScopedBlueprintProfile('sc-4.9-blueprint-v1', 1, ['12232306', '12248363', '12269732', '12286454', '12302499', '12326004', '12344265']),
-  makeBuildScopedBlueprintProfile('sc-4.10-blueprint-v1', 1, ['12519617', '12545750', '12572603', '12625701']),
+  makeBuildScopedBlueprintProfile('sc-4.10-blueprint-v1', 1, ['12519617', '12535871', '12545750', '12572603', '12625701']),
   makeBuildScopedBlueprintProfile('sc-4.5-blueprint-v1', 1, ['10840216', '10879294', '10957089', '10967244', '10989003', '11010425']),
   makeBuildScopedBlueprintProfile('sc-4.6-blueprint-v1', 1, ['11135423', '11218823', '11303722', '11319298', '11377160']),
   makeBuildScopedBlueprintProfile('sc-4.4-blueprint-v1', 1, ['10694190', '10717260'])
@@ -379,6 +380,7 @@ function addObservation(observations, observation) {
 }
 
 function serializeBlueprintCsv(records) {
+  validateBlueprintRecords(records);
   const escapeCell = (value) => {
     const text = value == null ? '' : String(value);
     return `"${text.replace(/"/g, '""')}"`;
@@ -392,6 +394,27 @@ function serializeBlueprintCsv(records) {
     ].map(escapeCell).join(','));
   }
   return `${rows.join('\r\n')}\r\n`;
+}
+
+function escapeXml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function serializeBlueprintXml(records) {
+  validateBlueprintRecords(records);
+  const rows = (records || []).map((record) => [
+    '  <blueprint>',
+    `    <name>${escapeXml(record.name)}</name>`,
+    `    <type>${escapeXml(record.type)}</type>`,
+    record.shared === null ? '    <shared xsi:nil="true" />' : `    <shared>${record.shared ? 'true' : 'false'}</shared>`,
+    '  </blueprint>'
+  ].join('\n'));
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<blueprints xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n${rows.length ? `${rows}\n` : ''}</blueprints>\n`;
 }
 
 async function writeAtomicText(filePath, text, options = {}) {
@@ -420,11 +443,17 @@ async function writeAtomicText(filePath, text, options = {}) {
 }
 
 async function writeBlueprintJson(filePath, records, options = {}) {
+  validateBlueprintRecords(records);
   return writeAtomicText(filePath, `${JSON.stringify(records, null, 2)}\n`, options);
 }
 
 async function writeBlueprintCsv(filePath, records, options = {}) {
+  validateBlueprintRecords(records);
   return writeAtomicText(filePath, serializeBlueprintCsv(records), options);
+}
+
+async function writeBlueprintXml(filePath, records, options = {}) {
+  return writeAtomicText(filePath, serializeBlueprintXml(records), options);
 }
 
 module.exports = {
@@ -444,6 +473,9 @@ module.exports = {
   parseBlueprintNotification,
   scanBlueprintLogs,
   serializeBlueprintCsv,
+  serializeBlueprintXml,
+  validateBlueprintRecords,
   writeBlueprintCsv,
+  writeBlueprintXml,
   writeBlueprintJson
 };

@@ -74,6 +74,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
           <p className="eyebrow">Data export</p>
           <h1>Exporter</h1>
           <p className="exporter-intro">Scan the selected environment and retained log backups for Station-compatible blueprint records.</p>
+          <p className="community-disclosure" role="note">AstraDock Local is an unofficial, community-made Star Citizen tool. It is not affiliated with, endorsed by, sponsored by, or licensed by Cloud Imperium Games or Roberts Space Industries. <span>Official site: robertsspaceindustries.com</span></p>
         </div>
         <div className="exporter-actions">
           <button type="button" className="button secondary" onClick={() => void onChooseDirectory()}>Choose install directory</button>
@@ -86,7 +87,7 @@ export function ExporterPanel({ client, source, sources, onChooseDirectory, onSe
           <h2 id="export-config-heading">Export configuration</h2>
           <label className="exporter-field"><span>Export type</span><select value={exportType} onChange={(event) => setExportType(event.target.value as BlueprintExportOptions['exportType'])} disabled={running}><option value="blueprint_data">Blueprint Data</option><option disabled value="inventory">Inventory — future</option><option disabled value="fleet">Fleet — future</option><option disabled value="reputation">Reputation — future</option></select></label>
           <label className="exporter-field"><span>Environment</span><select value={source?.sourceId || ''} onChange={(event) => void onSelectSource(event.target.value)} disabled={!availableSources.length || running}><option value="" disabled>Select environment</option>{availableSources.map((candidate) => <option key={candidate.sourceId} value={candidate.sourceId}>{candidate.channelHint}</option>)}</select><span className="exporter-environment-status" data-found={source?.validation.isValid ? 'true' : 'false'}>{source?.validation.isValid ? source.channelHint : 'Not detected'}</span></label>
-          <label className="exporter-field"><span>Output format</span><select value={outputFormat} onChange={(event) => setOutputFormat(event.target.value as BlueprintExportOptions['outputFormat'])} disabled={running}><option value="json">JSON</option><option value="csv">CSV</option></select></label>
+          <label className="exporter-field"><span>Output format</span><select value={outputFormat} onChange={(event) => setOutputFormat(event.target.value as BlueprintExportOptions['outputFormat'])} disabled={running}><option value="json">JSON</option><option value="csv">CSV</option><option value="xml">XML</option></select></label>
           <div className="exporter-export-actions" aria-label="Export actions">
             <button type="button" className="button secondary" onClick={() => void runExport(true)} disabled={running || !source?.validation.isValid}>Test export</button>
             <button type="button" className="button primary" onClick={() => void runExport(false)} disabled={running || !source?.validation.isValid}>Export {outputFormat.toUpperCase()}</button>

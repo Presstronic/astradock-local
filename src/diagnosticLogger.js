@@ -87,7 +87,9 @@ function sanitize(value, depth = 0) {
   if (typeof value === 'object') {
     return Object.fromEntries(Object.entries(value).slice(0, 30).map(([key, entry]) => [
       boundedText(key, 80),
-      /token|secret|password|credential|authorization|cookie|account.?id|user.?id/i.test(key) ? '[redacted]' : sanitize(entry, depth + 1)
+      /token|secret|password|credential|authorization|cookie|account.?id|user.?id|raw|context|line|path|handle|session|endpoint|address|identifier/i.test(key)
+        ? '[redacted]'
+        : sanitize(entry, depth + 1)
     ]));
   }
   return String(value);

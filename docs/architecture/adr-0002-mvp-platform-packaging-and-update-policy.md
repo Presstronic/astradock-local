@@ -81,6 +81,8 @@ The release record must state the exact versions or rolling snapshots tested. Wh
 
 ## Artifact policy
 
+The approved release commands are `npm run dist:win` and `npm run dist:linux`. Both run the typecheck and renderer build, target x64 only, write to isolated release directories, and pass `--publish never`; the generic `npm run dist` command is also non-publishing. The manually triggered [`release-candidate.yml`](../../.github/workflows/release-candidate.yml) workflow runs the approved commands on Windows and Ubuntu, audits package configuration, and uploads the artifact plus SHA-256 checksum as review evidence. It does not publish a release. Electron-builder's generated desktop metadata remains derived from the stable application ID and product name; unsupported schema options are not added merely to suppress non-blocking builder warnings.
+
 ### Windows
 
 The only supported Windows artifact is a 64-bit NSIS installer.

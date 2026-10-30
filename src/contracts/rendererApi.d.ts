@@ -446,6 +446,25 @@ export interface MonitorSnapshot {
   };
 }
 
+export interface BuildCompatibilityCapability {
+  status: 'supported' | 'not_evaluated';
+  profileId: string | null;
+  detail: string;
+}
+
+export interface BuildCompatibilityEntry {
+  build: string;
+  family: string;
+  observedFileCount: number;
+  source: string;
+  capabilities: { blueprint: BuildCompatibilityCapability };
+}
+
+export interface BuildCompatibilityCatalog {
+  version: number;
+  builds: readonly BuildCompatibilityEntry[];
+}
+
 export interface MonitorStartResult {
   monitor: MonitorState;
   scan: RendererScanResult;
@@ -533,6 +552,9 @@ export type RendererSettingsPatch = Partial<Pick<RendererSettings, 'theme' | 'us
 export interface DiagnosticsHealth {
   status: 'monitoring' | 'idle';
   checkedAt: string;
+  application?: { version: string; build: string; platform: string; arch: string };
+  source?: { label: string; channel: string; build: string | null; environment: string | null } | null;
+  subsystems?: { tailer: string; parser: string; store: string; projection: string; renderer: string };
   monitor: MonitorState;
   activeSourceId: string | null;
   sourceRegistryCount: number;
@@ -545,6 +567,16 @@ export interface DiagnosticsHealth {
     sessionCount: number;
     diagnosticCount: number;
   } | null;
+}
+
+export interface DiagnosticsPreview {
+  version: number;
+  generatedAt: string;
+  files: readonly { name: string; bytes: number; category: string }[];
+  estimatedBytes: number;
+  redaction: { categories: Readonly<Record<string, number>>; total: number };
+  scope: string;
+  automaticUpload: false;
 }
 
 export interface MonitorChangeEnvelope {
@@ -575,15 +607,16 @@ export interface BlueprintExportOptions {
   sourceId?: string | null;
   exportType: 'blueprint_data';
   environment: 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'TECH-PREVIEW';
-  outputFormat: 'json' | 'csv';
+  outputFormat: 'json' | 'csv' | 'xml';
   testOnly?: boolean;
 }
 
 export interface BlueprintExportResult {
   status: 'completed' | 'no_matches' | 'cancelled' | 'partial';
-  outputPath: string | null;
+  /** Always null across the renderer boundary; the main process retains the private path. */
+  outputPath: null;
   outputFileName: string | null;
-  outputFormat: 'json' | 'csv';
+  outputFormat: 'json' | 'csv' | 'xml';
   testOnly: boolean;
   records: readonly { name: string; type: string; shared: boolean | null }[];
   files: readonly { file: string; kind: string; build: string | null; status: string; fingerprint: string | null }[];
@@ -627,6 +660,9 @@ export interface AstraDockApi {
     run(options: BlueprintExportOptions): Promise<BlueprintExportResult>;
     cancel(): Promise<{ cancelled: boolean }>;
   };
+  readonly compatibility: {
+    getCatalog(): Promise<BuildCompatibilityCatalog>;
+  };
   readonly events: {
     query(query?: EventQuery): Promise<EventPage>;
     getEvidenceDetail(request: EvidenceDetailRequest): Promise<EvidenceDetail>;
@@ -640,6 +676,9 @@ export interface AstraDockApi {
   };
   readonly diagnostics: {
     getHealth(): Promise<DiagnosticsHealth>;
+    preview(): Promise<DiagnosticsPreview>;
+    export(): Promise<{ status: 'completed' | 'cancelled'; outputFileName?: string | null; bytes?: number; redaction?: DiagnosticsPreview['redaction'] }>;
+    deleteLocal(): Promise<{ deletedFiles: number; health: DiagnosticsHealth }>;
   };
 }
 

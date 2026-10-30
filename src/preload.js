@@ -12,6 +12,7 @@ const CHANNELS = Object.freeze({
   monitorStop: 'astradock:v1:monitor:stop',
   exporterRun: 'astradock:v1:exporter:run',
   exporterCancel: 'astradock:v1:exporter:cancel',
+  compatibilityCatalog: 'astradock:v1:compatibility:catalog',
   eventsQuery: 'astradock:v1:events:query',
   evidenceGet: 'astradock:v1:evidence:get',
   settingsGet: 'astradock:v1:settings:get',
@@ -20,6 +21,9 @@ const CHANNELS = Object.freeze({
   settingsDelete: 'astradock:v1:settings:delete',
   settingsReset: 'astradock:v1:settings:reset',
   diagnosticsHealth: 'astradock:v1:diagnostics:health',
+  diagnosticsPreview: 'astradock:v1:diagnostics:preview',
+  diagnosticsExport: 'astradock:v1:diagnostics:export',
+  diagnosticsDelete: 'astradock:v1:diagnostics:delete',
   subscriptionSubscribe: 'astradock:v1:subscription:subscribe',
   subscriptionUnsubscribe: 'astradock:v1:subscription:unsubscribe',
   subscriptionEvent: 'astradock:v1:subscription:event'
@@ -102,6 +106,9 @@ const api = Object.freeze({
     run: (options) => invoke(CHANNELS.exporterRun, options),
     cancel: () => invoke(CHANNELS.exporterCancel)
   }),
+  compatibility: Object.freeze({
+    getCatalog: () => invoke(CHANNELS.compatibilityCatalog)
+  }),
   events: Object.freeze({
     query: (query = {}) => invoke(CHANNELS.eventsQuery, query),
     getEvidenceDetail: (request) => invoke(CHANNELS.evidenceGet, request)
@@ -114,7 +121,10 @@ const api = Object.freeze({
     reset: () => invoke(CHANNELS.settingsReset)
   }),
   diagnostics: Object.freeze({
-    getHealth: () => invoke(CHANNELS.diagnosticsHealth)
+    getHealth: () => invoke(CHANNELS.diagnosticsHealth),
+    preview: () => invoke(CHANNELS.diagnosticsPreview),
+    export: () => invoke(CHANNELS.diagnosticsExport),
+    deleteLocal: () => invoke(CHANNELS.diagnosticsDelete)
   })
 });
 

@@ -35,13 +35,17 @@ const { redactStableIdentifier } = require('./runtimeLifecycleProjection');
 const { CanonicalEventStore } = require('./persistence/canonicalEventStore');
 const { createElectronStorageKeyProvider } = require('./persistence/storageKeyProvider');
 const { createDiagnosticLogger } = require('./diagnosticLogger');
+const { createDiagnosticsSupportService } = require('./diagnosticsSupport');
 const { DEFAULT_SETTINGS } = require('./settingsStore');
 const {
   scanBlueprintLogs,
   getDefaultBlueprintExtractionProfiles,
   writeBlueprintCsv,
-  writeBlueprintJson
+  writeBlueprintJson,
+  writeBlueprintXml
 } = require('./exporter/blueprintExporter');
+const { createPublicBlueprintExportResult } = require('./exporter/blueprintExportContract');
+const { getBuildCompatibilityCatalog } = require('./buildCompatibilityCatalog');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -70,6 +74,7 @@ let activeSourceId = null;
 let eventStore = null;
 let eventStoreHealth = { status: 'initializing', errorCode: null, recoverable: true };
 let diagnosticLogger = null;
+let diagnosticsSupport = null;
 let exporterCancelRequested = false;
 let exporterRunning = false;
 const subscriptions = new SubscriptionHub({ channel: CHANNELS.subscriptionEvent, maxSubscribers: 8 });
@@ -101,6 +106,11 @@ app.whenReady().then(async () => {
     // Diagnostics are best effort and must not prevent the app from starting.
     console.error('AstraDock diagnostic logger could not start.', error?.message || error);
   }
+  diagnosticsSupport = createDiagnosticsSupportService({
+    logDirectory: path.join(app.getPath('userData'), 'logs'),
+    getHealth: () => getDiagnosticsHealth(),
+    metadata: { appVersion: app.getVersion(), build: app.isPackaged ? 'packaged' : 'development', platform: process.platform, arch: process.arch, packaged: app.isPackaged }
+  });
   await initializeEventStore();
   createWindow();
 }).catch((error) => {
@@ -128,6 +138,7 @@ app.on('before-quit', async () => {
   eventStore?.close();
   eventStore = null;
   diagnosticLogger?.close();
+  diagnosticsSupport = null;
 });
 
 app.on('activate', () => {
@@ -285,6 +296,8 @@ register(CHANNELS.exporterCancel, async () => {
   return { cancelled: true };
 });
 
+register(CHANNELS.compatibilityCatalog, async () => getBuildCompatibilityCatalog());
+
 register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outputFormat, testOnly }) => {
   if (exportType !== 'blueprint_data') {
     throw createBoundaryError('invalid_payload', 'Only Blueprint Data export is currently supported.');
@@ -312,19 +325,19 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     });
     if (result.extraction.status !== 'approved') {
       publishProgress({ phase: 'no_matches', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: 0, duplicatesSuppressed: 0 });
-      return createExporterResult(result, { status: 'no_matches', outputFormat, testOnly });
+      return createPublicBlueprintExportResult(result, { status: 'no_matches', outputFormat, testOnly });
     }
     if (exporterCancelRequested) {
       publishProgress({ phase: 'cancelled', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-      return createExporterResult(result, { status: 'cancelled', outputFormat, testOnly, records: [] });
+      return createPublicBlueprintExportResult(result, { status: 'cancelled', outputFormat, testOnly, records: [] });
     }
     const status = result.errors.length ? 'partial' : result.records.length ? 'completed' : 'no_matches';
     if (testOnly) {
       publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-      return createExporterResult(result, { status, outputFormat, testOnly });
+      return createPublicBlueprintExportResult(result, { status, outputFormat, testOnly });
     }
     publishProgress({ phase: 'save_pending', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
-    const extension = outputFormat === 'csv' ? 'csv' : 'json';
+    const extension = outputFormat === 'csv' ? 'csv' : outputFormat === 'xml' ? 'xml' : 'json';
     const saveResult = await retryExporterOperation(() => dialog.showSaveDialog(mainWindow, {
       title: 'Export Blueprint Data',
       defaultPath: path.join(app.getPath('documents'), `astradock-blueprints.${extension}`),
@@ -338,10 +351,12 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     publishProgress({ phase: 'writing', filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed });
     const outputPath = await retryExporterOperation(() => outputFormat === 'csv'
       ? writeBlueprintCsv(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested })
-      : writeBlueprintJson(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested }), 'The export file could not be written.');
+      : outputFormat === 'xml'
+        ? writeBlueprintXml(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested })
+        : writeBlueprintJson(saveResult.filePath, result.records, { shouldCancel: () => exporterCancelRequested }), 'The export file could not be written.');
     shell.showItemInFolder(outputPath);
     publishProgress({ phase: status, filesProcessed: result.filesScanned, filesTotal: result.filesTotal, recordsFound: result.records.length, duplicatesSuppressed: result.duplicatesSuppressed, outputFileName: path.basename(outputPath) });
-    return createExporterResult(result, { status, outputPath, outputFileName: path.basename(outputPath), outputFormat, testOnly });
+    return createPublicBlueprintExportResult(result, { status, outputFileName: path.basename(outputPath), outputFormat, testOnly });
   } catch (error) {
     if (error?.code === 'export_cancelled') {
       publishProgress({ phase: 'cancelled', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
@@ -353,27 +368,6 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     exporterRunning = false;
   }
 });
-
-function createExporterResult(result, overrides = {}) {
-  return {
-    status: overrides.status || 'no_matches',
-    outputPath: overrides.outputPath || null,
-    outputFileName: overrides.outputFileName || null,
-    outputFormat: overrides.outputFormat || 'json',
-    testOnly: Boolean(overrides.testOnly),
-    records: overrides.records || result.records,
-    files: result.files,
-    filesScanned: result.filesScanned,
-    filesTotal: result.filesTotal,
-    linesRead: result.linesRead,
-    duplicatesSuppressed: result.duplicatesSuppressed,
-    skippedFiles: result.skippedFiles,
-    sourceFingerprint: result.sourceFingerprint,
-    diagnostics: result.diagnostics,
-    errors: result.errors,
-    extraction: result.extraction
-  };
-}
 
 async function retryExporterOperation(operation, message) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -427,6 +421,7 @@ register(CHANNELS.settingsReset, async () => {
     eventStore.deleteAllTelemetry();
     eventStoreHealth = eventStore.getStorageSummary();
   }
+  diagnosticsSupport?.deleteLocalDiagnostics();
   await Promise.all([
     fsUnlinkIfPresent(getSettingsPath()),
     fsUnlinkIfPresent(getSourcePreferencePath())
@@ -437,6 +432,31 @@ register(CHANNELS.settingsReset, async () => {
 });
 
 register(CHANNELS.diagnosticsHealth, async () => getDiagnosticsHealth());
+
+register(CHANNELS.diagnosticsPreview, async () => {
+  if (!diagnosticsSupport) throw createBoundaryError('internal_error', 'Diagnostics are not ready.');
+  return diagnosticsSupport.preview();
+});
+
+register(CHANNELS.diagnosticsExport, async () => {
+  if (!diagnosticsSupport) throw createBoundaryError('internal_error', 'Diagnostics are not ready.');
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export sanitized AstraDock diagnostics',
+    defaultPath: path.join(app.getPath('documents'), 'astradock-diagnostics.json'),
+    filters: [{ name: 'Diagnostics bundle', extensions: ['json'] }],
+    properties: ['showOverwriteConfirmation']
+  });
+  if (result.canceled || !result.filePath) return { status: 'cancelled', outputFileName: null };
+  const exported = diagnosticsSupport.export(result.filePath);
+  diagnosticLogger?.info('diagnostics_exported', { outputFileName: exported.outputFileName, bytes: exported.bytes });
+  return exported;
+});
+
+register(CHANNELS.diagnosticsDelete, async () => {
+  if (!diagnosticsSupport) throw createBoundaryError('internal_error', 'Diagnostics are not ready.');
+  const deleted = diagnosticsSupport.deleteLocalDiagnostics();
+  return { ...deleted, health: getDiagnosticsHealth() };
+});
 
 register(CHANNELS.subscriptionSubscribe, async (payload, event) => {
   const subscription = subscriptions.add(event.sender, payload);
@@ -899,6 +919,20 @@ function getDiagnosticsHealth() {
   return {
     status: activeTailer ? 'monitoring' : 'idle',
     checkedAt: new Date().toISOString(),
+    application: { version: app.getVersion(), build: app.isPackaged ? 'packaged' : 'development', platform: process.platform, arch: process.arch },
+    source: lastScanSource ? {
+      label: lastScanSource.displayLabel,
+      channel: lastScanSource.channelHint,
+      build: lastScanSource.buildVersion,
+      environment: lastScan?.environment?.environment || lastScan?.environmentKey || null
+    } : null,
+    subsystems: {
+      tailer: tailerHealth ? tailerHealth.status : 'idle',
+      parser: lastScan?.parserCompatibility?.status || 'unknown',
+      store: eventStoreHealth.status,
+      projection: lastScan ? 'available' : 'idle',
+      renderer: mainWindow && !mainWindow.isDestroyed() ? 'available' : 'unavailable'
+    },
     monitor: getMonitorState(),
     activeSourceId,
     sourceRegistryCount: sourceRegistry.size,
