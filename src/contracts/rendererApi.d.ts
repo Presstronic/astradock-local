@@ -180,7 +180,7 @@ export interface RendererScanResult {
   };
   source: PublicRuntimeSource;
   recovery: {
-    mode: 'full_log_scan';
+    mode: 'full_log_scan' | 'capture_window';
     qualification: 'last_confirmed';
     canonicalEventCount: number;
     observedAt: string;
@@ -641,6 +641,7 @@ export interface BlueprintExportResult {
 export type Unsubscribe = () => void;
 
 export interface AstraDockApi {
+  readonly station: import('./stationApi').StationApi;
   readonly version: RendererApiVersion;
   readonly source: {
     discover(): Promise<SourceDiscoveryResult>;
@@ -680,6 +681,37 @@ export interface AstraDockApi {
     export(): Promise<{ status: 'completed' | 'cancelled'; outputFileName?: string | null; bytes?: number; redaction?: DiagnosticsPreview['redaction'] }>;
     deleteLocal(): Promise<{ deletedFiles: number; health: DiagnosticsHealth }>;
   };
+  readonly overlay: {
+    open(): Promise<{ opened: boolean }>;
+    close(): Promise<{ hidden: boolean }>;
+    getPreferences(): Promise<{ alwaysOnTop: true; opacity: number; displayMode: 'friendly' | 'raw'; filters?: import('../overlayFilters').OverlayFilters }>;
+    updatePreferences(patch: { opacity?: number; displayMode?: 'friendly' | 'raw'; filters?: import('../overlayFilters').OverlayFilters }): Promise<{ alwaysOnTop: true; opacity: number; displayMode: 'friendly' | 'raw'; filters?: import('../overlayFilters').OverlayFilters }>;
+    subscribeFeed(listener: (feed: OverlayFeed) => void): () => void;
+  };
+}
+
+export interface OverlayFeed {
+  filters?: import('../overlayFilters').OverlayFilters;
+  availableCount?: number;
+  matchingCount?: number;
+  state: string;
+  environment: string;
+  displayMode?: 'friendly' | 'raw';
+  events: readonly {
+    id: string;
+    kind: string;
+    classification?: { category: string; action: string; itemType: string; classificationSource: string; classificationVersion: number };
+    summary: string;
+    timestamp: string | null;
+    confidence: string;
+    provenance: string;
+    evidenceEventIds?: readonly string[];
+    evidenceNote?: string;
+    rawEvidence?: {
+      status: 'available' | 'partial' | 'unavailable';
+      messages: readonly string[];
+    };
+  }[];
 }
 
 declare global {

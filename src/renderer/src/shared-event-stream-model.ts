@@ -1,4 +1,5 @@
 import type { StreamEvent, StreamView, WorkspaceState } from './runtime-monitor-model';
+import { instantMilliseconds } from './time';
 
 export type StreamMode = 'live' | 'browsing' | 'paused' | 'stale' | 'disconnected' | 'replay';
 
@@ -216,8 +217,12 @@ export function getStreamFilterCounts(state: SharedEventStreamState): {
 function deduplicateAndOrder(events: readonly StreamEvent[]): StreamEvent[] {
   const unique = new Map(events.map((event) => [event.id, event]));
   return [...unique.values()].sort((left, right) => {
-    const timestamp = (right.timestamp || '').localeCompare(left.timestamp || '');
-    return timestamp || (right.sourceLine ?? -1) - (left.sourceLine ?? -1) || left.id.localeCompare(right.id);
+    const leftTime = instantMilliseconds(left.timestamp);
+    const rightTime = instantMilliseconds(right.timestamp);
+    if (leftTime === null && rightTime !== null) return 1;
+    if (rightTime === null && leftTime !== null) return -1;
+    return (rightTime ?? 0) - (leftTime ?? 0)
+      || (right.sourceLine ?? -1) - (left.sourceLine ?? -1) || left.id.localeCompare(right.id);
   });
 }
 

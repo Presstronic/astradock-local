@@ -1,4 +1,5 @@
 const { TextDecoder } = require('node:util');
+const { parseCapturedRuntimeSignal } = require('./capturedRuntimeSignals');
 const {
   BUILT_IN_RUNTIME_LOG_PROFILES,
   PROFILE_SCHEMA_VERSION
@@ -32,6 +33,7 @@ const DEFAULT_PU_READY_WINDOW_MS = 5 * 60 * 1000;
 const UNKNOWN_SOURCE_LOCATION = 'UNKNOWN_SOURCE';
 const UNKNOWN_MATCHMAKING_REQUEST = 'UNKNOWN_MATCHMAKING_REQUEST';
 const VALID_EXTRACTOR_KINDS = new Set([
+  'capturedRuntimeSignal',
   'rememberBuildField',
   'clientBuildObserved',
   'releaseEnvironmentObserved',
@@ -62,6 +64,7 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'partyMemberJoined',
   'partyLeft',
   'missionAccepted',
+  'shopPurchaseRequested',
   'jurisdictionEntered',
   'monitoredSpaceEntered',
   'monitoredSpaceExited',
@@ -74,6 +77,7 @@ const VALID_EXTRACTOR_KINDS = new Set([
   'quantumTravelArrived'
 ]);
 const EVENT_TYPE_BY_KIND = Object.freeze({
+  capturedRuntimeSignal: 'RuntimeLogSignalObserved',
   clientBuildObserved: 'ClientBuildObserved',
   releaseEnvironmentObserved: 'ReleaseEnvironmentObserved',
   gameDataVersionObserved: 'GameDataVersionObserved',
@@ -96,6 +100,7 @@ const EVENT_TYPE_BY_KIND = Object.freeze({
   partyMemberJoined: 'PartyMemberJoined',
   partyLeft: 'PartyLeft',
   missionAccepted: 'MissionAccepted',
+  shopPurchaseRequested: 'ShopPurchaseRequested',
   jurisdictionEntered: 'JurisdictionEntered',
   monitoredSpaceEntered: 'MonitoredSpaceEntered',
   monitoredSpaceExited: 'MonitoredSpaceExited',
@@ -319,6 +324,7 @@ class RuntimeLogParserEngine {
       ingestedAt: options.ingestedAt,
       sourceProfileId: options.sourceProfileId,
       sourceProfileVersion: options.sourceProfileVersion,
+      evidenceCoordinates: options.evidenceCoordinates,
       releaseChannel: options.releaseChannel,
       gameBuild: options.gameBuild,
       branch: options.branch,
@@ -643,6 +649,24 @@ class RuntimeLogParserEngine {
 
   applyExtractor(extractor, profile, record) {
     switch (extractor.kind) {
+      case 'capturedRuntimeSignal': {
+        const payload = parseCapturedRuntimeSignal(record.normalizedText);
+        if (!payload) return [];
+        const correlationIds = {};
+        if (payload.signalId === 'SHP-01' || payload.signalId === 'SHP-02') {
+          const context = ['playerId', 'shopId', 'kioskId'].map(key => pickBracketValue(record.normalizedText, key));
+          if (context.every(Boolean)) {
+            correlationIds.shopContextId = createPartitionedIdentity(this.environment.environmentKey, 'shop_context', context);
+          }
+          const request = pickBracketValue(record.normalizedText, 'requestId') || pickBracketValue(record.normalizedText, 'request_id');
+          if (request) correlationIds.shopRequestId = createPartitionedIdentity(this.environment.environmentKey, 'shop_request', [request]);
+        }
+        return this.createEventIfComplete('RuntimeLogSignalObserved', payload, extractor, profile, {
+          ...record,
+          // Repeated operations at distinct source positions are distinct facts.
+          dedupeScope: `captured-line-${record.startLineNumber}`
+        }, undefined, { correlationIds });
+      }
       case 'rememberBuildField':
         this.state.build[extractor.field] = pickKeyValue(record.normalizedText, profileFieldKey(extractor.field)) ||
           this.state.build[extractor.field];
@@ -963,6 +987,24 @@ class RuntimeLogParserEngine {
           contractName: message.groups.contractName.replace(/:\s*$/, '').trim()
         }, extractor, profile, record);
       }
+      case 'shopPurchaseRequested': {
+        const requestId = pickBracketValue(record.normalizedText, 'requestId') ||
+          pickBracketValue(record.normalizedText, 'request_id') ||
+          pickBracketValue(record.normalizedText, 'reqId') ||
+          pickKeyValue(record.normalizedText, 'requestId');
+        const quantity = toInteger(pickBracketValue(record.normalizedText, 'quantity'));
+        const clientPrice = toNumber(pickBracketValue(record.normalizedText, 'client_price'));
+        return this.createEventIfComplete('ShopPurchaseRequested', {
+          requestId,
+          itemName: pickBracketValue(record.normalizedText, 'itemName'),
+          quantity,
+          shopName: pickBracketValue(record.normalizedText, 'shopName'),
+          clientPrice
+        }, extractor, profile, {
+          ...record,
+          dedupeScope: `shop-request-line-${record.startLineNumber}`
+        });
+      }
       case 'jurisdictionEntered': {
         const notification = pickNotification(record.normalizedText);
         const message = normalizeLocationNotificationMessage(notification.message);
@@ -1160,7 +1202,7 @@ class RuntimeLogParserEngine {
       eventType,
       payload,
       policy.dedupeFields,
-      record.dedupeScope || null
+      this.options.evidenceCoordinates === 'byte' ? `source-byte-${record.sourceByteOffset}` : record.dedupeScope || null
     );
 
     const sourceTimestamp = sourceTime.instant;
@@ -1180,7 +1222,8 @@ class RuntimeLogParserEngine {
       parserVersion: profile.parserVersion,
       provenance: eventOptions.provenance || 'observed',
       confidence: extractor.confidence || 'medium',
-      correlationIds: buildCorrelationIds(this.environment.environmentKey, eventType, dedupeKey, payload),
+      correlationIds: { ...buildCorrelationIds(this.environment.environmentKey, eventType, dedupeKey, payload),
+        ...(eventOptions.correlationIds || {}) },
       ordering: {
         ingestionSequence: this.orchestrator.ingestionSequence + 1,
         sourceSequence: record.startLineNumber,
@@ -1195,10 +1238,9 @@ class RuntimeLogParserEngine {
         fixtureId: this.options.fixtureId,
         sensitivity: extractor.sensitivity || 'local',
         evidenceMarkers: extractor.evidenceMarkers,
-        lineRange: {
-          start: record.startLineNumber,
-          end: record.endLineNumber
-        }
+        ...(this.options.evidenceCoordinates === 'byte'
+          ? { sourceByteOffset: record.sourceByteOffset }
+          : { lineRange: { start: record.startLineNumber, end: record.endLineNumber } })
       },
       ...(eventOptions.derivation ? { derivation: eventOptions.derivation } : {})
     };

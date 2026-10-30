@@ -44,6 +44,9 @@ import { ExporterPanel } from './exporter-panel';
 import { workspaceMode } from './workspace-mode';
 import { CompatibilityPanel } from './compatibility-panel';
 import type { BuildCompatibilityCatalog } from '../../contracts/rendererApi';
+import { useNewestFirstScroll } from './use-newest-first-scroll';
+import { StationSettings, type StationPage } from './station-settings';
+import type { StationSnapshot } from '../../contracts/stationApi';
 
 interface RuntimeMonitorAppProps {
   client: RuntimeMonitorClient;
@@ -80,6 +83,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [scan, setScan] = useState<RendererScanResult | null>(null);
   const [preferences, setPreferences] = useState<LocalPreferences>(() => loadLocalPreferences());
   const [settingsSnapshot, setSettingsSnapshot] = useState<SettingsSnapshot | null>(null);
+  const [stationSnapshot, setStationSnapshot] = useState<StationSnapshot | null>(null);
+  const [stationPage, setStationPage] = useState<StationPage>('signIn');
   const [compatibilityCatalog, setCompatibilityCatalog] = useState<BuildCompatibilityCatalog | null>(null);
   const [activeView, setActiveView] = useState<AppView>(workspaceMode === 'exporter' ? 'exporter' : 'runtime');
   const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
@@ -112,6 +117,14 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const detailRequest = useRef(0);
   const lastPartyTransitionId = useRef<string | null>(null);
   const lastDestinationTransitionId = useRef<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = () => { if (client.station) void client.station.getSnapshot().then(value => { if (active) setStationSnapshot(value); }).catch(() => { if (active) setStationSnapshot(null); }); };
+    refresh();
+    const timer = window.setInterval(refresh, 15000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [client]);
 
   useEffect(() => {
     let active = true;
@@ -430,6 +443,11 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     }
   }
 
+  async function openOverlay() {
+    try { await window.astradock.overlay.open(); setActionError(null); }
+    catch (error) { setActionError(error instanceof Error ? error.message : 'Event overlay could not open.'); }
+  }
+
   return (
     <div className="runtime-shell" data-density={currentDensity} data-detail-placement={effectivePlacement} data-has-detail={detail.status !== 'empty'}>
       <a className="skip-link" href="#runtime-stream">Skip to stream</a>
@@ -442,6 +460,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             <span className="product-name">AstraDock</span>
           </div>
         </div>
+        <button type="button" className="button secondary station-account" aria-label="Open Station account settings" title={stationSnapshot?.state.replaceAll('_', ' ') || 'Station account settings'} onClick={() => { setStationPage(stationSnapshot?.session ? 'access' : 'signIn'); setActiveView('settings'); setSourceDetailsOpen(false); }}>Station · {stationSnapshot?.session?.displayName || 'Not connected'}{stationSnapshot?.session ? ` · ${stationSnapshot.state}` : ''}</button>
         {activeView === 'exporter' ? <ExporterHeader
           sources={sources}
           source={viewModel.source}
@@ -478,6 +497,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             {viewModel.warningCount > 0 ? <Metric label="Warnings" value={String(viewModel.warningCount)} /> : null}
           </section>
           <div className="global-actions" aria-label="Monitor actions">
+            <button type="button" className="button secondary" onClick={() => void openOverlay()}>Open event overlay</button>
             <button type="button" className="button secondary" onClick={() => void (viewModel.source ? scanSource() : chooseSource())}>
               {viewModel.source ? 'Re-scan source' : 'Choose source'}
             </button>
@@ -528,6 +548,11 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
       {activeView === 'compatibility' ? <CompatibilityPanel catalog={compatibilityCatalog} /> : activeView === 'settings' ? <SettingsPanel
         client={client}
+        stationSnapshot={stationSnapshot}
+        onStationChange={setStationSnapshot}
+        stationPage={stationPage}
+        onStationPageChange={setStationPage}
+        now={now}
         snapshot={settingsSnapshot}
         preferences={preferences}
         onPreferenceChange={updatePreference}
@@ -536,8 +561,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         }}
         onDelete={deleteTelemetry}
         onReset={async () => {
-          if (!window.confirm('Reset preferences and delete all local app data? This cannot be undone.')) return;
-          try { setSettingsSnapshot(await client.settings.reset()); setPreferences(DEFAULT_PREFERENCES); setActiveSource(null); } catch (error) { setActionError(error instanceof Error ? error.message : 'Reset failed.'); }
+          if (!window.confirm('Reset preferences and delete local app data? This cannot be undone. Minimal inventory synchronization digests are retained to prevent duplicate changes.')) return;
+          try { setSettingsSnapshot(await client.settings.reset()); setPreferences(DEFAULT_PREFERENCES); setActiveSource(null); setStationSnapshot(null); if (client.station) setStationSnapshot(await client.station.getSnapshot()); } catch (error) { setActionError(error instanceof Error ? error.message : 'Reset failed.'); }
         }}
       /> : null}
 
@@ -683,6 +708,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           {preferences.streamView === 'terminal' ? (
             <TerminalStream
               events={visibleEvents}
+              following={eventStream.mode === 'live' || eventStream.mode === 'replay'}
               emptyReason={eventStream.sourceEvents.length === 0 ? 'no-telemetry' : 'no-matches'}
               selectedId={eventStream.selectedEventId}
               onSelect={openEvidence}
@@ -690,6 +716,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           ) : (
             <TableStream
               events={visibleEvents}
+              following={eventStream.mode === 'live' || eventStream.mode === 'replay'}
               emptyReason={eventStream.sourceEvents.length === 0 ? 'no-telemetry' : 'no-matches'}
               selectedId={eventStream.selectedEventId}
               onSelect={openEvidence}
@@ -796,18 +823,20 @@ function formatStreamMode(mode: import('./shared-event-stream-model').StreamMode
   return mode.charAt(0).toUpperCase() + mode.slice(1);
 }
 
-function TerminalStream({
+export function TerminalStream({
   events,
+  following,
   emptyReason,
   selectedId,
   onSelect
 }: {
   events: readonly StreamEvent[];
+  following: boolean;
   emptyReason: 'no-matches' | 'no-telemetry';
   selectedId: string | null;
   onSelect: (event: StreamEvent, trigger: HTMLElement | null) => void;
 }) {
-  const listRef = useRef<HTMLDivElement>(null);
+  const listRef = useNewestFirstScroll<HTMLDivElement>(events, following);
   if (events.length === 0) return <EmptyStream reason={emptyReason} />;
   const activeIndex = Math.max(0, selectedId ? events.findIndex((event) => event.id === selectedId) : 0);
   const activeEventId = events[activeIndex]?.id;
@@ -866,17 +895,20 @@ function TerminalStream({
   );
 }
 
-function TableStream({
+export function TableStream({
   events,
+  following,
   emptyReason,
   selectedId,
   onSelect
 }: {
   events: readonly StreamEvent[];
+  following: boolean;
   emptyReason: 'no-matches' | 'no-telemetry';
   selectedId: string | null;
   onSelect: (event: StreamEvent, trigger: HTMLElement | null) => void;
 }) {
+  const listRef = useNewestFirstScroll<HTMLDivElement>(events, following);
   if (events.length === 0) return <EmptyStream reason={emptyReason} />;
 
   const activeIndex = Math.max(0, selectedId ? events.findIndex((event) => event.id === selectedId) : 0);
@@ -892,6 +924,7 @@ function TableStream({
   return (
     <div
       className="table-stream"
+      ref={listRef}
       role="grid"
       aria-label="Table runtime events"
       aria-rowcount={events.length}
@@ -1230,8 +1263,13 @@ function formatLifecycleChange(lifecycle: unknown): string {
   return `${type}${status}`;
 }
 
-function SettingsPanel({ client, snapshot, preferences, onPreferenceChange, onRetentionChange, onDelete, onReset }: {
-  client: Pick<RuntimeMonitorClient, 'diagnostics'>;
+function SettingsPanel({ client, snapshot, preferences, onPreferenceChange, onRetentionChange, onDelete, onReset, stationSnapshot, onStationChange, stationPage, onStationPageChange, now }: {
+  client: Pick<RuntimeMonitorClient, 'diagnostics' | 'station'>;
+  stationSnapshot: StationSnapshot | null;
+  onStationChange: (snapshot: StationSnapshot) => void;
+  stationPage: StationPage;
+  onStationPageChange: (page: StationPage) => void;
+  now: Date;
   snapshot: SettingsSnapshot | null;
   preferences: LocalPreferences;
   onPreferenceChange: (patch: Partial<LocalPreferences>) => void;
@@ -1257,8 +1295,9 @@ function SettingsPanel({ client, snapshot, preferences, onPreferenceChange, onRe
     } catch (error) { setDiagnosticsError(error instanceof Error ? error.message : 'Diagnostics export failed.'); } finally { setDiagnosticsBusy(false); }
   }
   return <main className="settings-page" aria-label="Local settings and privacy">
-    <header className="page-heading settings-heading"><div><p className="eyebrow">DEVICE CONFIGURATION</p><h1>Settings</h1><p>These controls affect this device only. Preferences and raw evidence are not synchronized.</p></div><span className="settings-local-badge">LOCAL ONLY</span></header>
+    <header className="page-heading settings-heading"><div><p className="eyebrow">DEVICE CONFIGURATION</p><h1>Settings</h1><p>Preferences and raw evidence stay on this device. Optional Station access and synchronization have separate consent controls.</p></div><span className="settings-local-badge">LOCAL PREFERENCES</span></header>
     <div className="settings-grid">
+      <StationSettings client={client.station} snapshot={stationSnapshot} onChange={onStationChange} page={stationPage} onPageChange={onStationPageChange} now={now} />
       <section className="settings-card" aria-labelledby="display-heading"><div className="panel-heading"><div><p className="eyebrow">PREFERENCES</p><h2 id="display-heading">Display</h2></div></div><div className="settings-fields"><label><span>Default stream view</span><small>Choose the presentation used when Runtime Monitor opens.</small><select value={preferences.streamView} onChange={(event) => onPreferenceChange({ streamView: event.target.value as LocalPreferences['streamView'] })}><option value="terminal">Terminal</option><option value="table">Table</option></select></label><label><span>Retain telemetry (days)</span><small>Older local events are removed automatically.</small><input type="number" min="1" max="365" value={snapshot?.settings.retentionDays ?? 30} onChange={(event) => void onRetentionChange(Number(event.target.value))} /></label></div></section>
       <section className="settings-card" aria-labelledby="storage-heading"><div className="panel-heading"><div><p className="eyebrow">LOCAL STORE</p><h2 id="storage-heading">Storage</h2></div><span className={`settings-state settings-state-${storage?.status || 'initializing'}`}>{storage?.status || 'initializing'}</span></div><dl className="settings-facts">
       <div><dt>Stored events</dt><dd>{storage?.eventCount ?? 'Calculating'}</dd></div>

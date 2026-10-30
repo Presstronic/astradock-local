@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Working specification; no application implementation or production API contract |
+| Status | Owner-authorized Local implementation; production API/evidence integration still blocked; see [implementation](station-client-implementation.md) |
 | Owner direction captured | 2026-10-30 |
 | Product boundary | Post-MVP; the existing local-only MVP remains unchanged |
 | External dependency | Station API and developer portal are being built; endpoints and contracts are unavailable |
@@ -151,7 +151,7 @@ Inventory submission requires **Review -> first confirmation -> second confirmat
 | Move/equip/attachment | Treat location/equipment state separately from acquisitions and aggregate ownership |
 | Failure/cancel/unknown | Preserve the observation and explanation; do not mutate inventory |
 
-Evidence review on 2026-10-30 consulted the owner's existing, uncommitted `docs/runtime-observation-catalog.md` and October 29 capture ledgers. They report successful inventory moves/drop, shop requests and success responses, but do not establish repeatable detection for every action or independent shop delivery. Those owner worktree artifacts are not included in this change. This summary is a constraint, not new accepted parser evidence. Link reviewed, committed sanitized fixtures per action/build before releasing any detector. Existing [runtime contracts](runtime-event-contracts.md) also separate shop requests from completion; no existing `stationSyncPolicy: never` event is made uploadable by this specification.
+Evidence review on 2026-10-30 consulted the owner's [runtime observation catalog](runtime-observation-catalog.md) and October 29 capture ledgers, retained with the gameplay-overlay implementation foundation. They report successful inventory moves/drop, shop requests and success responses, but do not establish repeatable detection for every action or independent shop delivery. This integration does not establish new possession-change evidence. Link accepted sanitized fixtures and qualifying rules per action/build before enabling an inventory detector. Existing [runtime contracts](runtime-event-contracts.md) also separate shop requests from completion; no existing `stationSyncPolicy: never` event is made uploadable by this specification.
 
 ## Domain contracts to agree with the developer portal
 

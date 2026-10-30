@@ -8,6 +8,7 @@ import '@fontsource/jetbrains-mono/700.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RuntimeMonitorApp } from './runtime-monitor-app';
+import { EventOverlay } from './event-overlay';
 import { getAstraDockClient } from './astradock-api';
 import './styles.css';
 
@@ -19,6 +20,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <RuntimeMonitorApp client={getAstraDockClient()} />
+    {new URLSearchParams(window.location.search).get('overlay') === '1'
+      ? <EventOverlay />
+      : <RuntimeMonitorApp client={getAstraDockClient()} />}
   </StrictMode>
 );

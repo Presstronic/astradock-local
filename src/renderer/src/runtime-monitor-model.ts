@@ -588,6 +588,8 @@ function activeVehicle(scan: RendererScanResult | null) {
 }
 
 function runtimeEventKind(row: RendererEvidenceRow): StreamEvent['kind'] {
+  if (row.eventCategory === 'diagnostic') return 'diagnostic';
+  if (row.eventCategory === 'action') return 'action';
   if (row.eventCategory === 'party') return 'party';
   if (row.eventCategory === 'zone') return 'zone';
   if (row.eventCategory === 'navigation') return 'navigation';

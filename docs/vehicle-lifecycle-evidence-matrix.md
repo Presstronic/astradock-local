@@ -5,7 +5,7 @@
 | Field | Value |
 | --- | --- |
 | Status | Implemented evidence boundary; implementation issue [#89](https://github.com/Presstronic/astradock-local/issues/89) |
-| Applies to | `sc-4.9-live@2026-08-19.5` profile family |
+| Applies to | `sc-4.9-live@2026-10-26.1` profile family |
 | Evidence ledger | [`runtime-capture-findings-2026-08-19.md`](runtime-capture-findings-2026-08-19.md) |
 
 This matrix defines the minimum honest vehicle model for the Runtime Monitor. It deliberately separates the vehicle retrieved into a hangar, the vehicle the local player is aboard, the vehicle the local player controls, and vehicle ownership. Those facts can differ and must not collapse into a single `currentShip` field.

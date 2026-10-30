@@ -193,6 +193,36 @@ test('fixture-backed promoted profiles emit canonical runtime-event/v1 payloads 
   }
 });
 
+test('promotes shop purchase requests as unconfirmed attempts and ignores incomplete requests', () => {
+  const fixturePath = path.join(FIXTURE_ROOT, 'live', '4.9-pub', 'sc-4.9-live', 'shop', 'purchase-request-attempt.synthetic.log');
+  const text = fs.readFileSync(fixturePath, 'utf8');
+  const result = parseRuntimeLogText(text, {
+    ...LIVE_PROFILE_OPTIONS,
+    fixtureId: 'live/4.9-pub/sc-4.9-live/shop/purchase-request-attempt.synthetic',
+    sourceProfileVersion: '2026-10-26.1'
+  });
+
+  assert.equal(result.events.length, 1);
+  assert.equal(result.events[0].eventType, 'ShopPurchaseRequested');
+  assert.deepEqual(result.events[0].payload, {
+    requestId: 'SYNTH_SHOP_REQUEST_001',
+    itemName: 'FS-9 Ammo',
+    quantity: 1,
+    shopName: 'Area18',
+    clientPrice: 250
+  });
+  assert.equal(result.events[0].confidence, 'medium');
+  assert.equal(result.events[0].traits.stationSyncPolicy, 'never');
+  assert.equal(validateRuntimeEvent(result.events[0]).ok, true);
+
+  const incomplete = parseRuntimeLogText(
+    '<2026-10-26T16:42:12.000Z> SendShopBuyRequest requestId[SYNTH_SHOP_REQUEST_002] itemName[FS-9 Ammo] quantity[1] shopName[Area18]\n',
+    LIVE_PROFILE_OPTIONS
+  );
+  assert.equal(incomplete.events.length, 0);
+  assert.ok(incomplete.unknownEvidence.some((item) => item.reason === 'matched_missing_required_fields'));
+});
+
 test('mesh diagnostics require a completed network hierarchy and PU territory context', () => {
   const result = parseRuntimeLogText([
     '<2026-08-19T02:10:00.000Z> <RegisterUniverseHierarchy_Begin> bNetRecvd="0" nodeCount="1"',
@@ -489,7 +519,7 @@ test('reviewed LIVE executable version selects the 4.9 profile without widening 
   );
 
   assert.equal(reviewedLive.selectedProfile.id, 'sc-4.9-live');
-  assert.equal(reviewedLive.selectedProfile.version, '2026-08-19.5');
+  assert.equal(reviewedLive.selectedProfile.version, '2026-10-26.1');
   assert.equal(reviewedLive.parserHealth.status, 'compatible');
   assert.deepEqual(reviewedLive.events.map((event) => event.eventType), ['PuJoinRequested']);
   assert.ok(reviewedLive.events.every((event) => validateRuntimeEvent(event).ok));
@@ -527,7 +557,7 @@ test('profile family reports exact tested, unverified, excluded, and mismatched 
   const tested = parseBuild('4.9.0-LIVE.9000000-SYNTH');
   const unverified = parseBuild('4.9.189.10000');
   const excluded = parseBuild('4.9.999.0-BLOCKED-SYNTH');
-  const futureMinor = parseBuild('4.10.0-LIVE.10000');
+  const futureMinor = parseBuild('4.11.0-LIVE.10000');
   const wrongBranch = parseBuild('4.9.188.23497', { branch: 'sc-alpha-unsupported-branch' });
   const malformed = parseBuild('not-a-build');
   const wrongChannel = parseBuild('4.9.188.23497', { releaseChannel: 'PTU' });
@@ -566,7 +596,7 @@ test('replay preserves an explicitly stored immutable profile version', () => {
     '<2026-08-19T06:00:00.000Z> <Join PU> address[replay.example.invalid] port[64332] shard[SYNTH_SHARD_REPLAY] locationId[SYNTH_LOCATION_REPLAY]\n',
     { ...LIVE_PROFILE_OPTIONS, sourceProfileVersion: '2026-08-11.immutable' }
   );
-  assert.equal(result.selectedProfile.version, '2026-08-19.5');
+  assert.equal(result.selectedProfile.version, '2026-10-26.1');
   assert.equal(result.events[0].sourceProfileVersion, '2026-08-11.immutable');
 });
 

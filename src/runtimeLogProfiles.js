@@ -1,5 +1,6 @@
 const PROFILE_SCHEMA_VERSION = 2;
-const SC_49_PROFILE_VERSION = '2026-08-19.5';
+const { SIGNALS } = require('./capturedRuntimeSignals');
+const SC_49_PROFILE_VERSION = '2026-10-26.1';
 
 const SC_49_EVENT_FAMILIES = Object.freeze([
   { id: 'build', requiredAnchors: ['FileVersion:', 'ProductVersion:', 'Branch:', 'Changelist:'] },
@@ -13,6 +14,7 @@ const SC_49_EVENT_FAMILIES = Object.freeze([
   { id: 'application', requiredAnchors: ['<SystemQuit>'] },
   { id: 'party', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
   { id: 'mission', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
+  { id: 'shop', requiredAnchors: ['SendShopBuyRequest'] },
   { id: 'zone', requiredAnchors: ['<SHUDEvent_OnNotification>'] },
   { id: 'vehicle', requiredAnchors: ['<CEntityComponentShipListProvider::SetVehicleSpawningInformations>', '<Vehicle Control Flow>'] },
   { id: 'quantum', requiredAnchors: ['<Player Selected Quantum Target - Local>'] }
@@ -350,6 +352,17 @@ const SC_49_EXTRACTORS = Object.freeze([
     dedupeFields: ['notificationId', 'missionId']
   },
   {
+    id: 'shop.purchase-requested',
+    kind: 'shopPurchaseRequested',
+    eventType: 'ShopPurchaseRequested',
+    literals: ['SendShopBuyRequest'],
+    requiredFields: ['requestId', 'itemName', 'quantity', 'shopName', 'clientPrice'],
+    confidence: 'medium',
+    sensitivity: 'local',
+    evidenceMarkers: ['SendShopBuyRequest', 'client_price[', 'itemName[', 'quantity[', 'shopName['],
+    dedupeFields: ['requestId']
+  },
+  {
     id: 'zone.jurisdiction-entered',
     kind: 'jurisdictionEntered',
     driftOnMissingFields: true,
@@ -472,6 +485,33 @@ const SC_49_EXTRACTORS = Object.freeze([
   }
 ]);
 
+const SC_410_CAPTURE_PROFILE = {
+    schemaVersion: PROFILE_SCHEMA_VERSION,
+    id: 'sc-4.10-live',
+    version: '2026-10-29.2',
+    priority: 95,
+    compatibility: {
+      family: { major: 4, minor: 10 },
+      releaseChannels: ['LIVE'], universes: ['PU'],
+      branches: ['UNKNOWN', 'sc-alpha-4.10.2'],
+      testedBuilds: ['4.10.197.2878'], exclusions: []
+    },
+    parserVersion: 'runtime-log-parser/0.3.1',
+    fieldAliases: SC_49_FIELD_ALIASES,
+    supportedEventFamilies: [{ id: 'captured', requiredAnchors: SIGNALS.map(({ marker }) => `<${marker}>`) }],
+    knownLimitations: [
+      'Only CAP-2026-10-29-01/02 log signals are enabled; 4.9 lifecycle extractors are not implicitly enabled.',
+      'Request, completion, attachment, system and diagnostic records remain separate observations.',
+      'No payment, delivery, consumption, throwing, equipment modification, vehicle ownership or inferred UI opening is asserted.'
+    ],
+    extractors: SIGNALS.map(({ marker }, index) => ({
+      id: `captured.signal-${index}`, kind: 'capturedRuntimeSignal', eventType: 'RuntimeLogSignalObserved',
+      literals: [`<${marker}>`], requiredFields: ['signalId', 'category', 'label', 'summary'],
+      confidence: 'high', sensitivity: 'local', evidenceMarkers: [marker],
+      dedupeFields: ['signalId', 'summary']
+    }))
+};
+
 const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
   {
     schemaVersion: PROFILE_SCHEMA_VERSION,
@@ -492,13 +532,14 @@ const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
       ],
       exclusions: [{ build: '4.9.999.0-BLOCKED-SYNTH', reason: 'synthetic_known_incompatible_vocabulary' }]
     },
-    parserVersion: 'runtime-log-parser/0.1.0',
+    parserVersion: 'runtime-log-parser/0.2.0',
     fieldAliases: SC_49_FIELD_ALIASES,
     supportedEventFamilies: SC_49_EVENT_FAMILIES,
     knownLimitations: [
       'Supports only fixture-promoted runtime-event/v1 patterns.',
       'Executable-version compatibility is limited to reviewed 4.9.0-LIVE and 4.9.188 LIVE families.',
-      'Does not infer destination, travel, or deferred party lifecycle events.'
+      'Does not infer destination, travel, or deferred party lifecycle events.',
+      'Shop purchase requests indicate an attempt only; no completion is implied.'
     ],
     extractors: SC_49_EXTRACTORS
   },
@@ -520,7 +561,7 @@ const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
       ],
       exclusions: []
     },
-    parserVersion: 'runtime-log-parser/0.1.0',
+    parserVersion: 'runtime-log-parser/0.2.0',
     fieldAliases: SC_49_FIELD_ALIASES,
     supportedEventFamilies: SC_49_EVENT_FAMILIES,
     knownLimitations: [
@@ -528,7 +569,8 @@ const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
       'Supports the same promoted event families as sc-4.9-live.'
     ],
     extractors: SC_49_EXTRACTORS
-  }
+  },
+  SC_410_CAPTURE_PROFILE
 ]);
 
 module.exports = {

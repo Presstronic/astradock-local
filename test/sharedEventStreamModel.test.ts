@@ -30,6 +30,14 @@ function event(id: string, second: number, environmentKey = 'LIVE:PU', sessionId
 }
 
 describe('shared event stream model', () => {
+  it('orders actual instants across offsets, with unknown times last and source lines breaking ties', () => {
+    const older = { ...event('older', 1), timestamp: '2026-08-20T12:00:00+02:00' };
+    const newer = { ...event('newer', 2), timestamp: '2026-08-20T11:00:00Z' };
+    const tied = { ...event('tie', 3), timestamp: '2026-08-20T11:00:00Z' };
+    const unknown = { ...event('unknown', 4), timestamp: null };
+    const state = reconcileStreamEvents(createSharedEventStreamState(), [older, unknown, newer, tied], 'ready', true);
+    expect(state.events.map(row => row.id)).toEqual(['tie', 'newer', 'older', 'unknown']);
+  });
   it('deduplicates and deterministically orders a bounded live window', () => {
     let state = createSharedEventStreamState({ windowSize: 2 });
     state = reconcileStreamEvents(state, [event('a', 1), event('c', 3), event('b', 2), event('b', 2)], 'ready', true);

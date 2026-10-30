@@ -23,6 +23,22 @@ export type VolumeCost = 'low' | 'moderate' | 'high' | 'bulk';
 export type EvidenceKind = 'application' | 'fixture' | 'runtime_log' | 'diagnostic';
 
 export interface RuntimeEventPayloadMap {
+  RuntimeLogSignalObserved: {
+    signalId: string;
+    category: 'action' | 'vehicle' | 'runtime' | 'diagnostic';
+    label: string;
+    summary: string;
+    requestId: string | null;
+    operation: string | null;
+    itemClass: string | null;
+    quantity: number | null;
+    clientPrice: number | null;
+    shopName: string | null;
+    kioskState: string | null;
+    result: string | null;
+    elapsedSeconds: number | null;
+    attachmentPort: string | null;
+  };
   RuntimeSourceDiscovered: {
     sourceLocation: string;
     sourceKind: 'game_log';
@@ -176,6 +192,13 @@ export interface RuntimeEventPayloadMap {
     missionId: string;
     contractName: string;
   };
+  ShopPurchaseRequested: {
+    requestId: string;
+    itemName: string;
+    quantity: number;
+    shopName: string;
+    clientPrice: number;
+  };
   JurisdictionEntered: {
     notificationId: string;
     jurisdiction: string;
@@ -243,6 +266,7 @@ export interface RuntimeEventEnums {
 export const ENUMS: RuntimeEventEnums;
 
 export interface EvidenceReference {
+  sourceByteOffset?: number;
   kind: EvidenceKind;
   sourceId: string;
   sensitivity: Sensitivity;
@@ -339,6 +363,8 @@ export interface RuntimeEventDefinition<TEventType extends RuntimeEventType = Ru
 export interface RuntimeEventPayloadField {
   type: 'string' | 'boolean' | 'integer' | 'number';
   required: true;
+  nullable?: boolean;
+  maxLength?: number;
   enum?: readonly unknown[];
   min?: number;
   max?: number;

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Specification/story draft; implementation not included |
+| Status | Owner-authorized Local implementation; cumulative category/action/item filters and tests delivered; see [implementation](station-client-implementation.md) |
 | Owner request | 2026-10-30 |
 | Phase | Unassigned local overlay increment; owner release decision required |
 | Type | User Story |
@@ -16,7 +16,7 @@ Action type and item type are useful independent dimensions. The current owner w
 
 ## Evidence and implementation boundary
 
-At drafting time, `src/overlayEventFeed.js`, `src/overlayMessages.js`, `src/overlayPurchasePresentation.js`, the overlay renderer and their documentation/tests are existing **uncommitted owner work**. They are context for this story and are not introduced or committed by it. Their final reviewed contracts must be available before implementation. Current feed DTOs expose broad `action`/`runtime` kinds and display summaries; these are insufficient to identify all requested filter dimensions. Add explicit versioned classification metadata at the projection boundary instead of parsing friendly text or raw logs in the renderer.
+The implementation builds on the owner's existing gameplay-overlay/capture work, included as the necessary filter foundation with its bounded evidence and fixture tests. It adds explicit versioned category/action/item classification at the projection boundary; the previous broad `action`/`runtime` kinds and friendly summaries are not used as filter keys. This integration does not promote those observations into confirmed inventory changes. See the implementation document for delivered behavior and limits.
 
 The current overlay is curated, passive, scoped to the active log/environment since application launch, newest first and bounded. Filtering must preserve those properties, raw-evidence bounds and main-monitor isolation. This draft does not assign overlay work to the local-only MVP or depend on Station authorization. Overlay use and its filters work without Discord/Station sign-in.
 

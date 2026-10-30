@@ -16,6 +16,7 @@ const CHANNELS = Object.freeze({
   eventsQuery: 'astradock:v1:events:query',
   evidenceGet: 'astradock:v1:evidence:get',
   settingsGet: 'astradock:v1:settings:get',
+  station: 'astradock:v1:station',
   settingsUpdate: 'astradock:v1:settings:update',
   settingsRetention: 'astradock:v1:settings:retention',
   settingsDelete: 'astradock:v1:settings:delete',
@@ -88,6 +89,22 @@ function serializeError(error) {
 
 const api = Object.freeze({
   version: 1,
+  station: Object.freeze({
+    getSnapshot: () => invoke(CHANNELS.station, { command: 'snapshot' }),
+    configure: (data) => invoke(CHANNELS.station, { command: 'configure', data }),
+    signIn: () => invoke(CHANNELS.station, { command: 'signIn' }),
+    cancelSignIn: () => invoke(CHANNELS.station, { command: 'cancelSignIn' }),
+    signOut: () => invoke(CHANNELS.station, { command: 'signOut' }),
+    refreshAccess: () => invoke(CHANNELS.station, { command: 'refreshAccess' }),
+    refreshInventory: () => invoke(CHANNELS.station, { command: 'refreshInventory' }),
+    updateConsent: (data) => invoke(CHANNELS.station, { command: 'consent', data }),
+    review: (proposalId) => invoke(CHANNELS.station, { command: 'review', data: { proposalId } }),
+    confirm: (proposalId, challenge) => invoke(CHANNELS.station, { command: 'confirm', data: { proposalId, challenge } }),
+    cancel: (proposalId) => invoke(CHANNELS.station, { command: 'cancel', data: { proposalId } }),
+    reject: (proposalId) => invoke(CHANNELS.station, { command: 'reject', data: { proposalId } }),
+    retry: () => invoke(CHANNELS.station, { command: 'retry' }),
+    resolveItems: (ids) => invoke(CHANNELS.station, { command: 'resolveItems', data: { ids } })
+  }),
   source: Object.freeze({
     discover: () => invoke(CHANNELS.sourceDiscover),
     choose: () => invoke(CHANNELS.sourceChoose),
@@ -125,7 +142,26 @@ const api = Object.freeze({
     preview: () => invoke(CHANNELS.diagnosticsPreview),
     export: () => invoke(CHANNELS.diagnosticsExport),
     deleteLocal: () => invoke(CHANNELS.diagnosticsDelete)
+  }),
+  overlay: Object.freeze({
+    open: () => ipcRenderer.invoke('astradock:v1:overlay:open'),
+    close: () => ipcRenderer.invoke('astradock:v1:overlay:close'),
+    getPreferences: () => ipcRenderer.invoke('astradock:v1:overlay:get-preferences'),
+    updatePreferences: (patch) => ipcRenderer.invoke('astradock:v1:overlay:preferences', patch),
+    subscribeFeed: (listener) => {
+      if (typeof listener !== 'function') throw new TypeError('Overlay feed listener is required.');
+      const onFeed = (_event, feed) => listener(Object.freeze(feed));
+      ipcRenderer.on('astradock:v1:overlay:feed', onFeed);
+      ipcRenderer.invoke('astradock:v1:overlay:feed-subscribe').then((feed) => listener(Object.freeze(feed))).catch(() => {});
+      return () => ipcRenderer.removeListener('astradock:v1:overlay:feed', onFeed);
+    }
   })
 });
 
-contextBridge.exposeInMainWorld('astradock', api);
+const overlayApi = Object.freeze({ version: api.version, overlay: Object.freeze({
+  close: api.overlay.close,
+  getPreferences: api.overlay.getPreferences,
+  updatePreferences: api.overlay.updatePreferences,
+  subscribeFeed: api.overlay.subscribeFeed
+}) });
+contextBridge.exposeInMainWorld('astradock', process.argv.includes('--astradock-overlay') ? overlayApi : api);
