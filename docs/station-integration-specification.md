@@ -24,13 +24,29 @@ Settled requirements:
 - Provide separate sign-in management and Station access management screens. Discord sign-in is optional for local-only use and required for Station account capabilities; no launch-time sign-in wall may block local monitoring or the overlay.
 - Uncertain observations, missing inventory baselines, unknown permissions, and unknown item mappings remain explicit; they cannot silently become inventory mutations.
 
+### Owner functionality and navigation decisions
+
+The owner settled the following behavior for the current connected scope:
+
+| Topic | Decision |
+| --- | --- |
+| Inventory submission | Review, then two separate "Are you sure?" confirmations before enqueue/send; no automatic approval or submission |
+| Dropped items | Remove the approved dropped quantity from current Station inventory; do not retain it as owned with a dropped/location status |
+| Game identities | One game account/character inventory binding per connected Station user; multiple game accounts/characters and an active-identity selector are out of scope for now |
+| Access management | Only the currently signed-in, connected user's own access, connection and consent; no other-user or role administration in Local |
+| Overlay filtering | Apply filters in order of specificity and narrow cumulatively: all active dimensions must match; no more-specific override. Purchase + Ammunition shows only ammunition purchases |
+| Navigation | Sign-in and Station access screens are under Settings, with a small account/status control in the main header |
+| Offline inventory | Previously downloaded personal inventory remains readable offline, with an obvious last-successful-update timestamp and stale/offline labeling |
+
+The owner explicitly confirmed the sequence: **Review -> first confirmation -> second confirmation -> enqueue/send**. Reviewing a proposal does not count as either confirmation. Both confirmations are required for now; they cannot be disabled or remembered for new changes. Visual composition and remaining interactions still require design deliverables.
+
 ## Scope and release boundaries
 
 The MVP remains local-only as defined in [PRD section 5.4](product-requirements.md#54-mvp-product-boundary--settled). This specification establishes future integration boundaries without adding a network requirement to monitoring or the overlay.
 
 The **proposed Phase 1** connected increment is approved service configuration, Station-backed browser sign-in, permission projection, item resolution, inventory pull, and reviewed supported changes through a durable queue. This grouping delivers one coherent personal-inventory workflow while containing the risk of incorrect automatic writes. It is conditional on owner release approval, Station contracts, inventory semantics, design deliverables, and evidence gates; it is not a settled release assignment.
 
-**Phase 2 planning candidates**, without committed implementation scope: automatic application of individually approved evidence-backed action families, richer location/container reconciliation, and additional developer-portal capabilities. Do not move unsupported acquisition/sale/drop/loss detectors into a release just to complete the list. These need separate evidence and product decisions first.
+**Phase 2 planning candidates**, without committed implementation scope: richer location/container reconciliation and additional developer-portal capabilities. Automatic inventory submission is excluded by the current mandatory-review decision; revisiting it requires a new owner decision rather than an assumed later-phase upgrade. Do not move unsupported acquisition/sale/drop/loss detectors into a release just to complete the list. These need separate evidence and product decisions first.
 
 Non-goals: rebuilding Local, implementing Station or its developer portal here, embedding Discord secrets, a new local role administration system, arbitrary REST/GraphQL consoles, all-game asset extraction, organization inventory sharing, remote log streaming, real-time collaboration transport, or making the game itself accept inventory changes. Station inventory is an account projection and cannot be represented as an authoritative game inventory snapshot without evidence.
 
@@ -50,6 +66,8 @@ Non-goals: rebuilding Local, implementing Station or its developer portal here, 
 
 All account-bound state is partitioned by approved service identity, Station subject, authorized tenant where applicable, game identity binding, and environment. Catalog caches also include source, game build compatibility, locale, and catalog revision. LIVE and test universes never share inventory implicitly. A game wipe/reset needs a Station inventory epoch or equivalent contract; do not infer a reset from a new build or an empty response.
 
+Current product scope supports one game account/character inventory binding for the signed-in Station user. Do not build a multiple-account/character picker or infer additional bindings from log IDs. The portal must still define how that single binding is verified. Signing out and subsequently connecting another Station user remains a security isolation case, not a multiple-game-account feature.
+
 ## Architecture and existing boundaries
 
 The existing [hardened Electron boundary](hardened-electron-boundary.md), [canonical event contracts](runtime-event-contracts.md), [local privacy controls](local-settings-and-privacy-controls.md), and [time contract](time-contract.md) remain the starting points. Relevant navigation points are `src/main.js`, `src/preload.js`, `src/ipcBoundary.js`, `src/contracts/rendererApi.d.ts`, `src/settingsStore.js`, and `src/persistence/canonicalEventStore.js`. They currently provide local capabilities, preferences, and telemetry, not a Station client. Existing `username`/`userId` settings are local game filters, not Station credentials or authorization.
@@ -65,7 +83,8 @@ Renderer -> validated product capabilities -> privileged integration coordinator
   -> inventory reader and snapshot repository
 
 Canonical observations -> evidence/identity/policy gate -> reviewable proposal
-  -> consent + current authorization -> durable operation queue
+  -> explicit review + double confirmation + consent + current authorization
+  -> durable operation queue
   -> Station adapter -> per-operation result -> reconciled inventory projection
 ```
 
@@ -101,7 +120,9 @@ The renderer receives a sanitized capability projection for navigation and contr
 
 Local's privileged coordinator checks current authorization on each protected command and again immediately before queued dispatch. Station checks every read/write using its own current authorization and never trusts a client-supplied role, permission snapshot, owner ID, or hidden button. Denied reads expose no resource data; denied writes cause no mutation. Permission loss immediately stops affected local work once observed, cancels unsent dispatches, and hides protected cached views. A 403 triggers reevaluation rather than retrying as an outage or requesting broader access silently.
 
-Authorization snapshots must be authenticated, bound to service/subject/tenant/session, revisioned, and finite-lived. Refresh on sign-in, application/session resume, tenant changes, expiry, and denial, plus a contract-defined bounded refresh schedule. Push notifications are optional; do not require WebSockets for this increment. The refresh interval/maximum staleness is a contract decision and must be tested before release. Fail closed for missing, stale, unrecognized, or malformed grants. Offline mode cannot dispatch remote work; protected cached views are inaccessible after their authorization lease expires unless Station explicitly defines a separately reviewed offline read entitlement. Do not promise immediate revocation to disconnected clients. Baseline local-only monitoring remains available independently of Station; identifying which additional local features become Station-controlled is an owner decision.
+Authorization snapshots must be authenticated, bound to service/subject/tenant/session, revisioned, and finite-lived. Refresh on sign-in, application/session resume, tenant changes, expiry, and denial, plus a contract-defined bounded refresh schedule. Push notifications are optional; do not require WebSockets for this increment. The refresh interval/maximum staleness is a contract decision and must be tested before release. Fail closed for missing, stale, unrecognized, or malformed grants on remote operations and other protected capabilities. Offline mode cannot dispatch remote work.
+
+The owner explicitly permits reading the connected user's previously authorized, downloaded personal inventory offline. This is a narrow local-cache entitlement, not a continuing remote permission grant: access-token or online permission-lease expiry alone must not hide that snapshot. Bind the entitlement to the same locally connected account and the snapshot's authorized owner/context; never expose another account's cache. Sign-out, explicit account disconnection, an observed permission revocation, deletion/reset or account change removes access according to the cache lifecycle policy. Losing the network is not account disconnection. Other protected cached views retain the finite-lease policy unless separately authorized. The portal handoff must accommodate this settled personal offline-read behavior. Do not promise immediate revocation to disconnected clients. Baseline local-only monitoring remains available independently of Station; identifying which additional local features become Station-controlled is an owner decision.
 
 ## Item catalog and resolution
 
@@ -115,15 +136,17 @@ Coalesce repeated lookups, bound memory/disk/negative caches, and refresh by ser
 
 Pull inventory for the authenticated subject's authorized game identity and environment. Validate pagination and snapshot revision/consistency before replacing the current cache. A partial page, expired cursor, permission denial, timeout, or malformed response cannot become an empty inventory or zero count. Show the previous snapshot as stale or inaccessible according to authorization policy. A valid, complete empty snapshot is distinct from missing/unknown data.
 
+Keep the last complete, authorized personal snapshot readable for that same connected user while offline. Display **Last updated** prominently above inventory rows, using the last successful complete download's absolute local date/time and timezone plus elapsed age. Show **Offline — cached inventory** when disconnected and an explicit stale state when freshness expires. An authorized empty snapshot still has a last-updated time; no prior complete snapshot shows **Never updated** and no invented timestamp. Opening the screen, a failed/partial refresh, a catalog-name update, a local proposal or a reconnect attempt cannot advance this timestamp. If Station supplies a separate inventory as-of time, label it separately from download/refresh time. Keep status and update time visible while browsing the cached data, including supported narrow layouts.
+
 Inventory rows must distinguish Station item definition, instance versus aggregate identity, quantity/unit, ownership state, location/container if known, environment/epoch, server revision, and last-confirmed time. A Station baseline does not fill gaps in local logs. A transfer between owned containers must not increment total owned quantity. Unknown locations and quantities remain unknown.
 
-The owner has not settled automatic versus reviewed submission, dropped-item ownership, or manual assertions. **Provisional safety assumption for planning:** proposals require explicit review before submission; ambiguous actions are withheld. This assumption is not a permanent product decision or an approved UI interaction. Resolve it before implementing the STN-009 workflow; keep STN-008's transport independent of that choice.
+Inventory submission requires **Review -> first confirmation -> second confirmation -> enqueue/send**, as explicitly directed by the owner. No role, consent checkbox, future retry, batch option or remembered confirmation may automatically approve a new change. The user must inspect the exact proposed items/quantities/actions and current versus proposed inventory effects before two distinct confirmation prompts. Bind both confirmations to the immutable reviewed payload, owner/environment/epoch and baseline revision; material changes invalidate them and return the proposal to review. Cancelling at review, the first confirmation or the second confirmation performs no enqueue or remote mutation. Do not auto-confirm a recovered session. Once a fully reviewed/confirmed operation is queued, retries may resend that identical authorized operation under the idempotency contract without treating the retry as a newly approved change; rebase, changed payload or resolved conflict requires a new review and both confirmations. Manual assertions remain a separate undecided capability; reviewing a proposal does not fill missing evidence.
 
 | Gameplay category | Required boundary before changing inventory |
 | --- | --- |
 | Acquisition/purchase | A request or shop-reported success alone does not prove delivery; require approved possession evidence or a separately specified user assertion |
 | Sale | Require an attributable completed sale and correct item/quantity; generic move, shop activity, or wallet messages are insufficient |
-| Drop | Distinguish leaving a container, leaving possession, and loss of ownership; subtract versus dropped/location status remains open |
+| Drop | A qualifying attributed drop proposes removing the exact dropped quantity from current Station inventory, subject to review and double confirmation. Preserve drop provenance/history, but do not retain that quantity as owned with a dropped/location status. A drop request, owned-container move or query alone cannot remove inventory |
 | Loss | Require an approved attributable outcome or explicit reconciliation; disconnect, cache invalidation, missing query rows, entity cleanup, or unobserved time cannot prove loss |
 | Move/equip/attachment | Treat location/equipment state separately from acquisitions and aggregate ownership |
 | Failure/cancel/unknown | Preserve the observation and explanation; do not mutate inventory |
@@ -151,7 +174,7 @@ Raw logs, source paths, IPs, Discord credentials, unrelated players, and raw gam
 
 ## Queue, reconciliation, and recovery
 
-Persist operation identity, immutable minimized payload, destination/account/environment/epoch binding, consent revision, authorization requirements, expected server revision, attempts, and result atomically before network dispatch. Replaying logs, duplicated completion markers, rescans, and restarts cannot allocate another operation for the same accepted proposal. Correlation request numbers alone are not globally unique; include source generation/session and the approved semantic identity strategy.
+Persist operation identity, immutable minimized payload, destination/account/environment/epoch binding, consent revision, authorization requirements, expected server revision, explicit review/confirmation receipt bound to that payload, attempts, and result atomically before network dispatch. Only completed review and the required double-confirmation sequence can create a dispatchable operation. Pending review/confirmation is not dispatchable queue approval. Replaying logs, duplicated completion markers, rescans, and restarts cannot allocate another operation for the same accepted proposal. Correlation request numbers alone are not globally unique; include source generation/session and the approved semantic identity strategy.
 
 States include awaiting review, queued, sending, retry scheduled, blocked by authentication/permission/consent/mapping, conflict, rejected, applied, and unknown outcome. Partial batch success is recorded per operation. Resume only eligible operations in a bounded order that preserves related item/container dependencies; one blocked item must not freeze unrelated work indefinitely. Define queue capacity, retention, expiry, and disk-full behavior before release. Never silently discard pending or unknown-outcome writes, and never let telemetry cleanup erase deduplication state still needed for retry safety.
 
@@ -167,16 +190,18 @@ This is a content/behavior contract, not a layout or interaction design. The des
 
 Required management screens:
 
+Both screens belong under **Settings**. A small account/status control in the main header provides connected/signed-out/offline/attention state and access to those Settings screens; it must not turn the header into a role administration or inventory workspace. Use a privacy-safe display identity when connected, not tokens or sensitive IDs. Header control activation opens the corresponding management flow without starting capture, signing in or granting consent automatically. Final control composition, labels, keyboard/focus behavior and narrow-viewport treatment remain design deliverables.
+
 1. **Sign-in management:** explain that Discord sign-in connects the existing Station account and is optional for local use. Show disconnected/signed-in identity, Station destination, browser authorization progress and cancellation, expiry/re-authentication, safe errors, and sign-out. Provide a clear way to return to local-only use. Local never collects a Discord password or bot token. Do not expose account identity or credential material in the overlay.
 2. **Station access management:** show the connected destination/account/tenant, role labels and effective permitted capabilities, permission freshness, capability availability/denial reasons, and separate catalog-read, inventory-read, and inventory-write consent/status. Provide only authorized connection, refresh, sync pause/resume, consent, and disconnect actions once their interactions are designed. Explain which changes affect only Local preferences and which require Station authorization. Signing in or receiving a role cannot silently turn on write consent.
 
-Whether the second screen also administers other Station users or edits roles/permissions is unresolved. Do not assume that scope from the term "access management." The default planning boundary is viewing one's access and managing this Local connection/consent; privileged account administration requires an explicit owner decision and dedicated Station contracts/stories. Neither screen can override server permissions. Screen names above describe purpose; navigation placement and final labels are design deliverables.
+The Station access management screen is limited to the currently signed-in, connected user's own access, Local connection and consent. Other-user administration, role editing and permission assignment are out of scope even when that user has an administrator role in Station. Neither screen can override server permissions. Settings placement and the header entry point are settled; final screen labels and visual composition are design deliverables.
 
 Order information by destination/account/authorization first, then inventory environment/freshness, data, and outstanding changes. Required content:
 
 - Connection: service label/origin, API support, signed-in display identity, tenant where applicable, role labels/effective capability summary, auth/permission freshness, and privacy-safe reason for unavailable capabilities. Secrets never appear. Actions: validate connection, sign in, cancel sign-in, reauthenticate, sign out/disconnect; action availability follows authorization and state.
-- Catalog/inventory: localized item name with opaque ID in accessible detail, quantity and unit, ownership/location state, environment/epoch, provenance/confidence, catalog resolution, Station revision, and last confirmed time. Unknown is not zero; stale values carry their last-known timestamp. Actions: refresh/read and inspect details when permitted.
-- Changes: action, affected item, exact quantity/unit or unknown, source/destination, observed time, why proposed/withheld, review status, sync status, retry time, and safe failure/conflict reason. Actions: inspect minimized outgoing fields, approve/reject when the review policy is settled, pause/resume eligible sync, retry safe operations, and resolve/reconcile conflicts. Exact labels and interaction details require design approval.
+- Catalog/inventory: localized item name with opaque ID in accessible detail, quantity and unit, ownership/location state, environment/epoch, provenance/confidence, catalog resolution, Station revision, and last confirmed time. Unknown is not zero; stale values carry their last-known timestamp. Prominently show Last updated and elapsed age, including offline cached views, rather than hiding freshness in a tooltip/detail. Actions: refresh/read and inspect details when permitted.
+- Changes: action, affected item, exact quantity/unit or unknown, source/destination, observed time, why proposed/withheld, review status, confirmation stage, sync status, retry time, and safe failure/conflict reason. Actions: inspect minimized outgoing fields and before/after quantities, review/reject, explicitly complete double confirmation before sending, cancel at either stage, pause/resume eligible sync, retry identical approved operations safely, and resolve/reconcile conflicts through new review. Exact labels and interaction details require design approval; no implicit or default affirmative confirmation.
 
 Use integer counts, explicit quantity units, named enum states, canonical IDs as opaque strings, and local date/time with timezone and canonical UTC in detail. Freshness is an elapsed duration with a last-success instant; use the existing time contract. Catalog translation is separate from identifier accuracy. Sensitive identifiers remain hidden/redacted unless a permission and purposeful detail view allow them. Do not display unverified prices/currency as paid amounts.
 
@@ -190,28 +215,28 @@ Keyboard access, semantic labels/tables, focus restoration, status announcements
 2. A synthetic integration harness proves browser sign-in, protected token handling, permission-controlled visibility and privileged commands, account/tenant/environment isolation, and expiry/revocation behavior.
 3. Catalog resolution works offline with labeled permitted cache data, preserves exact IDs, and refuses ambiguous mappings for writes.
 4. Inventory pull commits only complete consistent snapshots; unsupported/missing data never becomes an empty inventory.
-5. Each promoted gameplay action has approved positive/negative fixtures and attribution/correlation rules. Review/automatic policy and ownership semantics are settled first.
+5. Each promoted gameplay action has approved positive/negative fixtures and attribution/correlation rules. Mandatory review/double confirmation and dropped-quantity removal are enforced; unsupported observations remain withheld.
 6. Restart, duplicate observations, response loss after commit, partial batches, concurrent edits, consent/permission revocation, and account switches cause no cross-account upload or duplicate mutation under the agreed Station contract.
 7. Diagnostics, outgoing payload inspection, storage/deletion policies, accessibility, and measured transport/cache/queue bounds pass security/privacy/reliability review. Parser throughput is preserved during slow/offline Station operation.
 
-Happy path: configure a synthetic trusted service; sign in through its browser test flow; load only granted capabilities; resolve exact item IDs; pull a complete inventory; review a qualifying synthetic change; submit once; confirm the server revision and local confirmed projection; restart and verify no duplicate.
+Happy path: open sign-in through Settings/header; configure a synthetic trusted service; sign in through its browser test flow; load only the connected user's granted capabilities and single game binding; resolve exact item IDs; pull a complete inventory; disconnect the network and verify cached reading with obvious unchanged Last updated; reconnect; review a qualifying synthetic change including a drop decrement; complete both separate confirmations; submit once; confirm the server revision and local confirmed projection; restart and verify no duplicate.
 
-Unhappy path: test malicious URLs/redirects, invalid callback/state/issuer, token refresh/storage failure, role removal and direct forbidden IPC, stale/offline permission leases, account/tenant/environment changes, unknown/ambiguous catalog IDs, malformed/partial pages, unsupported builds, duplicate and incomplete log sequences, dropped ownership ambiguity, negative/overflow quantity, timeouts before/after commit, 401/403/429/5xx, disk-full, queue expiry, cancellation, and revision conflict. Check that each failure preserves safe local monitoring and never fabricates a Station-confirmed result.
+Unhappy path: test malicious URLs/redirects, invalid callback/state/issuer, token refresh/storage failure, role removal and direct forbidden IPC, stale/offline permission leases with the personal snapshot exception, cross-account cache access, account/tenant/environment changes, an attempted second game binding or other-user administration, unknown/ambiguous catalog IDs, malformed/partial pages, unsupported builds, duplicate/incomplete log sequences, drop requests without qualified completion, negative/overflow quantity, cancellation at every review/confirmation step, changed payload/baseline during confirmation, restart mid-confirmation, timeouts before/after commit, 401/403/429/5xx, disk-full, queue expiry and revision conflict. Confirm offline failures cannot advance Last updated or dispatch writes. Check that each failure preserves safe local monitoring and never fabricates a Station-confirmed result.
 
-## Decisions and dependencies still required
+## Decision register and remaining dependencies
 
 | ID | Decision / required evidence | Owner or source |
 | --- | --- | --- |
 | D-01 | Approved Station origins, service identity, API/versioning/discovery contract and sandbox | Station developer portal |
 | D-02 | Native public-client registration, issuer, redirect strategy per supported OS, refresh/revocation and secure storage | Station + Local security review |
 | D-03 | Existing role/permission vocabulary, effective-grant contract, tenant scoping, freshness/lease and revocation policy; which additional local features are controlled | Station + product owner |
-| D-04 | Station subject to game account/character binding, verification, multiple characters/accounts, environments and wipe epochs | Station + product owner |
+| D-04 | Settled: one game account/character binding per connected user; no multiple-identity selector. Open: binding verification contract, environments and wipe epochs | Station; owner scope settled |
 | D-05 | Item identity namespace, localization, build compatibility, quantity/instance/container and inventory revision contracts | Station developer portal |
-| D-06 | Review versus automatic submission; assertions for unobservable actions; baseline/reconciliation policy | Product owner |
-| D-07 | Drop versus ownership loss, sale/loss semantics, fractional goods, corrections and retraction | Product owner + evidence review |
+| D-06 | Settled: review followed by two separate confirmations before enqueue/send; no automatic submission. Open: assertions for unobservable actions and detailed baseline/reconciliation policy | Product owner + Station |
+| D-07 | Settled: approved drops remove the dropped quantity from current inventory. Open: evidence qualification, sale/loss semantics, fractional goods, corrections and retraction | Product owner + evidence review |
 | D-08 | Idempotency horizon/status lookup, concurrency, batching/errors/rate limits, retention/deletion and audit | Station developer portal |
 | D-09 | Per-action/build accepted sanitized fixtures, false positives, missing and contradictory evidence | Runtime evidence review |
-| D-10 | Connected release phase, approved UI flows and behavior missing from the authoritative design sources | Product owner + design agent |
-| D-11 | Whether Station access management includes remote user/role administration beyond personal access, connection and consent | Product owner |
+| D-10 | Settled: sign-in/access screens under Settings, small header account/status control, readable offline snapshot with obvious Last updated. Open: release phase, approved UI flows and remaining missing interactions | Product owner + design agent |
+| D-11 | Settled: only the connected user's own access, connection and consent; no other-user/role administration in Local | Product owner |
 
 No new runtime, framework, library, OAuth provider, transport, or API route is selected by this document. Use the existing stack unless a reviewed implementation decision justifies a change. Contract mocks can support implementation after authorization, but production acceptance remains blocked on the real reviewed Station contract and these applicable decisions.

@@ -47,13 +47,26 @@ Map exact known classes through an explicit local taxonomy first. If Station lat
 
 For generic completion/response rows, inherit item/action context only through an accepted bounded unambiguous correlation; without it retain unknown/not-applicable classification. Row grouping must not fabricate item details. For rows legitimately referencing multiple items, match any referenced item's selected type; final multi-item semantics require review if such rows are introduced. Item-type revisions may refresh presentation but cannot alter evidence, inventory or sync eligibility.
 
-## Filter semantics and unresolved decisions
+## Filter specificity and remaining decisions
 
-Proposed ordinary selection semantics: OR within each multi-select dimension; AND across active dimensions. Default/reset means all currently eligible curated types. Distinguish an inactive dimension from an intentionally empty selection, if the design permits empty selection; document how All/None/Clear work rather than overloading an empty array. Unknown/unclassified and no-item values remain explicitly selectable. All means all curated supported overlay events, never parser/system/debug traffic.
+**Settled owner direction:** apply filters in order of specificity and narrow cumulatively: **all active filter dimensions must match**. Present and explain broad event category, then the more specific action type, then item type; an optional outcome remains a separate refinement if approved. The specificity rule is not a reason to filter raw records before correlation or to change the bounded feed. Keep classification/correlation before row filtering and the visible cap afterward.
 
-The owner has been asked whether selecting an item type should hide unrelated vehicle/travel/party events or leave those controlled only by event category. **Unresolved:** record the answer before finalizing cross-dimension matching; do not silently choose either rule. Until answered, all-types default is safe to specify, but item-specific non-item behavior remains a design/acceptance blocker.
+The owner explicitly confirmed cumulative narrowing, with no specificity override. Selecting **Purchase + Ammunition** shows only ammunition purchases. An active ammunition-only selection excludes unrelated vehicle/travel/party rows with no item; include the explicit No item choice if those rows should also match that dimension. A restrictive action/category still has to match, so selecting No item does not bypass Purchase. Contradictory selections yield no matches, not an automatic relaxation or reset. Unclassified items only match an active item dimension if Unclassified item is selected. Changing control order never changes the result for identical final selections.
 
-Other decisions: approve taxonomy/grouping and labels; whether outcome is exposed initially; unknown/no-item behavior; preferences shared across environments or scoped per environment; selections retained across runs; filter management placement; interaction while new matching events arrive; and final responsive/accessibility behavior. These are product/design deliverables, not permission to infer unfinished archive interactions.
+Use OR among selected values within one multi-select dimension and AND across active dimensions. Default/reset means all currently eligible curated types. Distinguish an inactive dimension from an intentionally empty selection, if the design permits empty selection; document how All/None/Clear work rather than overloading an empty array. Unknown/unclassified and no-item values remain explicitly selectable. All means all curated supported overlay events, never parser/system/debug traffic.
+
+| Active selections | Matching result |
+| --- | --- |
+| None (all dimensions inactive) | All eligible curated rows |
+| Action: Purchase | Purchase rows across all item types, including missing item context if otherwise eligible |
+| Item: Ammunition | Ammunition rows across eligible actions; no unrelated/no-item or unclassified rows |
+| Action: Purchase; Item: Ammunition | Ammunition purchase rows only |
+| Action: Purchase; Item: Ammunition or Medical consumables | Purchase rows for either selected item type |
+| Category: Party; Item: Ammunition | No matches for the current unrelated/no-item party rows; neither filter overrides the other |
+| Item: Ammunition or No item | Ammunition rows plus no-item rows, still subject to every other active dimension |
+| Item: Unclassified item | Rows with a referenced item whose type is unknown, not rows with no referenced item |
+
+Remaining decisions: approve final taxonomy/grouping and labels; whether outcome is exposed initially; empty-selection behavior; preferences shared across environments or scoped per environment; selections retained across runs; filter management placement; interaction while new matching events arrive; and final responsive/accessibility behavior. Specificity, cumulative matching and no-item/unclassified treatment are settled above. Remaining design deliverables do not permit inferring unfinished archive interactions.
 
 Filter settings must be overlay-specific and local. If persisted, validate, version and migrate them through the approved preference store; do not reuse main-monitor filter state or queue preferences for Station. Reset clears only the overlay filter selection. Applying a filter never starts/stops capture, invokes a scan/export, changes source/environment, fetches older history or modifies canonical retention.
 
@@ -77,7 +90,7 @@ The design agent must supply filter control behavior/composition and all selecti
 
 ## User acceptance criteria
 
-- Approved action and item-type choices independently narrow the curated overlay under explicitly decided cross-dimension semantics.
+- Category/action/item choices follow the specificity order and cumulative decision table: OR within selected values, AND across active dimensions, no override. Purchase + Ammunition excludes unrelated/no-item rows and contradictory selections produce no matches.
 - The known synthetic MedPen/drink/magazine/helmet cases receive their reviewed types; unknown classes remain selectable and distinguishable from no-item events.
 - Purchase request/result grouping and raw evidence remain correct when related stages or categories are filtered out.
 - Friendly and Raw modes select the same semantic rows; class/name translation does not change identity or matching.
@@ -88,7 +101,7 @@ The design agent must supply filter control behavior/composition and all selecti
 ## Happy-path test steps
 
 1. Feed synthetic supported purchases, moves/drop/carry/attachments, vehicle/travel/party events and exact known item classes through the bounded overlay pipeline.
-2. Select approved action types and item types; verify OR-within/approved-across matching and agreed treatment of non-item rows. Reset and verify all eligible curated rows return.
+2. Select broad categories, specific actions and item types in different orders; verify the approved specificity decision table gives identical final results for the same selections, including conflicting/no-item combinations. Reset and verify all eligible curated rows return.
 3. Switch Friendly/Raw and verify identical semantic matches, grouped purchase evidence IDs and unchanged source text when available.
 4. Add new matching events and verify top visibility; verify main capture, main filters and main history browsing remain unchanged.
 5. Exercise keyboard controls, focus/status announcements and supported narrow/scaled viewports. If persistence is approved, restart and verify scope/versioned restoration.
@@ -103,7 +116,7 @@ The design agent must supply filter control behavior/composition and all selecti
 
 ## Definition of Done
 
-- Owner decisions settle taxonomy, non-item matching, outcome control, scope/persistence and missing interactions before UI implementation.
+- Settled cumulative matching/no-item semantics are retained; remaining owner/design decisions settle taxonomy, outcome control, empty selections, scope/persistence and missing interactions before UI implementation.
 - Approved design deliverables cover required content, selection and degraded states without borrowing Station styling.
 - Classification/projection contracts, bounded pipeline behavior and preference migration are documented; existing owner overlay work is a reviewed prerequisite.
 - Focused domain/IPC/UI tests verify semantics, correlation-before-filtering, identity/privacy bounds, passive isolation and scroll behavior. Avoid tests that merely mirror a lookup table.
