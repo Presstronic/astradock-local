@@ -426,6 +426,8 @@ Current evidence exposes inventory requests, moves, stores, equipment/attachment
 
 The design must distinguish startup hydration and streamed-world activity from deliberate user actions. Inventory movement is not proof of a commercial trade without price, currency, commodity, and transaction evidence.
 
+Owner direction captured on 2026-10-30 adds a post-MVP Station integration outcome: resolve item IDs/names through Station's developer-portal APIs, pull the authenticated player's Station inventory, and push supported acquisitions, sales, drops and losses. This does not promote unsupported log detectors or decide dropped-item ownership. See the [Station integration specification](station-integration-specification.md) for evidence gates, identity/environment isolation, permissions, consent and reconciliation.
+
 ### 8.7 Desired event families requiring more evidence — Candidate
 
 Capture and evaluate fresh annotated evidence for:
@@ -628,6 +630,16 @@ Server-Sent Events may remain an implementation option for future strictly one-w
 - Native-app redirect strategy by supported operating system.
 - Token scopes, role/permission model, and super-admin provisioning/recovery.
 - Realtime gateway deployment, message schema, scale targets, and permitted retention.
+
+### 11.5 Developer portal, inventory and Local access — Owner direction, 2026-10-30
+
+Station's API is not ready and its developer portal is being built. Configure and consume reviewed, versioned Station capabilities through a replaceable privileged adapter; do not guess production routes or connect Local directly to Station's database.
+
+Provide separate sign-in management and Station access management screens. Signing in through Station's Discord identity is optional for local-only monitoring and overlay use and required for Station account features. Station's existing roles and permissions determine what a connected user can see and use in Local, with enforcement at Local's privileged command/dispatch boundary and again on Station. Sign-in and granted permission do not imply synchronization consent. Whether access management also administers other users/roles remains an owner decision.
+
+The [integration specification](station-integration-specification.md) and [reviewable story backlog](issue-draft-station-integration.md) cover configuration/transport, browser sign-in, authorization freshness/offline behavior, item names/IDs, complete inventory reads, evidence-backed changes, durable idempotent writes and conflicts. They retain the local-only MVP boundary; proposed later phasing, action policies and API-dependent decisions are explicitly conditional.
+
+The owner's overlay action/item filter request is tracked separately in the [overlay type-filter story](issue-draft-overlay-type-filters.md). These local filters do not depend on Station sign-in; item enrichment remains optional.
 
 ## 12. Official game-data mining
 

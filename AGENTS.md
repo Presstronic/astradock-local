@@ -95,3 +95,9 @@ Everything in this section describes the current proof of concept only. It is us
 - Use `npm test` for the current test suite. Add focused fixtures and unit tests with every parser change.
 - Do not commit real user logs, credentials, account IDs, IP addresses, or extracted copyrighted game assets. Use small sanitized fixtures.
 - Keep README user-facing; update this file when the mission, architecture, or settled decisions change.
+
+## Station integration and overlay filter direction (2026-10-30)
+
+- Station's API is not ready; its developer portal will provide the reviewed contracts. Capture configuration, item catalog names/IDs, Discord-backed Station login, own-inventory reads and supported acquisition/sale/drop/loss synchronization in the specification/backlog without guessing production endpoints or promoting unsupported detectors. See `docs/station-integration-specification.md` and `docs/issue-draft-station-integration.md`.
+- Provide separate sign-in management and Station access management screens. Discord/Station login is optional for local-only monitoring and overlay use, and required for Station account features. Station's existing roles/permissions govern connected feature visibility/use; enforce them through privileged Local commands and Station authorization, not only hidden UI. Sign-in/permission grants never imply sync consent. Remote user/role administration scope remains undecided.
+- Specify overlay action and item-type filters independently of Station sign-in. Keep curated/passive/bounded behavior, Friendly/Raw semantic equivalence, explicit unknown/no-item classification and main-monitor isolation. Event-category/outcome controls and non-item matching semantics remain proposals/decisions; see `docs/issue-draft-overlay-type-filters.md`.
