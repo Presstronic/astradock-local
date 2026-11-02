@@ -2,7 +2,16 @@ const options = require('./contracts/overlayFilterOptions.json');
 const CATEGORIES = Object.freeze(options.categories);
 const ACTIONS = Object.freeze(options.actions);
 const ITEM_TYPES = Object.freeze(options.itemTypes);
-const ITEM_CLASSES = Object.freeze({ crlf_consumable_healing_01: 'medical', Drink_bottle_cruz_01_lux_a: 'drink', klwe_lmg_energy_01_mag: 'ammunition', behr_lmg_ballistic_01_mag: 'ammunition', outlaw_legacy_armor_medium_helmet_01_01_01: 'equipment' });
+const ITEM_CLASSES = Object.freeze({
+  crlf_consumable_healing_01: 'medical', Drink_bottle_cruz_01_lux_a: 'drink',
+  klwe_lmg_energy_01_mag: 'ammunition', behr_lmg_ballistic_01_mag: 'ammunition', klwe_pistol_energy_01_mag: 'ammunition',
+  outlaw_legacy_armor_medium_helmet_01_01_01: 'equipment',
+  rsi_odyssey_undersuit_helmet_01_01_01: 'equipment', rsi_odyssey_undersuit_01_01_01: 'equipment',
+  rsi_explorer_undersuit_01_01_concierge: 'equipment', qrt_specialist_medium_core_01_01_04: 'equipment',
+  qrt_specialist_medium_arms_01_01_04: 'equipment', qrt_specialist_medium_legs_01_01_04: 'equipment',
+  qrt_specialist_medium_helmet_01_01_04: 'equipment', rrs_combat_light_backpack_02_02_01: 'equipment',
+  fio_glasses_01_01_01: 'equipment', klwe_ubarrel_lasr_s1: 'equipment', klwe_ubarrel_lasr_s1_02: 'equipment'
+});
 const DIMENSIONS = Object.freeze({ categories: CATEGORIES, actions: ACTIONS, itemTypes: ITEM_TYPES });
 
 function normalizeOverlayFilters(value, { strict = false } = {}) {
@@ -18,7 +27,7 @@ function classifyOverlayRow(row) {
   const events = row.sourceEvents;
   const event = events.find(item => item.eventType === 'ShopPurchaseRequested' || item.payload?.signalId === 'SHP-01') || row.event;
   const payload = event.payload || {};
-  const itemClass = payload.itemClass || (event.eventType === 'ShopPurchaseRequested' ? payload.itemName : null);
+  const itemClass = row.inventoryContext?.itemClass || payload.itemClass || (event.eventType === 'ShopPurchaseRequested' ? payload.itemName : null);
   const itemType = itemClass ? Object.hasOwn(ITEM_CLASSES, itemClass) ? ITEM_CLASSES[itemClass] : 'unclassified' : 'no_item';
   let category = 'inventory';
   let action = 'inventory_result';

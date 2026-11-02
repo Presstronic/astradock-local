@@ -250,7 +250,8 @@ function getOverlayFeed() {
   return createOverlayEventFeed({ events: current?.runtimeEvents || [], since: applicationStartedAt,
     environmentKey: current?.environmentKey, environment: current?.environment?.releaseChannel || activeSourceChannel || 'Unknown environment',
     monitoring: Boolean(activeTailer), parserCompatibility: current?.parserCompatibility,
-    displayMode: overlayPreferences.displayMode, evidence: current?.overlayEvidence, filters: overlayPreferences.filters });
+    displayMode: overlayPreferences.displayMode, evidence: current?.overlayEvidence,
+    inventoryContexts: current?.overlayInventoryContexts, filters: overlayPreferences.filters });
 }
 async function loadOverlayPreferences() {
   const fs = require('node:fs/promises');
@@ -1213,6 +1214,7 @@ function sanitizeTailerHealth(health) {
 function toRendererScanResult(result, source, options = {}) {
   const {
     overlayEvidence: _overlayEvidence,
+    overlayInventoryContexts: _overlayInventoryContexts,
     logPath: _logPath,
     runtimeEvents: _runtimeEvents,
     promotedRuntimeEvents = [],

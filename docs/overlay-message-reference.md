@@ -34,7 +34,8 @@ Implementation: [`src/overlayMessages.js`](../src/overlayMessages.js).
 | Matched success | `{count}× {item} purchased` |
 | Matched failure | `{count}× {item} purchase failed` |
 | Unmatched response | Shop reported purchase success/failure, or Shop response received |
-| Inventory result | Inventory action completed/failed, or Inventory response received |
+| Matched inventory result | Inventory update completed/failed: `{count}× {item}`; omit count when unknown |
+| Inventory result without item context | Inventory action completed/failed (item unknown), or Inventory response received (item unknown) |
 | Drop / move / carry intent | Item drop requested / `{item} move requested` / Item carry requested |
 | Inventory closing | Closing inventory |
 | Left / right hand | Holding `{item}` in left/right hand |
@@ -51,11 +52,19 @@ Implementation: [`src/overlayMessages.js`](../src/overlayMessages.js).
 
 The profile is now `sc-4.10-live@2026-10-29.2`, parser `runtime-log-parser/0.3.1`; this revision adds scoped hashed shop correlation IDs without copying raw IDs into the normalized contract.
 
+## Inventory item association
+
+Implementation: `src/overlayInventoryContext.js`, rule `inventory-presentation/v1`. The [PTU item-context ledger](runtime-capture-findings-2026-11-02-ptu-item-context.md) documents the reviewed records and exact-class descriptive names. Unknown item classes remain visible as class identifiers; cosmetic/localized names are not guessed.
+
+For reviewed LIVE 4.10.197.2878 and PTU 4.10.199.13454 completion events, match a preceding `Add Inventory Management Move` by exact player/request identity within ten seconds and the same source/session scope. The request supplies ItemClass; matching queued Source/amount can supply a positive integer requested/source quantity. NULL/zero or absent queued quantity remains unknown. Conflicting identities/items/operations/counts, overlapping reused IDs, missing/expired context, malformed/oversized records and session/file/clock boundaries prevent association. The LIVE Move/Drop-to-Interaction transition does not widen PTU's Store/Interaction context scope.
+
+The completion row retains its identity, becomes inferred with medium presentation confidence, and records its item class/quantity limits in Evidence details. Raw includes the exact supporting request, any quantity-bearing queue record and the completion. Friendly/Raw filtering uses the same item classification; known exact classes map to existing types and unknown types stay Unclassified. The canonical completion event remains unchanged. Context never becomes an ownership/Station change or an asserted destination. Missing item context is explicit rather than silently inventing a name/count.
+
 ## Raw evidence and privacy
 
 | Boundary | Behavior |
 | --- | --- |
-| Cache | Memory only; at most 160 curated records, 64 KiB per record, 256 KiB total |
+| Cache | Memory only; at most 160 curated/contributing records, 64 KiB per record, 256 KiB total shared across all evidence |
 | Lifetime | Replaced by current bounded capture data; cleared with process lifetime/source replacement |
 | Canonical storage / Station | No raw evidence is added to canonical events, persistence or Station sync |
 | Main renderer | Private evidence cache is excluded from scan DTOs |

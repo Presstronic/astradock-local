@@ -1,4 +1,4 @@
-const { formatOverlayMessage, friendlySignalMessage, itemName, resultKind } = require('./overlayMessages');
+const { formatOverlayMessage, friendlySignalMessage, friendlyInventoryMessage, itemName, resultKind } = require('./overlayMessages');
 
 const PURCHASE_RESPONSE_WINDOW_MS = 10_000;
 
@@ -8,7 +8,7 @@ function contextKey(event) {
 }
 
 /** Presentation-only association; never invent a canonical payment/delivery event. */
-function presentOverlayEvents(chronologicalEvents) {
+function presentOverlayEvents(chronologicalEvents, inventoryContexts = new Map()) {
   const pending = new Map();
   const rows = [];
   for (const event of chronologicalEvents) {
@@ -18,6 +18,21 @@ function presentOverlayEvents(chronologicalEvents) {
       summary: captured ? friendlySignalMessage(payload) : event.eventType === 'ShopPurchaseRequested'
         ? formatOverlayMessage('purchaseRequested', { count: payload.quantity, item: itemName(payload.itemName, payload.quantity) })
         : event.eventType.replace(/([a-z])([A-Z])/g, '$1 $2'), evidenceNote: null };
+    if (captured && payload.signalId === 'INV-04') {
+      const context = inventoryContexts.get(event.eventId);
+      if (context) {
+        row.inventoryContext = context;
+        row.summary = friendlyInventoryMessage(payload, context);
+        row.provenance = 'inferred';
+        row.confidence = 'medium';
+        row.rawEvidenceKeys = [...context.evidenceKeys, event.eventId];
+        row.evidenceNote = 'Item association is inferred from the same player and request ID within a bounded source/session window. The result is client-reported; ownership, delivery and destination are not independently verified.'
+          + ` Item class: ${context.itemClass}.`
+          + (context.quantity === null ? ' Quantity is not identified.' : ' Quantity comes from the matching request, not an independent delivered-count measurement.');
+      } else if (!payload.itemClass) {
+        row.evidenceNote = 'Item details unavailable: no unambiguous matching item request in the current capture.';
+      }
+    }
     const key = contextKey(event);
     if (!captured || !key || !['SHP-01', 'SHP-02'].includes(payload.signalId)) { rows.push(row); continue; }
     const now = Date.parse(event.sourceTimestamp);

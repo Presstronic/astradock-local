@@ -52,6 +52,8 @@ The [synthetic unsupported-build screenshot](images/overlay-parser-status-synthe
 
 ## Verification and follow-ups
 
+The subsequent [item-context inspection](runtime-capture-findings-2026-11-02-ptu-item-context.md) addresses generic Friendly wording through bounded transient request association. It preserves this original completion-only canonical profile and its evidence limits.
+
 Automated coverage checks frozen fixture payloads, CRLF/chunk identity, exact build/channel/branch gates, malformed completion rejection, no LIVE-profile fallback, no purchase-scope expansion, query/echo curation, pre-launch exclusion, PTU/LIVE isolation, Raw evidence, and visible unsupported-build diagnostics.
 
 Repeat across another PTU session/build and collect an owner action ledger before expanding gameplay interpretation. Purchases, drops, carry/hand/helmet attachments, lifecycle/location events and other preview channels need their own evidence. Do not copy a preview log into LIVE to work around profile gates.
