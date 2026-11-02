@@ -29,14 +29,16 @@ describe('Station management and review', () => {
   it('requires reviewing and both explicit confirmations while showing before/after quantities', async () => {
     const { client, spies } = clientFixture(); render(<Harness client={client} />);
     fireEvent.click(screen.getByRole('button', { name: 'Review change' }));
-    expect(await screen.findByRole('heading', { name: 'Review inventory change' })).toHaveFocus();
+    // The heading can appear before the effect transfers keyboard focus. Wait
+    // for the accessibility behavior, not just the preceding DOM insertion.
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Review inventory change' })).toHaveFocus());
     expect(screen.getByText('Synthetic bottle: 5 → 3 items')).toBeVisible();
     expect(spies.confirm).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Review complete — continue' }));
-    expect(screen.getByRole('heading', { name: /confirmation 1 of 2/ })).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('heading', { name: /confirmation 1 of 2/ })).toHaveFocus());
     expect(spies.confirm).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Yes — continue to final confirmation' }));
-    expect(await screen.findByRole('heading', { name: /confirmation 2 of 2/ })).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('heading', { name: /confirmation 2 of 2/ })).toHaveFocus());
     expect(spies.confirm).toHaveBeenCalledExactlyOnceWith('proposal-1', 'first');
     fireEvent.click(screen.getByRole('button', { name: 'Yes — queue this reviewed change' }));
     await waitFor(() => expect(spies.confirm).toHaveBeenCalledTimes(2));
