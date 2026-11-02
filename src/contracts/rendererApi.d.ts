@@ -692,6 +692,7 @@ export interface AstraDockApi {
 }
 
 export interface OverlayFeed {
+  statusMessage?: string | null;
   filters?: import('../overlayFilters').OverlayFilters;
   availableCount?: number;
   matchingCount?: number;

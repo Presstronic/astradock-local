@@ -512,6 +512,34 @@ const SC_410_CAPTURE_PROFILE = {
     }))
 };
 
+// PTU is independently reviewed and intentionally narrower than the LIVE
+// capture profile. Only the two completion markers in the PTU fixture qualify;
+// matching a channel/version family never imports LIVE-only gameplay support.
+const SC_410_PTU_COMPLETION_MARKERS = ['Player Inventory Request Complete', 'Inventory Request Completed'];
+const SC_410_PTU_PROFILE = {
+  schemaVersion: PROFILE_SCHEMA_VERSION,
+  id: 'sc-4.10-ptu',
+  version: '2026-11-02.1',
+  priority: 95,
+  compatibility: {
+    family: { major: 4, minor: 10 }, releaseChannels: ['PTU'], universes: ['PU'],
+    branches: ['UNKNOWN', 'sc-alpha-4.10.2'], testedBuilds: ['4.10.199.13454'], exclusions: []
+  },
+  parserVersion: 'runtime-log-parser/0.3.1',
+  fieldAliases: SC_49_FIELD_ALIASES,
+  supportedEventFamilies: [{ id: 'captured', requiredAnchors: SC_410_PTU_COMPLETION_MARKERS.map(marker => `<${marker}>`) }],
+  knownLimitations: [
+    'CAP-2026-11-02-PTU-01 validates inventory request-completion observations only.',
+    'A reported Store/Interaction result does not prove item acquisition, loss, ownership or a Station inventory change.',
+    'No PTU purchase, drop, carry, attachment, lifecycle or location detection is approved by this profile.'
+  ],
+  extractors: SC_410_PTU_COMPLETION_MARKERS.map((marker, index) => ({
+    id: `captured.completion-${index}`, kind: 'capturedRuntimeSignal', eventType: 'RuntimeLogSignalObserved',
+    literals: [`<${marker}>`], requiredFields: ['signalId', 'category', 'label', 'summary'],
+    confidence: 'high', sensitivity: 'local', evidenceMarkers: [marker], dedupeFields: ['signalId', 'summary']
+  }))
+};
+
 const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
   {
     schemaVersion: PROFILE_SCHEMA_VERSION,
@@ -570,7 +598,8 @@ const BUILT_IN_RUNTIME_LOG_PROFILES = Object.freeze([
     ],
     extractors: SC_49_EXTRACTORS
   },
-  SC_410_CAPTURE_PROFILE
+  SC_410_CAPTURE_PROFILE,
+  SC_410_PTU_PROFILE
 ]);
 
 module.exports = {

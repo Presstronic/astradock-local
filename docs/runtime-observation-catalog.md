@@ -7,16 +7,15 @@ Retain all observed signals, separate inferences, and preserve owner-confirmed a
 | Field | Value |
 | --- | --- |
 | Document ID | `runtime-observation-catalog` |
-| Updated | 2026-10-29 |
+| Updated | 2026-11-02 |
 | Scope | Evidence catalog; display implementation tracked separately; no phase assignment |
-| Current capture | `CAP-2026-10-29-02` |
-| Source | Star Citizen `LIVE/Game.log` |
-| Duration | 60.000 seconds |
-| Approximate window | 2026-10-29, 17:01:14 to 17:02:14 UTC |
-| First / last received record | 17:01:41.092 / 17:02:12.508 UTC |
-| Build / locale / profile | Unverified |
-| Collection | Read-only EOF polling, approximately 200 ms; shrink/identity checks |
-| Detailed evidence | [Capture 02 ledger](runtime-capture-findings-2026-10-29-02.md) |
+| Current capture | `CAP-2026-11-02-PTU-01` — existing-log inspection |
+| Source | Original Star Citizen `PTU/Game.log` |
+| Duration | Not a timed gameplay exercise; bounded read-only inspection |
+| Approximate source window | 2026-11-02, 17:14:34 to 17:31:09 UTC |
+| Build / locale / profile | 4.10.199.13454 / locale unknown / sc-4.10-ptu@2026-11-02.1 (completion observations only) |
+| Collection | Bounded header/suffix reader; no original logs copied or modified |
+| Detailed evidence | [PTU inspection ledger](runtime-capture-findings-2026-11-02-ptu.md) |
 
 ### Capture index
 
@@ -25,6 +24,9 @@ Retain all observed signals, separate inferences, and preserve owner-confirmed a
 | `CAP-2026-10-29-01` | Inventory, helmet, bottle handling; owner-confirmed drinking/throwing | [Capture 01](runtime-capture-findings-2026-10-29.md) |
 | `CAP-2026-10-29-02` | Shop requests/responses; vehicle/loadout queries; owner annotations pending | [Capture 02](runtime-capture-findings-2026-10-29-02.md) |
 | `CAP-2026-10-29-03` | Owner-confirmed five-MedPen purchase and copied normalized messages; friendly-name/view requirement | [Owner example](runtime-capture-findings-2026-10-29-03.md) |
+| `CAP-2026-11-02-PTU-01` | Empty-overlay diagnosis; PTU 4.10.199.13454 request results/echoes; additional known markers and negative evidence | [PTU inspection](runtime-capture-findings-2026-11-02-ptu.md) |
+
+The PTU inspection adds observed request type **Store** alongside QueryInventory and Interaction. It is a client-reported inventory request type, not a vehicle-store, ownership, acquisition or loss detector. Only INV-04 completion observations are enabled for that exact PTU build. The ledger records all distinct recognized markers, unrecognized attachment-port evidence and missing gameplay signals separately from delivery status. No owner action timing or cross-session repeatability is asserted; prior LIVE findings remain unchanged below.
 
 ### Classification vocabulary
 

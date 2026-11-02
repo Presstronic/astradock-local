@@ -526,7 +526,7 @@ test('reviewed LIVE executable version selects the 4.9 profile without widening 
 
   for (const candidate of [
     { releaseChannel: 'LIVE', gameBuild: '4.9.189.10000', expectedStatus: 'unverified_build' },
-    { releaseChannel: 'PTU', gameBuild: '4.10.189.23056', expectedStatus: 'unsupported_profile' }
+    { releaseChannel: 'PTU', gameBuild: '4.10.189.23056', expectedStatus: 'unverified_build' }
   ]) {
     const unsupported = parseRuntimeLogText(
       '<2026-08-19T06:00:00.000Z> <Join PU> address[unsupported.example.invalid] port[64332] shard[SYNTH_SHARD_UNSUPPORTED] locationId[SYNTH_LOCATION_UNSUPPORTED]\n',

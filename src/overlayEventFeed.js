@@ -24,7 +24,7 @@ function isGameplayEvent(event) {
 }
 
 function createOverlayEventFeed({ events = [], since, environmentKey, environment = 'Unknown environment', monitoring = false,
-  displayMode = 'friendly', evidence = new Map(), filters: requestedFilters }) {
+  displayMode = 'friendly', evidence = new Map(), filters: requestedFilters, parserCompatibility = null }) {
   const boundary = Date.parse(since);
   if (!Number.isFinite(boundary)) throw new TypeError('Overlay capture boundary must be an absolute timestamp.');
   const eligible = events.filter(event => event.environmentKey === environmentKey
@@ -41,9 +41,19 @@ function createOverlayEventFeed({ events = [], since, environmentKey, environmen
     .sort((left, right) => compareRuntimeEventOrder(right.event, left.event));
   const matching = candidates.filter(row => matchesOverlayFilters(row.classification, filters));
   const rows = matching.slice(0, 80);
+  const parserStatus = parserCompatibility?.status;
+  const state = !monitoring ? 'waiting'
+    : ['unsupported_profile', 'unverified_build', 'suspected_drift'].includes(parserStatus) ? parserStatus : 'monitoring';
+  const build = parserCompatibility?.gameBuild || 'unknown';
+  const statusMessage = state === 'unsupported_profile'
+    ? `Following ${environment} log, but build ${build} has no supported parser profile. Gameplay events are unavailable for this build.`
+    : state === 'unverified_build'
+      ? `Following ${environment} log, but build ${build} has not been verified. Gameplay events are suppressed until its evidence is reviewed.`
+      : state === 'suspected_drift'
+        ? `Following ${environment} log. Some event patterns changed; affected gameplay events may be unavailable.` : null;
   let rawBytes = 0;
   return {
-    state: monitoring ? 'monitoring' : 'waiting', environment, displayMode, filters,
+    state, environment, displayMode, filters, statusMessage,
     availableCount: candidates.length, matchingCount: matching.length,
     events: rows.map(row => {
       const event = row.event;
