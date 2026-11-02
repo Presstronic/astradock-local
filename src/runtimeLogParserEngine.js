@@ -1,3 +1,4 @@
+const { GAME_CHANNELS } = require('./gameEnvironments');
 const { TextDecoder } = require('node:util');
 const { parseCapturedRuntimeSignal } = require('./capturedRuntimeSignals');
 const {
@@ -1943,14 +1944,14 @@ function isTimestampedNotificationContinuation(pendingText, lineText) {
 
 function normalizeReleaseChannel(value) {
   const normalized = String(value || '').trim().toUpperCase();
-  return ['LIVE', 'PTU', 'EPTU', 'HOTFIX'].includes(normalized) ? normalized : null;
+  return GAME_CHANNELS.includes(normalized) ? normalized : null;
 }
 
 function inferReleaseChannelFromSourceLocation(sourceLocation) {
   const normalized = String(sourceLocation || '').replace(/\\/g, '/');
   return normalized.split('/')
     .map((part) => part.trim().toUpperCase())
-    .find((part) => ['LIVE', 'PTU', 'EPTU', 'HOTFIX'].includes(part)) || null;
+    .find((part) => GAME_CHANNELS.includes(part)) || null;
 }
 
 function environmentMarkersForRecord(text) {

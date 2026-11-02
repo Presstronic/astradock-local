@@ -297,7 +297,7 @@ test('returns a deterministic source-set boundary and explains skipped or inacce
   await fs.rm(root, { recursive: true, force: true });
 });
 
-test('reports a source changed during scan without discarding bounded results', async () => {
+test('excludes records from a source that changes during scanning', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-'));
   const current = path.join(root, 'game.log');
   await fs.writeFile(current, `${blueprintLine('Stable Blueprint')}\n`);
@@ -310,10 +310,27 @@ test('reports a source changed during scan without discarding bounded results', 
       }
     }
   });
-  assert.equal(result.records.length, 2, 'the scan remains bounded while accepting bytes available to the opened stream');
+  assert.equal(result.records.length, 0, 'changed source provenance must be retried before exporting its records');
   assert.ok(result.errors.some((error) => error.code === 'source_changed'));
   assert.match(result.sourceFingerprint, /^set_[a-f0-9]{24}$/);
   await fs.rm(root, { recursive: true, force: true });
+});
+
+test('excludes a copied preview backup even when its notification appears before channel evidence', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-exporter-isolation-'));
+  t.after(async () => {
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()));
+    await fs.rm(root, { recursive: true, force: true });
+  });
+  const live = path.join(root, 'LIVE', 'Game.log');
+  const backup = path.join(root, 'LIVE', 'logbackups', 'Game Build ( 12572603 ) 03 Sep 26 ( 10 20 30 ).log');
+  await fs.mkdir(path.dirname(backup), { recursive: true });
+  await fs.writeFile(live, `<Init> Tag[LIVE]\n${blueprintLine('LIVE Blueprint')}\n`);
+  await fs.writeFile(backup, `${blueprintLine('Preview Blueprint')}\n<Init> Tag[PTU]\n`);
+  const result = await scanBlueprintLogs(live, { profile: APPROVED_TEST_PROFILE, environment: 'LIVE' });
+  assert.deepEqual(result.records.map(record => record.name), ['LIVE Blueprint']);
+  assert.ok(result.errors.some(error => error.code === 'environment_mismatch'));
+  assert.equal(result.files.find(file => file.kind === 'backup').status, 'environment_mismatch');
 });
 
 test('cancellation stops scanning instead of being reported as a read warning', async () => {

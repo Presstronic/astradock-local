@@ -4,7 +4,7 @@ The Runtime Monitor keeps source context and monitor health in a persistent head
 
 ## Content contract
 
-- Environment is the uppercase release-channel enum (`LIVE`, `PTU`, `EPTU`, `HOTFIX`, or `UNKNOWN`). Build identifiers remain opaque strings.
+- Environment is the uppercase release-channel enum (`LIVE`, `PTU`, `EPTU`, `HOTFIX`, `TECH-PREVIEW`, or `UNKNOWN`). Build identifiers remain opaque strings.
 - Lifecycle is a canonical label such as `In game`, `Loading`, `Frontend`, `Disconnected`, `Exited`, or `Unknown`. The last transition is shown as a compact relative age and retains its exact timestamp in the accessible detail/title.
 - Source is a privacy-safe channel/install label and generic display path. The full path is never included in the default surface. Explicit source details expose only the approved display path and provide validated source selection, retry/re-scan, and containing-folder actions.
 - Health labels are `Unknown`, `Healthy`, `Recovering`, `Paused`, `Degraded`, `Source missing`, `Stopped`, or `Error`; text and state attributes remain present without relying on color.
@@ -14,6 +14,8 @@ The Runtime Monitor keeps source context and monitor health in a persistent head
 ## State and interaction behavior
 
 The main process remains authoritative for source validation, tailer status, source identity, and safe folder opening. Source actions report failures through the existing transient action alert and successful lifecycle changes through a polite, bounded status announcement. Source details can be opened from the header without changing the stream or current-state selection.
+
+The environment selector switches the active validated source and stops follow, clearing transient telemetry/detail/overlay state while preserving canonical partitions. The main-window **Open event overlay** command starts follow when stopped; subscription and overlay controls remain passive. See [environment isolation](environment-isolation.md) for the 2026-11-02 owner direction, failure states and provenance checks.
 
 The surface distinguishes discovering/loading, awaiting source, live, paused, recovering, disconnected/source missing, unsupported profile, degraded, stopped, and fatal/error states. Source detail and retry actions are keyboard reachable; source paths remain absent from default content and renderer IPC accepts only source IDs.
 

@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
+const { channelFromPath, observedReleaseChannels, hasChannelConflict } = require('../gameEnvironments');
 const { validateBlueprintRecords } = require('./blueprintExportContract');
 
 const BACKUP_NAME_PATTERN = /^Game\s+Build\s*\(\s*(?<build>\d+)\s*\)\s+(?<date>\d{1,2}\s+[A-Za-z]{3}\s+\d{2})\s+\(\s*(?<time>\d{2}\s+\d{2}\s+\d{2})\s*\)(?:\.[^.]+)?\.log$/i;
@@ -226,6 +227,7 @@ function buildFromHeader(line) {
 }
 
 async function scanBlueprintLogs(sourcePath, options = {}) {
+  const expectedChannel = options.environment || channelFromPath(sourcePath);
   const sourceSet = await collectBlueprintLogFiles(sourcePath, options);
   const profiles = (options.profiles || (options.profile ? [options.profile] : getDefaultBlueprintExtractionProfiles()))
     .map((profile) => createBlueprintExtractionProfile({ profile }));
@@ -285,8 +287,14 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
         continue;
       }
       fileReports[index].build = build || null;
-      compatibleFiles += 1;
-      selectedProfileIds.add(profile.profileId);
+      const fileObservations = new Map();
+      const observedChannels = new Set();
+      const acceptsChannel = (line) => {
+        if (!/FileVersion|ProductVersion|<Init>|<Game Version>/i.test(line)) return true;
+        observedReleaseChannels(line).forEach(channel => observedChannels.add(channel));
+        return !hasChannelConflict([...observedChannels], expectedChannel);
+      };
+      const mismatch = () => Object.assign(new Error('Log channel conflicts with the selected environment.'), { code: 'environment_mismatch' });
       const patterns = compileBlueprintPatterns(profile.labels);
       await new Promise((resolve, reject) => {
         const input = fs.createReadStream(file.path, { encoding: 'utf8' });
@@ -300,9 +308,10 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
               return;
             }
             linesRead += 1;
+            if (!acceptsChannel(line)) { input.destroy(mismatch()); return; }
             const parsed = parseBlueprintNotification(line, { patterns });
             if (parsed) {
-              addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
+              addObservation(fileObservations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
               onProgress({ ...progress, recordsFound: observations.size, duplicatesSuppressed: countSuppressed(observations) });
             }
             else if (line.includes('Added notification')) noteUnsupportedLine();
@@ -311,9 +320,10 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
         input.on('end', () => {
           if (remainder) {
             linesRead += 1;
+            if (!acceptsChannel(remainder)) { input.destroy(mismatch()); return; }
             const parsed = parseBlueprintNotification(remainder, { patterns });
             if (parsed) {
-              addObservation(observations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
+              addObservation(fileObservations, { ...parsed, sourceFile: file.fileName || path.basename(file.path), sourceKind: file.kind, gameBuild: build, profile });
               onProgress({ ...progress, recordsFound: observations.size, duplicatesSuppressed: countSuppressed(observations) });
             }
             else if (remainder.includes('Added notification')) noteUnsupportedLine();
@@ -325,11 +335,21 @@ async function scanBlueprintLogs(sourcePath, options = {}) {
       filesScanned += 1;
       const after = await inspectSourceFile(file);
       if (after.status !== 'ready' || after.fingerprint !== file.fingerprint) {
-        errors.push({ file: file.fileName, code: 'source_changed', message: 'The log changed while it was being scanned; results may be partial.' });
+        errors.push({ file: file.fileName, code: 'source_changed', message: 'The log changed while it was being scanned; its records were excluded.' });
+        fileReports[index].status = 'source_changed';
+        continue;
+      }
+      compatibleFiles += 1;
+      selectedProfileIds.add(profile.profileId);
+      for (const [key, entry] of fileObservations) {
+        const existing = observations.get(key);
+        if (existing) existing.duplicateObservations += entry.duplicateObservations + 1;
+        else observations.set(key, entry);
       }
     } catch (error) {
       if (error?.code === 'export_cancelled' || options.shouldCancel?.()) throw error;
-      errors.push({ file: file.fileName || path.basename(file.path), code: error.code || 'read_failed', message: 'The log could not be read.' });
+      fileReports[index].status = error.code || 'read_failed';
+      errors.push({ file: file.fileName || path.basename(file.path), code: error.code || 'read_failed', message: error.code === 'environment_mismatch' ? 'Log channel conflicts with the selected environment; this file was excluded.' : 'The log could not be read.' });
     }
   }
 

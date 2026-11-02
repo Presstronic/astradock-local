@@ -40,6 +40,23 @@ test('capture windows reject invalid boundaries and honor cancellation', async (
   await assert.rejects(readRuntimeCaptureWindow('unopened.log', { since: '2026-10-29T17:00:00Z', signal: controller.signal }), { name: 'AbortError' });
 });
 
+test('bounded scans preserve observed preview provenance without a channel folder and reject copied preview headers', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'astradock-window-isolation-'));
+  t.after(async () => {
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()));
+    await fs.rm(root, { recursive: true, force: true });
+  });
+  const file = path.join(root, 'Game.log');
+  const recent = '<2026-10-29T17:02:00Z> [Notice] <Close Inventory Grid> Player[SYNTH_PLAYER] closing inventory in progress...\n';
+  for (const channel of ['PTU', 'EPTU', 'HOTFIX', 'TECH-PREVIEW']) {
+    await fs.writeFile(file, `<2026-10-29T15:00:00Z> <Init> Environment[PUB] Tag[${channel}]\nFileVersion: 4.10.197.2878\n${recent}`);
+    const scan = await parseLogFile(file, { captureSince: '2026-10-29T17:00:00Z' });
+    assert.equal(scan.environment.releaseChannel, channel);
+    assert.ok(scan.environmentKey.startsWith(`${channel}::`));
+    await assert.rejects(parseLogFile(file, { captureSince: '2026-10-29T17:00:00Z', releaseChannel: 'LIVE' }), { code: 'environment_mismatch' });
+  }
+});
+
 test('byte-addressed evidence keeps the same event ID when a bounded window moves', () => {
   const older = '<2026-10-29T17:01:00Z> [Notice] <Close Inventory Grid> Player[SYNTH_PLAYER] closing inventory in progress...\n';
   const newer = '<2026-10-29T17:02:00Z> [Notice] <Close Inventory Grid> Player[SYNTH_PLAYER] closing inventory in progress...\n';

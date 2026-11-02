@@ -1,3 +1,4 @@
+const { GAME_CHANNELS } = require('../gameEnvironments');
 const crypto = require('node:crypto');
 const { SIGNAL_IDS } = require('../capturedRuntimeSignals');
 const { parseAbsoluteInstant, toEpochMilliseconds } = require('../time');
@@ -6,7 +7,7 @@ const CONTRACT_VERSION = 'runtime-event/v1';
 const UNKNOWN_ENVIRONMENT_VALUE = 'UNKNOWN';
 
 const ENUMS = Object.freeze({
-  releaseChannel: ['LIVE', 'PTU', 'EPTU', 'HOTFIX', 'UNKNOWN'],
+  releaseChannel: [...GAME_CHANNELS, 'UNKNOWN'],
   universe: ['PU', 'UNKNOWN'],
   provenance: ['observed', 'extracted', 'inferred', 'enriched'],
   confidence: ['confirmed', 'high', 'medium', 'low', 'unknown'],

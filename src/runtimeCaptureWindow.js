@@ -1,5 +1,6 @@
 const fs = require('node:fs/promises');
 const { parseGameLogTimestamp } = require('./time');
+const { observedReleaseChannels } = require('./gameEnvironments');
 
 const BLOCK_BYTES = 64 * 1024;
 const MAX_WINDOW_BYTES = 8 * 1024 * 1024;
@@ -49,6 +50,7 @@ async function readRuntimeCaptureWindow(filePath, { since, signal } = {}) {
     }
     return {
       text: buffer.subarray(start).toString('utf8'), gameBuild: build, branch,
+      observedChannels: observedReleaseChannels(metadata),
       sourceByteOffset: offset + start, modifiedAt: stat.mtime.toISOString(),
       bytesRead, truncated: offset > 0 && capturedBytes >= MAX_WINDOW_BYTES
     };

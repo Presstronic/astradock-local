@@ -2,10 +2,11 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const { GAME_CHANNELS, channelFromPath, observedReleaseChannels, hasChannelConflict } = require('./gameEnvironments');
 
 const LOG_FILE_NAME = 'game.log';
 const SOURCE_PREFERENCE_VERSION = 1;
-const SUPPORTED_CHANNELS = Object.freeze(['LIVE', 'PTU', 'EPTU', 'HOTFIX', 'TECH-PREVIEW']);
+const SUPPORTED_CHANNELS = GAME_CHANNELS;
 const CHANNEL_PRIORITY = Object.freeze(new Map(SUPPORTED_CHANNELS.map((channel, index) => [channel, index])));
 const VALIDATION_STATUSES = Object.freeze({
   VALID: 'valid',
@@ -14,7 +15,8 @@ const VALIDATION_STATUSES = Object.freeze({
   PERMISSION_DENIED: 'permission_denied',
   NOT_FILE: 'not_file',
   INVALID_LOG: 'invalid_log',
-  UNSUPPORTED_CHANNEL: 'unsupported_channel'
+  UNSUPPORTED_CHANNEL: 'unsupported_channel',
+  ENVIRONMENT_MISMATCH: 'environment_mismatch'
 });
 
 const SOURCE_KIND = 'game_log';
@@ -196,7 +198,10 @@ async function discoverRuntimeSources(options = {}) {
   }
 
   const sources = await validateCandidateInputs(candidateInputs, options);
-  const activeSource = selectActiveSource(sources);
+  // A saved preview source disappearing must not silently switch capture to LIVE.
+  const activeSource = restoredPath
+    ? sources.find(source => source.discoveryMethods.includes('restored_setting') && source.validation.isValid) || null
+    : selectActiveSource(sources);
   const validCount = sources.filter((source) => source.validation.isValid).length;
 
   return {
@@ -363,7 +368,12 @@ async function validateLogSource(sourcePath, options = {}) {
   const rawChannel = evidence.rawChannel || pathChannelHint || 'UNKNOWN';
   const normalizedChannel = normalizeSupportedChannel(rawChannel);
   const hasExpectedEvidence = evidence.markers.length > 0;
-  const status = !hasExpectedEvidence
+  const observedChannels = observedReleaseChannels(sample);
+  const canonicalChannel = inferChannelFromPath(canonicalPath);
+  const channelConflict = hasChannelConflict(observedChannels, pathChannelHint)
+    || hasChannelConflict(observedChannels, canonicalChannel)
+    || Boolean(pathChannelHint && canonicalChannel && pathChannelHint !== canonicalChannel);
+  const status = channelConflict ? VALIDATION_STATUSES.ENVIRONMENT_MISMATCH : !hasExpectedEvidence
     ? VALIDATION_STATUSES.INVALID_LOG
     : normalizedChannel === 'UNKNOWN' && rawChannel !== 'UNKNOWN'
       ? VALIDATION_STATUSES.UNSUPPORTED_CHANNEL
@@ -374,7 +384,7 @@ async function validateLogSource(sourcePath, options = {}) {
     displayLabel: formatDisplayLabel(normalizedChannel, discoveryMethods),
     displayPath: path.dirname(canonicalPath),
     channelHint: normalizedChannel === 'UNKNOWN' ? String(rawChannel).trim().toUpperCase() : normalizedChannel,
-    channelConfidence: evidence.rawChannel ? 'observed' : pathChannelHint ? 'path_hint' : 'unknown',
+    channelConfidence: observedChannels.length ? 'observed' : pathChannelHint ? 'path_hint' : 'unknown',
     rawChannel,
     buildVersion: evidence.buildVersion || null,
     environmentName: evidence.environmentName || null
@@ -465,12 +475,7 @@ function pickFirst(value, patterns) {
 }
 
 function inferChannelFromPath(sourcePath) {
-  const parts = String(sourcePath || '')
-    .replace(/\\/g, '/')
-    .split('/')
-    .map((part) => part.trim().toUpperCase())
-    .filter(Boolean);
-  return parts.find((part) => SUPPORTED_CHANNELS.includes(part)) || null;
+  return channelFromPath(sourcePath);
 }
 
 function normalizeSupportedChannel(value) {
@@ -514,6 +519,8 @@ function formatValidationMessage(status, source) {
       return `${label} is not a file.`;
     case VALIDATION_STATUSES.UNSUPPORTED_CHANNEL:
       return `${label} appears to use an unsupported or future channel.`;
+    case VALIDATION_STATUSES.ENVIRONMENT_MISMATCH:
+      return 'Log channel evidence conflicts with its environment folder or contains multiple channels. Select the original environment log; capture is blocked.';
     case VALIDATION_STATUSES.INVALID_LOG:
       return `${label} is not a validated Star Citizen game.log.`;
     default:

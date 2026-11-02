@@ -7,8 +7,9 @@ test('registers every build observed in the owner-supplied historical corpus', (
   const catalog = getBuildCompatibilityCatalog();
   assert.equal(catalog.version, 1);
   assert.equal(catalog.builds.length, 44);
-  assert.equal(catalog.builds[0].build, '10480022');
-  assert.equal(catalog.builds.at(-1).build, '12572603');
+  assert.equal(catalog.builds[0].build, '12572603');
+  assert.equal(catalog.builds.at(-1).build, '10480022');
+  assert.ok(catalog.builds.every((entry, index, builds) => index === 0 || Number(builds[index - 1].build) > Number(entry.build)));
   assert.equal(catalog.builds.reduce((sum, entry) => sum + entry.observedFileCount, 0), 437);
   assert.equal(new Set(catalog.builds.map((entry) => entry.build)).size, catalog.builds.length);
   assert.ok(catalog.builds.some((entry) => entry.build === '10480022' && entry.capabilities.blueprint.status === 'not_evaluated'));

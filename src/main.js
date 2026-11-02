@@ -84,8 +84,10 @@ let liveScanInFlight = false;
 let liveScanQueued = false;
 let liveScanSourceId = null;
 let liveScanOptions = {};
+let sourceCommandQueue = Promise.resolve();
 const sourceRegistry = new Map();
 let activeSourceId = null;
+let activeSourceChannel = null;
 let eventStore = null;
 let eventStoreHealth = { status: 'initializing', errorCode: null, recoverable: true };
 let diagnosticLogger = null;
@@ -183,9 +185,25 @@ app.on('before-quit', async () => {
   stationService.close();
 });
 
-ipcMain.handle('astradock:v1:overlay:open', (event) => {
+ipcMain.handle('astradock:v1:overlay:open', async (event) => {
   if (!isMainRenderer(event)) throw createBoundaryError('invalid_sender', 'Only the main window can open the overlay.');
-  return { opened: Boolean(createOverlayWindow()) };
+  const pending = sourceCommandQueue.then(async () => {
+    if (!activeTailer || watchedSourceId !== activeSourceId) {
+      const source = await getApprovedSource(activeSourceId);
+      const options = { startMode: 'from_current_end', bootstrapMode: 'current_state' };
+      try {
+        await startMonitor(source, options);
+        const scan = await scanSource(source, options);
+        publishMonitorChange({ type: 'monitor.scan', monitor: getMonitorState(), scan });
+      } catch (error) {
+        await stopMonitor('runtime_error');
+        throw error;
+      }
+    }
+    return { opened: Boolean(createOverlayWindow()) };
+  });
+  sourceCommandQueue = pending.catch(() => {});
+  return pending;
 });
 ipcMain.handle('astradock:v1:overlay:close', (event) => {
   if (!isOverlayRenderer(event)) throw createBoundaryError('invalid_sender', 'Only the overlay window can close itself.');
@@ -230,7 +248,7 @@ function isOverlayRenderer(event) {
 function getOverlayFeed() {
   const current = lastScanSource?.sourceId === activeSourceId ? lastScan : null;
   return createOverlayEventFeed({ events: current?.runtimeEvents || [], since: applicationStartedAt,
-    environmentKey: current?.environmentKey, environment: current?.environment?.releaseChannel || 'Unknown environment',
+    environmentKey: current?.environmentKey, environment: current?.environment?.releaseChannel || activeSourceChannel || 'Unknown environment',
     monitoring: Boolean(activeTailer), displayMode: overlayPreferences.displayMode, evidence: current?.overlayEvidence, filters: overlayPreferences.filters });
 }
 async function loadOverlayPreferences() {
@@ -294,8 +312,8 @@ register(CHANNELS.sourceChoose, async () => {
   rememberSource(source);
 
   if (source.validation.isValid) {
-    activeSourceId = source.sourceId;
     await saveSourcePreference(getSourcePreferencePath(), source, { installationRoot: selectedInstallationRoot });
+    await activateSource(source);
   }
 
   return {
@@ -333,23 +351,25 @@ register(CHANNELS.sourceChooseDirectory, async () => {
         }
       };
     }
+    await saveSourcePreference(getSourcePreferencePath(), directSource);
     selectedInstallationRoot = null;
     sourceRegistry.clear();
     rememberSource(directSource);
-    activeSourceId = directSource.sourceId;
-    await saveSourcePreference(getSourcePreferencePath(), directSource);
+    await activateSource(directSource);
     return { source: toPublicSource(directSource), sources: [toPublicSource(directSource)], saved: true, installation: { valid: true } };
   }
   const discovered = await Promise.all(installation.environments.map((logPath) => validateLogSource(logPath, {
     discoveryMethods: ['automatic', 'directory_selected']
   })));
-  selectedInstallationRoot = installationRoot;
-  sourceRegistry.clear();
-  discovered.forEach(rememberSource);
   const source = selectPreferredSource(discovered);
   const saved = Boolean(source?.validation.isValid);
-  activeSourceId = saved ? source.sourceId : null;
   if (saved) await saveSourcePreference(getSourcePreferencePath(), source, { installationRoot });
+  if (saved) {
+    selectedInstallationRoot = installationRoot;
+    sourceRegistry.clear();
+    discovered.forEach(rememberSource);
+    await activateSource(source);
+  }
   return { source: source ? toPublicSource(source) : null, sources: discovered.map(toPublicSource), saved, installation: { valid: true } };
 });
 
@@ -362,8 +382,8 @@ register(CHANNELS.sourceSelect, async ({ sourceId }) => {
     };
   }
 
-  activeSourceId = source.sourceId;
   await saveSourcePreference(getSourcePreferencePath(), source, { installationRoot: selectedInstallationRoot });
+  await activateSource(source);
   return {
     source: toPublicSource(source),
     selected: true
@@ -395,9 +415,9 @@ register(CHANNELS.monitorScan, async ({ sourceId, options }) => {
 register(CHANNELS.monitorStart, async ({ sourceId, options }) => {
   const source = await getApprovedSource(sourceId || activeSourceId);
   const monitorOptions = { bootstrapMode: 'current_state', ...options };
-  await startMonitor(source, monitorOptions);
   let scan;
   try {
+    await startMonitor(source, monitorOptions);
     scan = await scanSource(source, monitorOptions);
   } catch (error) {
     await stopMonitor('runtime_error');
@@ -438,6 +458,7 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
   publishProgress({ phase: 'validating', filesProcessed: 0, filesTotal: 0, recordsFound: 0, duplicatesSuppressed: 0 });
   try {
     const result = await scanBlueprintLogs(source.private.canonicalPath, {
+      environment: source.channelHint,
       profiles: getDefaultBlueprintExtractionProfiles(),
       shouldCancel: () => exporterCancelRequested,
       onProgress: (progress) => publishProgress({
@@ -463,7 +484,7 @@ register(CHANNELS.exporterRun, async ({ sourceId, exportType, environment, outpu
     const extension = outputFormat === 'csv' ? 'csv' : outputFormat === 'xml' ? 'xml' : 'json';
     const saveResult = await retryExporterOperation(() => dialog.showSaveDialog(mainWindow, {
       title: 'Export Blueprint Data',
-      defaultPath: path.join(app.getPath('documents'), `astradock-blueprints.${extension}`),
+      defaultPath: path.join(app.getPath('documents'), `astradock-blueprints-${source.channelHint.toLowerCase()}.${extension}`),
       filters: [{ name: `${outputFormat.toUpperCase()} files`, extensions: [extension] }],
       properties: ['showOverwriteConfirmation']
     }), 'The save dialog could not be opened.');
@@ -550,7 +571,7 @@ register(CHANNELS.settingsReset, async () => {
     fsUnlinkIfPresent(getSettingsPath()),
     fsUnlinkIfPresent(getSourcePreferencePath())
   ]);
-  activeSourceId = null;
+  await activateSource(null);
   sourceRegistry.clear();
   return { settings: { ...DEFAULT_SETTINGS }, storage: eventStore ? eventStore.getStorageSummary() : eventStoreHealth, activeSourceId };
 });
@@ -619,7 +640,15 @@ function register(channel, handler) {
     try {
       assertTrustedSender(event);
       const validatedPayload = validatePayload(channel, payload?.data);
-      const data = await handler(validatedPayload, event);
+      // Source changes and explicit monitor commands have a single order. Live
+      // scans run independently and are invalidated by the monitor generation.
+      const serialized = [CHANNELS.sourceDiscover, CHANNELS.sourceChoose, CHANNELS.sourceChooseDirectory,
+        CHANNELS.sourceSelect, CHANNELS.monitorScan, CHANNELS.monitorStart, CHANNELS.monitorStop, CHANNELS.settingsReset,
+        CHANNELS.exporterRun].includes(channel);
+      const operation = () => handler(validatedPayload, event);
+      const pending = serialized ? sourceCommandQueue.then(operation) : operation();
+      if (serialized) sourceCommandQueue = pending.catch(() => {});
+      const data = await pending;
       return ok(data, correlationId);
     } catch (error) {
       diagnosticLogger?.error('ipc_request_failed', { channel, code: error?.code || 'internal_error', message: error?.message });
@@ -659,14 +688,27 @@ async function discoverAndRegisterSources() {
   selectedInstallationRoot = preference?.selectedInstallationRoot || null;
   const discovery = await discoverRuntimeSources({
     installationRoots: selectedInstallationRoot ? [selectedInstallationRoot] : undefined,
-    restoredSourcePath: preference?.selectedSourcePath || null,
+    restoredSourcePath: sourceRegistry.get(activeSourceId)?.private?.canonicalPath || preference?.selectedSourcePath || null,
     includePrivate: true
   });
 
   sourceRegistry.clear();
   for (const source of discovery.sources) rememberSource(source);
-  activeSourceId = discovery.activeSource?.sourceId || null;
+  await activateSource(discovery.activeSource);
   return discovery;
+}
+
+async function activateSource(source) {
+  const nextSourceId = source?.sourceId || null;
+  if (activeSourceId === nextSourceId && activeSourceChannel === (source?.channelHint || null)) return;
+  await stopMonitor('source_changed');
+  activeSourceId = nextSourceId;
+  activeSourceChannel = source?.channelHint || null;
+  lastScan = null;
+  lastScanSource = null;
+  lastTailerCheckpoint = null;
+  lastTailerHealth = null;
+  publishMonitorChange({ type: 'monitor.source_changed', source: source ? toPublicSource(source) : null, monitor: getMonitorState() });
 }
 
 function rememberSource(source) {
@@ -700,13 +742,25 @@ async function getApprovedSource(sourceId) {
     throw createBoundaryError('source_not_approved', source.validation.message);
   }
   assertSourceIsApproved(source);
-  activeSourceId = source.sourceId;
+  if (activeSourceId !== source.sourceId || activeSourceChannel !== source.channelHint) {
+    throw createBoundaryError('source_not_approved', 'Select this environment before scanning, monitoring or exporting it.');
+  }
   return source;
 }
 
-async function scanSource(source, options = {}) {
+async function scanSource(source, options = {}, generation = monitorGeneration) {
   const result = await parseLogFile(source.private.canonicalPath, { ...options, captureSince: applicationStartedAt,
+    releaseChannel: source.channelHint,
     collectEvidenceFor: isGameplayEvent });
+  if (generation !== monitorGeneration || source.sourceId !== activeSourceId) {
+    throw createBoundaryError('source_changed', 'The source changed before the scan completed. Retry in the selected environment.');
+  }
+  const channels = [result.environment, ...(result.environmentPartitions || []), ...(result.runtimeEvents || []).map(event => event.environment)]
+    .filter(Boolean).map(environment => environment.releaseChannel);
+  if (channels.some(channel => channel !== source.channelHint)
+    || result.environmentDiagnostics?.some(item => item.code === 'conflicting_environment_evidence')) {
+    throw createBoundaryError('environment_mismatch', 'Log channel evidence changed or conflicts with the selected environment. No scan data was saved.');
+  }
   persistCanonicalEvents(result.runtimeEvents || []);
   lastScan = result;
   lastScanSource = source;
@@ -803,7 +857,7 @@ function publishOverlayFeed() {
 function getMonitorSnapshot() {
   return {
     monitor: getMonitorState(),
-    source: lastScanSource ? toPublicSource(lastScanSource) : null,
+    source: sourceRegistry.has(activeSourceId) ? toPublicSource(sourceRegistry.get(activeSourceId)) : null,
     scan: lastScan && lastScanSource ? toRendererScanResult(lastScan, lastScanSource) : null,
     subscriptions: subscriptions.getStats()
   };
@@ -884,6 +938,7 @@ async function runQueuedLiveScan() {
   if (liveScanInFlight || !liveScanQueued) return;
 
   const sourceId = liveScanSourceId;
+  const generation = monitorGeneration;
   const options = liveScanOptions;
   liveScanQueued = false;
   liveScanInFlight = true;
@@ -891,16 +946,21 @@ async function runQueuedLiveScan() {
   try {
     if (!activeTailer || watchedSourceId !== sourceId) return;
     const source = await revalidateRegisteredSource(sourceId);
+    if (source.channelHint !== activeSourceChannel) {
+      throw createBoundaryError('environment_mismatch', 'The log channel changed. Select its original environment before continuing capture.');
+    }
     if (!source.validation.isValid) {
       throw createBoundaryError('source_not_approved', source.validation.message);
     }
-    const scan = await scanSource(source, options);
+    if (generation !== monitorGeneration || watchedSourceId !== sourceId) return;
+    const scan = await scanSource(source, options, generation);
     publishMonitorChange({
       type: 'monitor.scan',
       monitor: getMonitorState(),
       scan
     });
   } catch (error) {
+    if (generation !== monitorGeneration || watchedSourceId !== sourceId) return;
     publishMonitorChange({
       type: 'monitor.error',
       monitor: getMonitorState(),
@@ -911,9 +971,11 @@ async function runQueuedLiveScan() {
       }
     });
   } finally {
-    liveScanInFlight = false;
-    if (liveScanQueued && activeTailer && watchedSourceId === sourceId) {
-      requestLiveScan(sourceRegistry.get(sourceId), liveScanOptions);
+    if (generation === monitorGeneration) {
+      liveScanInFlight = false;
+      if (liveScanQueued && activeTailer && watchedSourceId === sourceId) {
+        requestLiveScan(sourceRegistry.get(sourceId), liveScanOptions);
+      }
     }
   }
 }

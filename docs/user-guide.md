@@ -18,6 +18,8 @@ Do not run the application as administrator/root. Keep the repository, logs, cre
 
 Source paths are used locally by the main process. The renderer receives privacy-safe labels and source IDs, not arbitrary filesystem capabilities. A moved or replaced source must be revalidated.
 
+Use the header's **Environment** selector to switch among detected LIVE, PTU, EPTU, HOTFIX and TECH-PREVIEW logs. Switching stops follow and clears the previous environment's view and overlay; stored telemetry remains separate. **Open event overlay** starts follow for the selected valid source if stopped and preserves an existing follow. A missing saved preview source never silently falls back to LIVE. Logs are read in their original locations: never copy preview logs into LIVE. See [environment isolation](environment-isolation.md) for limitations, exports and verification.
+
 ## Runtime Monitor
 
 The Runtime Monitor has three kinds of information:

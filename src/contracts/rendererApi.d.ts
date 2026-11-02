@@ -595,6 +595,7 @@ export interface MonitorChangeEnvelope {
 }
 
 export type MonitorChange =
+  | { type: 'monitor.source_changed'; source: PublicRuntimeSource | null; monitor: MonitorState }
   | { type: 'monitor.started'; monitor: MonitorState }
   | { type: 'monitor.stopped'; reason: string; monitor: MonitorState }
   | { type: 'monitor.scan'; monitor: MonitorState; scan: RendererScanResult }

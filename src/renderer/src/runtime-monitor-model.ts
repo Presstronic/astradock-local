@@ -199,7 +199,7 @@ export function createRuntimeMonitorViewModel(input: {
     backlogDetail: formatBacklogDetail(tailer),
     activityState,
     compatibilityState: (scan?.parserCompatibility?.status || 'unknown') as CompatibilityState,
-    environmentLabel: lifecycle?.environment.releaseChannel || formatEnvironment(scan),
+    environmentLabel: lifecycle?.environment.releaseChannel || (scan ? formatEnvironment(scan) : source?.channelHint || 'UNKNOWN'),
     buildLabel: lifecycle?.build.productVersion || lifecycle?.build.fileVersion || (environment?.buildVersion && environment.buildVersion !== 'UNKNOWN_BUILD'
       ? environment.buildVersion
       : source?.buildVersion || 'Unknown'),

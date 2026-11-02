@@ -60,7 +60,7 @@ const OBSERVED_BUILD_CATALOG = Object.freeze(Object.entries(OBSERVED_BUILD_COUNT
       })
     });
   })
-  .sort((left, right) => Number(left.build) - Number(right.build)));
+  .sort((left, right) => Number(right.build) - Number(left.build)));
 
 function getBuildCompatibilityCatalog() {
   return { version: CATALOG_VERSION, builds: OBSERVED_BUILD_CATALOG };
