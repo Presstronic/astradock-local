@@ -9,13 +9,13 @@ Retain all observed signals, separate inferences, and preserve owner-confirmed a
 | Document ID | `runtime-observation-catalog` |
 | Updated | 2026-11-02 |
 | Scope | Evidence catalog; display implementation tracked separately; no phase assignment |
-| Current capture | `CAP-2026-11-02-ROUTES-01` — bounded existing-log route inspection |
+| Current capture | `CAP-2026-11-02-INVENTORY-AUDIT-01` — bounded existing-log local coverage inspection |
 | Source | Separate original Star Citizen LIVE and PTU logs |
 | Duration | Not a timed gameplay exercise; bounded read-only inspection |
-| Approximate source window | 2026-11-02; reviewed route fixtures LIVE 20:01:39–20:24:20 UTC, PTU 17:27:43–17:27:48 UTC; broader bounds in ledger |
+| Approximate source window | 2026-11-02 inventory records: LIVE 18:39:44–20:51:39 UTC, PTU 17:15:23–18:08:50 UTC |
 | Build / locale / profile | LIVE 4.10.197.2878 / sc-4.10-live@2026-10-29.2; PTU 4.10.199.13454 / sc-4.10-ptu@2026-11-02.1; locale unknown |
 | Collection | Bounded header/suffix reader; no original logs copied or modified |
-| Detailed evidence | [Route inspection ledger](runtime-capture-findings-2026-11-02-inventory-routes.md) |
+| Detailed evidence | [Local inventory audit ledger](runtime-capture-findings-2026-11-02-inventory-audit.md) |
 
 ### Capture index
 
@@ -27,12 +27,15 @@ Retain all observed signals, separate inferences, and preserve owner-confirmed a
 | `CAP-2026-11-02-PTU-01` | Empty-overlay diagnosis; PTU 4.10.199.13454 request results/echoes; additional known markers and negative evidence | [PTU inspection](runtime-capture-findings-2026-11-02-ptu.md) |
 | `CAP-2026-11-02-PTU-02` | Owner-reported generic inventory wording; request item classes, quantity gaps and bounded display association | [PTU item context](runtime-capture-findings-2026-11-02-ptu-item-context.md) |
 | `CAP-2026-11-02-ROUTES-01` | Separate LIVE/PTU route records, Store reversal, explicit Drop versus unresolved Interaction; owner personal-membership policy | [Route inspection](runtime-capture-findings-2026-11-02-inventory-routes.md) |
+| `CAP-2026-11-02-INVENTORY-AUDIT-01` | Local coverage counts, Store quantity negative evidence, location/query/equip leads, Split/bulk and actual failed StackAll records | [Local inventory audit](runtime-capture-findings-2026-11-02-inventory-audit.md) |
 
 The PTU inspection adds observed request type **Store** alongside QueryInventory and Interaction. It is a client-reported inventory request type, not a vehicle-store, ownership, acquisition or loss detector. Only INV-04 completion observations are enabled for that exact PTU build. The ledger records all distinct recognized markers, unrecognized attachment-port evidence and missing gameplay signals separately from delivery status. No owner action timing or cross-session repeatability is asserted; prior LIVE findings remain unchanged below.
 
 The item-context follow-up correlates preceding INV-01/INV-02 context to INV-04 for overlay presentation only. Exact player/request identity and bounded source order/time are required. Store queue zeros are **unknown quantity**, not zero or one delivered item. The ledger lists all newly reviewed item classes and descriptive names, retained gaps and owner feedback. Friendly item association is inferred with medium presentation confidence; canonical completion facts and Station gates are unchanged.
 
 The route follow-up adds inferred typed source/destination presentation and explicit client-reported ground drops, without personal-container bindings or ownership/balance mutation. Store queue direction can reverse the Add inventory argument; INVALID also occurs with attachment intent and never means ground by itself. LIVE Split/StackAll, bulk bracketed item classes and new LIVE Store records remain unsupported. Access-token entity matching is a future container-type lead, not ownership proof. Owner policy separates internal personal transfers from outgoing ground placement/drop/throw; held throw and recovery evidence gaps remain. See the [movement policy and promotion gates](inventory-movement-and-ownership.md).
+
+The local coverage inspection measures diagnostic records and unresolved correlations, not capture recall or current stock. It preserves failed StackAll outcomes and location/query/Store/equip metadata without promoting new gameplay capabilities. `StoreItem.ItemsCount` is not an accepted transferred quantity: values in the hundreds coexist with NULL/zero queue counts. Owner clarification prioritizes [local location-stock tracking](location-inventory-tracking.md) before Station API work; person/ship storage is excluded from location stock, independently of aggregate ownership.
 
 ### Classification vocabulary
 
@@ -115,6 +118,23 @@ Defaults: capture `CAP-2026-10-29-02`; evidence `log_observed`; detection `obser
 | NAV-01 | Route guard reroute / `NOT AUTH` | Unattributed vehicle mention; not local travel or DGS handoff. |
 | ATC-01 | Storage tracking reset | Zero entries cleared; not a vehicle-store event. |
 
+### Local inventory audit additions
+
+Capture `CAP-2026-11-02-INVENTORY-AUDIT-01`; evidence `log_observed`; detection `observed_once`, repeatability pending. Delivery is diagnostic counting/fixtures only, not a qualified stock detector. These catalog IDs do not expand the runtime signal contract.
+
+| ID | Observed signal | Boundary |
+| --- | --- | --- |
+| INV-20 | Update Inventory Location, RequestLocationInventory, Show Location Inventory, Update Inventory Sections | Location/query/UI context; no named station or stock mutation established. |
+| INV-21 | InventoryManagement query/page metadata | Inventory, Player, Data, Elapsed, previous/next page and cursor fields; completeness/row quantities remain unaccepted. |
+| INV-22 | Inventory Quick Equip Request, EquipItem, Update Inventory | Equip/attachment leads, not automatic location withdrawals. |
+| INV-23 | OnInventoryStoreItem, StoreItem | Request/class/Inventory/ItemsCount metadata; ItemsCount is not moved quantity, and Inventory field did not equal Add source in this inspection. |
+| INV-24 | Split request/queue/success within the same Location | Amount 10 and successful outcome; stack-shape change is not ten newly added/removed items. |
+| INV-25 | StackAll success and two Failed primary results | Same-container operation; actual failure evidence retained; no stock mutation promoted. |
+| INV-26 | Revert Moves, Expire Local Attachment, Evaluate Inventory State On Failed Move | Failure/rollback corroboration, not extra losses. |
+| INV-06 variant | Bulk bracketed item-class Move, NULL/zero queue source | Per-item/count breakdown unresolved; never guess one. |
+
+No new owner-timed gameplay annotations, held-throw/recovery detector, complete snapshot, named-location binding or cross-session repeatability was established. Prior owner-confirmed actions and their missing signals remain below.
+
 ## 3. Inferences and owner-confirmed actions
 
 ### Inferences
@@ -158,7 +178,7 @@ No hydration, nutrition, drinking duration, or intermediate fullness values were
 | Capture 01: no new bytes during final approximately 40 s | Report reader silence; gameplay may continue. |
 | Capture 01 reader checked shrink, not file replacement identity | Rotation continuity unverified for capture 01; capture 02 checked identity. |
 | Capture began mid-request | Do not reconstruct missing intent. |
-| No failed / cancelled operation observed | Failure detection remains untested. |
+| Captures 01/02 had no failed / cancelled operation | Later inventory audit retains two failed StackAll results; cancelled-operation evidence and repeatability remain open. |
 | Query or preview activity | Do not infer item changes, authoritative inventory totals, or exact position. |
 | Private identifiers / raw logs | Remain local; share minimized summaries or [sanitized fixtures](runtime-log-fixture-corpus.md). |
 
