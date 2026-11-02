@@ -1,0 +1,5 @@
+{
+  "categories": {"inventory":"Inventory","shop":"Shop","equipment":"Equipment","vehicle":"Vehicle","travel":"Travel","party":"Party","mission":"Mission","area":"Area / status"},
+  "actions": {"purchase":"Purchase","move":"Move / transfer","drop":"Drop","carry":"Carry","attachment":"Attachment","close":"Inventory closing","inventory_result":"Inventory result","retrieve":"Retrieve vehicle","control":"Vehicle control","store":"Store vehicle","destination":"Destination selection","arrival":"Travel arrival","membership":"Party membership","launch":"Party launch","accept":"Accept mission","area_change":"Area / status change"},
+  "itemTypes": {"medical":"Medical consumables","drink":"Food / drink","ammunition":"Ammunition / magazines","equipment":"Armor / equipment","unclassified":"Unclassified item","no_item":"No item"}
+}

@@ -20,7 +20,7 @@ import type {
   Unsubscribe
 } from '../../contracts/rendererApi';
 
-export type RuntimeMonitorClient = Pick<AstraDockApi, 'version' | 'source' | 'monitor' | 'exporter' | 'compatibility' | 'events' | 'settings' | 'diagnostics'>;
+export type RuntimeMonitorClient = Pick<AstraDockApi, 'version' | 'source' | 'monitor' | 'exporter' | 'compatibility' | 'events' | 'settings' | 'diagnostics'> & { station?: AstraDockApi['station'] };
 
 export const FALLBACK_SETTINGS: RendererSettings = {
   version: 2,

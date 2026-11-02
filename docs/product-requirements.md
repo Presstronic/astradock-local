@@ -8,7 +8,7 @@
 | Product | AstraDock Local |
 | Companion product | AstraDock Station |
 | Last consolidated | 2026-08-09 |
-| Delivery stage | Product and technical specification; implementation is not authorized |
+| Delivery stage | Owner-authorized implementation of PR #172 Station client and overlay filters; live Station API/evidence integration remains blocked |
 
 This document is the consolidated product-requirements source for AstraDock Local. It replaces the earlier project and session handoff documents. Repository-level working instructions remain in [`AGENTS.md`](../AGENTS.md) and are authoritative for how work is performed.
 

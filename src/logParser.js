@@ -1,4 +1,6 @@
 const fs = require('node:fs/promises');
+const { readRuntimeCaptureWindow } = require('./runtimeCaptureWindow');
+const { collectRuntimeEvidence } = require('./runtimeEvidenceCache');
 const { parseRuntimeLogText } = require('./runtimeLogParserEngine');
 const {
   projectRuntimeLifecycle,
@@ -778,15 +780,17 @@ function dedupeEntries(entries) {
 }
 
 async function parseLogFile(logPath, options = {}) {
-  const { signal, ...parseOptions } = options;
-  const text = await fs.readFile(logPath, { encoding: 'utf8', signal });
-  const stat = await fs.stat(logPath);
+  const { signal, captureSince, collectEvidenceFor, ...parseOptions } = options;
+  const window = captureSince ? await readRuntimeCaptureWindow(logPath, { since: captureSince, signal }) : null;
+  const text = window ? window.text : await fs.readFile(logPath, { encoding: 'utf8', signal });
+  const modifiedAt = window ? window.modifiedAt : (await fs.stat(logPath)).mtime.toISOString();
   const parsed = parseLogText(text, {
     ...parseOptions,
+    ...(window ? { gameBuild: window.gameBuild, branch: window.branch } : {}),
     logPath,
     sourceLocation: logPath,
     scannedAt: new Date().toISOString(),
-    modifiedAt: stat.mtime.toISOString()
+    modifiedAt
   });
   const canonical = parseRuntimeLogText(text, {
     sourceLocation: logPath,
@@ -794,6 +798,8 @@ async function parseLogFile(logPath, options = {}) {
     gameBuild: parsed.environment?.buildVersion,
     environmentName: parsed.environment?.environmentName,
     branch: parsed.environment?.branch,
+    framer: window ? { sourceByteOffset: window.sourceByteOffset } : undefined,
+    evidenceCoordinates: window ? 'byte' : undefined,
     ingestedAt: parsed.scannedAt
   });
   const lifecycleProjection = projectRuntimeLifecycle(canonical.events, {
@@ -816,11 +822,23 @@ async function parseLogFile(logPath, options = {}) {
     activeEnvironmentKey: parsed.environmentKey,
     now: parsed.scannedAt
   });
+  const normalizedLines = new Set(canonical.events
+    .filter((event) => event.eventType === 'RuntimeLogSignalObserved' || event.eventType === 'ShopPurchaseRequested')
+    .map((event) => event.evidenceReference.lineRange?.start ?? event.ordering.sourceSequence));
   return {
     ...parsed,
+    ...(window ? { captureWindow: { since: captureSince, sourceByteOffset: window.sourceByteOffset,
+      lineNumbers: 'capture_relative', truncated: window.truncated } } : {}),
+    userActivity: {
+      ...parsed.userActivity,
+      actions: parsed.userActivity.actions.filter((action) => !normalizedLines.has(action.lineNumber))
+    },
     runtimeEvents: canonical.events,
+    ...(typeof collectEvidenceFor === 'function' ? { overlayEvidence: collectRuntimeEvidence(text,
+      canonical.events.filter(collectEvidenceFor), window?.sourceByteOffset || 0) } : {}),
     promotedRuntimeEvents: canonical.events.filter((event) => (
-      PARTY_EVENT_TYPES.includes(event.eventType) || LOCATION_EVENT_TYPES.includes(event.eventType)
+      event.eventType === 'RuntimeLogSignalObserved' || event.eventType === 'ShopPurchaseRequested'
+        || PARTY_EVENT_TYPES.includes(event.eventType) || LOCATION_EVENT_TYPES.includes(event.eventType)
         || MISSION_EVENT_TYPES.includes(event.eventType)
         || QUANTUM_EVENT_TYPES.includes(event.eventType) || VEHICLE_EVENT_TYPES.includes(event.eventType)
     )),

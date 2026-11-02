@@ -1,0 +1,2026 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.10-pub/sc-4.10-live/captured/signals.observed",
+  "title": "Minimized capture-backed inventory, shop, vehicle, loadout and diagnostic signals",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.10.197.2878",
+  "sourceProfileId": "sc-4.10-live",
+  "sourceProfileVersion": "2026-10-29.2",
+  "domain": "captured",
+  "action": "Observe client log signals without inferring unlogged gameplay outcomes",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "CAP-2026-10-29-01/02; docs/runtime-capture-findings-2026-10-29.md; docs/runtime-capture-findings-2026-10-29-02.md",
+  "logFile": "signals.observed.log",
+  "privacyClassification": [
+    "local",
+    "sanitized"
+  ],
+  "sensitivityHandling": {
+    "redactedFields": [
+      "player",
+      "account/entity/container IDs",
+      "service endpoint",
+      "class GUID"
+    ],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "One representative per marker/signal; repeated engine errors omitted. No full private log retained."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-08",
+        "category": "action",
+        "label": "Entity unstow finalized",
+        "summary": "Entity unstow finalized: request 13",
+        "requestId": "13",
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "UnstowPendingEntities"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-17",
+        "category": "action",
+        "label": "Inventory drag preview",
+        "summary": "Inventory drag preview",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "OnDragInventoryItemModifyTarget"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-05",
+        "category": "action",
+        "label": "Drop to ground requested",
+        "summary": "Drop to ground requested",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Drop From Container"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-01",
+        "category": "action",
+        "label": "Inventory operation requested",
+        "summary": "Inventory operation requested: request 14; operation Drop; Drink_bottle_cruz_01_lux_a",
+        "requestId": "14",
+        "operation": "Drop",
+        "itemClass": "Drink_bottle_cruz_01_lux_a",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Add Inventory Management Move"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-02",
+        "category": "action",
+        "label": "Inventory request handling",
+        "summary": "Inventory request handling: request 14; operation Interaction",
+        "requestId": "14",
+        "operation": "Interaction",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Mgmt Request Handle"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-02",
+        "category": "action",
+        "label": "Inventory request queued",
+        "summary": "Inventory request queued: request 14; operation Interaction; requested/source quantity 1",
+        "requestId": "14",
+        "operation": "Interaction",
+        "itemClass": null,
+        "quantity": 1,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Mgmt Request Queued"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 14; operation Interaction; reported result Succeed",
+        "requestId": "14",
+        "operation": "Interaction",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Inventory request completed",
+        "summary": "Inventory request completed: request 14; reported result succeed; 0.850047 s",
+        "requestId": "14",
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "succeed",
+        "elapsedSeconds": 0.850047,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Request Completed"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-01",
+        "category": "diagnostic",
+        "label": "Attachment-parent desynchronization",
+        "summary": "Attachment-parent desynchronization",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "AggregateBindParentOutOfSync"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-06",
+        "category": "action",
+        "label": "Inventory move requested",
+        "summary": "Inventory move requested: request 15; operation Move; Drink_bottle_cruz_01_lux_a",
+        "requestId": "15",
+        "operation": "Move",
+        "itemClass": "Drink_bottle_cruz_01_lux_a",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Add Inventory Management Move"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-18",
+        "category": "action",
+        "label": "Container UI item update",
+        "summary": "Container UI item update",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Update Container Items Add New Item"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-09",
+        "category": "action",
+        "label": "Inventory grid closing",
+        "summary": "Inventory grid closing",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Close Inventory Grid"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-09",
+        "category": "action",
+        "label": "Inventory container removed from UI",
+        "summary": "Inventory container removed from UI",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Remove Inventory Container UI"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-12",
+        "category": "action",
+        "label": "Inventory access termination",
+        "summary": "Inventory access termination",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Request Terminate Access To Inventory"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-12",
+        "category": "action",
+        "label": "Inventory access-token activity",
+        "summary": "Inventory access-token activity",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Token Flow"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-13",
+        "category": "action",
+        "label": "Item attached to left hand",
+        "summary": "Item attached to left hand: outlaw_legacy_armor_medium_helmet_01_01_01; 6.382007 s; port weapon_attach_hand_left; attachment persistent",
+        "requestId": null,
+        "operation": null,
+        "itemClass": "outlaw_legacy_armor_medium_helmet_01_01_01",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": 6.382007,
+        "attachmentPort": "weapon_attach_hand_left"
+      },
+      "evidenceMarkers": [
+        "AttachmentReceived"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-03",
+        "category": "action",
+        "label": "Inventory request processing",
+        "summary": "Inventory request processing: request 16; operation QueryInventory",
+        "requestId": "16",
+        "operation": "QueryInventory",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Mgmt Request Process"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-11",
+        "category": "action",
+        "label": "Inventory query activity",
+        "summary": "Inventory query activity: request 7",
+        "requestId": "7",
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Query Inventory"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-11",
+        "category": "action",
+        "label": "Personal inventory data activity",
+        "summary": "Personal inventory data activity: request 7",
+        "requestId": "7",
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Request Personal Inventory Data"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-02",
+        "category": "diagnostic",
+        "label": "UI category variable unavailable",
+        "summary": "UI category variable unavailable",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "[BuildingBlocks] Invalid Url"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-14",
+        "category": "action",
+        "label": "Item attached to helmet hook",
+        "summary": "Item attached to helmet hook: outlaw_legacy_armor_medium_helmet_01_01_01; 0.230783 s; port helmethook_attach; attachment persistent",
+        "requestId": null,
+        "operation": null,
+        "itemClass": "outlaw_legacy_armor_medium_helmet_01_01_01",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": 0.230783,
+        "attachmentPort": "helmethook_attach"
+      },
+      "evidenceMarkers": [
+        "AttachmentReceived"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-16",
+        "category": "action",
+        "label": "Local pocket attachment observed",
+        "summary": "Local pocket attachment observed: 1.202266 s; port inventory_pocket_2; attachment local",
+        "requestId": null,
+        "operation": null,
+        "itemClass": "Default",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": 1.202266,
+        "attachmentPort": "inventory_pocket_2"
+      },
+      "evidenceMarkers": [
+        "AttachmentReceived"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-07",
+        "category": "action",
+        "label": "Item carry requested",
+        "summary": "Item carry requested: request 19; operation Interaction; requested/source quantity 1",
+        "requestId": "19",
+        "operation": "Interaction",
+        "itemClass": null,
+        "quantity": 1,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Mgmt Request Queued"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-10",
+        "category": "action",
+        "label": "Inventory closing with pending operations",
+        "summary": "Inventory closing with pending operations",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Close Inventory Grid"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-15",
+        "category": "action",
+        "label": "Item attached to right hand",
+        "summary": "Item attached to right hand: Drink_bottle_cruz_01_lux_a; 1.52874 s; port weapon_attach_hand_right; attachment persistent",
+        "requestId": null,
+        "operation": null,
+        "itemClass": "Drink_bottle_cruz_01_lux_a",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": 1.52874,
+        "attachmentPort": "weapon_attach_hand_right"
+      },
+      "evidenceMarkers": [
+        "AttachmentReceived"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "ENV-01",
+        "category": "runtime",
+        "label": "Loading-platform state observed",
+        "summary": "Loading-platform state observed: state OpenIdle",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CSCLoadingPlatformManager::OnLoadingPlatformStateChanged"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-03",
+        "category": "diagnostic",
+        "label": "Platform light-state activity",
+        "summary": "Platform light-state activity",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CSCLoadingPlatformManager::TransitionLightGroupState"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "ENV-03",
+        "category": "runtime",
+        "label": "Platform effects stopping",
+        "summary": "Platform effects stopping",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CSCLoadingPlatformManager::StopEffectForAllTags"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "ENV-02",
+        "category": "runtime",
+        "label": "Platform references loading",
+        "summary": "Platform references loading",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CSCLoadingPlatformManager::LoadEntitiesReference"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-04",
+        "category": "diagnostic",
+        "label": "Platform XML child missing",
+        "summary": "Platform XML child missing",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "LoadingPlatformUtilities::LoadFromXmlNode"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-04",
+        "category": "diagnostic",
+        "label": "Platform XML entity missing",
+        "summary": "Platform XML entity missing",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CSCLoadingPlatformManager::loadEntityFromXML::<lambda_1>::operator ()"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "ENV-02",
+        "category": "runtime",
+        "label": "Platform reference resolved",
+        "summary": "Platform reference resolved",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CSCLoadingPlatformManager::LoadEntitiesReference::<lambda_1>::operator ()"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "ENV-04",
+        "category": "runtime",
+        "label": "Platform light-state activity",
+        "summary": "Platform light-state activity",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CSCLoadingPlatformManager::TransitionLightGroupState"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "SHP-01",
+        "category": "action",
+        "label": "Shop purchase requested",
+        "summary": "Shop purchase requested: klwe_lmg_energy_01_mag; requested/source quantity 31; client price 16120 (basis/currency unverified); shop SCShop_Pyro_RestStop_BlackMarket_FPSItems",
+        "requestId": null,
+        "operation": null,
+        "itemClass": "klwe_lmg_energy_01_mag",
+        "quantity": 31,
+        "clientPrice": 16120,
+        "shopName": "SCShop_Pyro_RestStop_BlackMarket_FPSItems",
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CEntityComponentShopUIProvider::SendShopBuyRequest"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "SHP-02",
+        "category": "action",
+        "label": "Shop buying response",
+        "summary": "Shop buying response: operation Buying; shop SCShop_Pyro_RestStop_BlackMarket_FPSItems; reported result Success; buying flow BuyRequestProcessing; payment/delivery unverified",
+        "requestId": null,
+        "operation": "Buying",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": "SCShop_Pyro_RestStop_BlackMarket_FPSItems",
+        "kioskState": "BuyRequestProcessing",
+        "result": "Success",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CEntityComponentShopUIProvider::RmShopFlowResponse"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-19",
+        "category": "action",
+        "label": "Location inventory cache invalidated",
+        "summary": "Location inventory cache invalidated",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Terminate Location Container"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "SHP-01",
+        "category": "action",
+        "label": "Shop purchase requested",
+        "summary": "Shop purchase requested: behr_lmg_ballistic_01_mag; requested/source quantity 1; client price 520 (basis/currency unverified); shop SCShop_Pyro_RestStop_BlackMarket_FPSItems",
+        "requestId": null,
+        "operation": null,
+        "itemClass": "behr_lmg_ballistic_01_mag",
+        "quantity": 1,
+        "clientPrice": 520,
+        "shopName": "SCShop_Pyro_RestStop_BlackMarket_FPSItems",
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CEntityComponentShopUIProvider::SendShopBuyRequest"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "NAV-01",
+        "category": "diagnostic",
+        "label": "Unattributed route-guard diagnostic",
+        "summary": "Unattributed route-guard diagnostic",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Local Route Guard - Server Rerouted"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "SYS-01",
+        "category": "runtime",
+        "label": "Service channel reused",
+        "summary": "Service channel reused: service entitlement",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "ReuseChannel"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "VEH-01",
+        "category": "vehicle",
+        "label": "Vehicle-list query activity",
+        "summary": "Vehicle-list query activity",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "OnRequestFetchVehicles"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "VEH-02",
+        "category": "vehicle",
+        "label": "Vehicle inventory aggregate observed",
+        "summary": "Vehicle inventory aggregate observed: 1 vehicle records at location",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "`anonymous-namespace'::BuildInventoryStowedAggregateRoots"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "VEH-03",
+        "category": "vehicle",
+        "label": "Vehicle-list query completed",
+        "summary": "Vehicle-list query completed: 0 entitlement records / 1 vehicle records; ownership unverified",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "VehicleListQuery"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "LOAD-01",
+        "category": "runtime",
+        "label": "Loadout data activity",
+        "summary": "Loadout data activity",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "UI - LoadoutEditor"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-05",
+        "category": "diagnostic",
+        "label": "Duplicate attachment-port diagnostic",
+        "summary": "Duplicate attachment-port diagnostic",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "DuplicatedItemPorts"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-06",
+        "category": "diagnostic",
+        "label": "Entity creation refused",
+        "summary": "Entity creation refused",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "CreationRefusedEntity"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-07",
+        "category": "diagnostic",
+        "label": "Attachment parent or port missing",
+        "summary": "Attachment parent or port missing",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Failed attachment"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "ATC-01",
+        "category": "runtime",
+        "label": "ATC storage-tracking reset",
+        "summary": "ATC storage-tracking reset: 0 tracking entries cleared; no storage outcome implied",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "ATC_Reset_VehiclesBeingStoredCleared"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "DIA-08",
+        "category": "diagnostic",
+        "label": "Spawned-entity attachment cleanup",
+        "summary": "Spawned-entity attachment cleanup",
+        "requestId": null,
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Failed to attach to itemport, destroying entity"
+      ]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "ShopPurchaseCompleted",
+      "reason": "Flow response does not independently prove settlement or delivery."
+    },
+    {
+      "eventType": "DrinkConsumed",
+      "reason": "Owner confirmation has no identified log signal."
+    },
+    {
+      "eventType": "BottleThrown",
+      "reason": "Inventory drop and held-object throw remain distinct."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "environment+source-generation+source-line+signal",
+    "sequence": [
+      "RuntimeLogSignalObserved"
+    ],
+    "notes": "Physical log signals remain distinct; request namespaces and gameplay outcomes are not correlated by this extractor."
+  },
+  "knownLimitations": [
+    "One representative per observed marker/signal; not a complete action history.",
+    "Repeated playtest reliability is not established; exact supported build only.",
+    "No local actor/ownership inference from unattributed system traffic."
+  ],
+  "verificationNotes": "Replay full/chunked and compare immutable expected payloads; verify malformed, foreign build, duplicate/replay, privacy and unlogged-outcome guards."
+}

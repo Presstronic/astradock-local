@@ -7,8 +7,17 @@ const path = require('node:path');
 const {
   LIFECYCLE_TYPES,
   RuntimeLogTailer,
-  START_MODES
+  START_MODES,
+  createFileIdentity
 } = require('../src/runtimeLogTailer');
+
+test('file identities distinguish large Windows inode values even with identical creation times', () => {
+  const first = { dev: 1n, ino: 9007199254740992n, birthtimeMs: 1000 };
+  const second = { ...first, ino: 9007199254740993n };
+  assert.equal(Number(first.ino), Number(second.ino), 'the numeric representation loses this distinction');
+  assert.notEqual(createFileIdentity(first), createFileIdentity(second));
+  assert.equal(createFileIdentity({ dev: 1n, ino: 2n, birthtimeMs: 1000 }), createFileIdentity({ dev: 1, ino: 2, birthtimeMs: 1000 }));
+});
 
 test('runtime log tailer reads only appended bytes in exact source order', async () => {
   const { logPath, cleanup } = await createTempLog('existing\n');

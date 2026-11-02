@@ -142,7 +142,7 @@ Profile changes require accepted positive or negative fixtures before an extract
 
 Breaking profile changes require a new profile version. Breaking changes include changing event mappings, required fields, dedupe identity, compatibility scope, or the meaning of an alias. Future profile versions should preserve old versions for replay until the persistence layer has a migration/quarantine policy.
 
-The immutable `sc-4.9-live` profile version `2026-08-19.5` shares logic across exact tested 4.9.0 fixture builds and observed LIVE build `4.9.188.23497`. Compatibility still requires the 4.9 family, LIVE channel, PU universe, an allowed branch, and an exact tested build. A matching untested patch is `unverified_build`; numerically adjacent minors and PTU 4.10 remain unsupported until separately captured and reviewed.
+The immutable `sc-4.9-live` profile version `2026-10-26.1` shares logic across exact tested 4.9.0 fixture builds and observed LIVE build `4.9.188.23497`. It recognizes `SendShopBuyRequest` as `ShopPurchaseRequested`, an attempt signal with the item, quantity, shop, and client price. This event does not confirm payment or delivery. Compatibility still requires the 4.9 family, LIVE channel, PU universe, an allowed branch, and an exact tested build. A matching untested patch is `unverified_build`; numerically adjacent minors and PTU 4.10 remain unsupported until separately captured and reviewed.
 
 ## Failure Handling
 
@@ -200,6 +200,8 @@ Parser health is reported separately from canonical gameplay telemetry so that U
 The drift heuristic is deliberately conservative and configurable. By default it requires at least 25 records, at least 15 unknown records, and an unknown ratio of 75% before reporting `suspected_drift`. Unsupported profiles are reported as compatibility uncertainty, not as a Star Citizen fault.
 
 ## Verification
+
+The [capture-backed display](captured-runtime-event-display.md) adds a separate narrow 4.10 LIVE profile, closed normalized vocabulary, explicit nullable fields, bounded generated summaries and exact-payload regression tests. The scan adapter suppresses legacy generic actions for normalized source lines; diagnostic signals retain diagnostic categories. Existing 4.9 meanings remain unchanged.
 
 Run:
 

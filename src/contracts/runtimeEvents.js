@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { SIGNAL_IDS } = require('../capturedRuntimeSignals');
 const { parseAbsoluteInstant, toEpochMilliseconds } = require('../time');
 
 const CONTRACT_VERSION = 'runtime-event/v1';
@@ -102,6 +103,35 @@ const RUNTIME_EVENT_ENVELOPE_FIELDS = Object.freeze([
 ]);
 
 const EVENT_TYPE_REGISTRY = deepFreeze({
+  RuntimeLogSignalObserved: {
+    owner: 'runtime-telemetry',
+    status: 'mvp',
+    summary: 'A bounded, capture-backed client log signal; no unlogged gameplay outcome is implied.',
+    traits: traits({ subjectScopes: ['session'], volumeCost: 'moderate', stationSyncPolicy: 'never' }),
+    fixtureId: 'live/4.10-pub/sc-4.10-live/captured/signals.observed',
+    payload: {
+      signalId: field(STRING, { enum: SIGNAL_IDS }),
+      category: field(STRING, { enum: ['action', 'vehicle', 'runtime', 'diagnostic'] }),
+      label: field(STRING, { maxLength: 96 }),
+      summary: field(STRING, { maxLength: 600 }),
+      requestId: field(STRING, { nullable: true, maxLength: 24 }),
+      operation: field(STRING, { nullable: true }),
+      itemClass: field(STRING, { nullable: true }),
+      quantity: field(INTEGER, { nullable: true, min: 0 }),
+      clientPrice: field(NUMBER, { nullable: true, min: 0 }),
+      shopName: field(STRING, { nullable: true }),
+      kioskState: field(STRING, { nullable: true }),
+      result: field(STRING, { nullable: true }),
+      elapsedSeconds: field(NUMBER, { nullable: true, min: 0 }),
+      attachmentPort: field(STRING, { nullable: true })
+    },
+    examplePayload: {
+      signalId: 'INV-04', category: 'action', label: 'Inventory request completed',
+      summary: 'Inventory request completed: request 14; reported result succeed',
+      requestId: '14', operation: null, itemClass: null, quantity: null, clientPrice: null,
+      shopName: null, kioskState: null, result: 'succeed', elapsedSeconds: null, attachmentPort: null
+    }
+  },
   RuntimeSourceDiscovered: {
     owner: 'runtime-telemetry',
     status: 'mvp',
@@ -626,6 +656,27 @@ const EVENT_TYPE_REGISTRY = deepFreeze({
       notificationId: 'SYNTH_NOTIFICATION_CONTRACT_ACCEPTED',
       missionId: 'SYNTH_MISSION_ACCEPTED',
       contractName: 'SYNTH_CONTRACT_NAME'
+    }
+  },
+  ShopPurchaseRequested: {
+    owner: 'runtime-contracts',
+    status: 'mvp',
+    summary: 'A local-player shop purchase request was observed; completion is unconfirmed.',
+    traits: traits({ subjectScopes: ['local_player', 'session'], sensitivity: 'local', stationSyncPolicy: 'never' }),
+    fixtureId: 'live/4.9-pub/sc-4.9-live/shop/purchase-request-attempt.synthetic',
+    payload: {
+      requestId: field(STRING),
+      itemName: field(STRING),
+      quantity: field(INTEGER, { min: 1 }),
+      shopName: field(STRING),
+      clientPrice: field(NUMBER, { min: 0 })
+    },
+    examplePayload: {
+      requestId: 'SYNTH_SHOP_REQUEST_1',
+      itemName: 'SYNTH_ITEM_AMMUNITION',
+      quantity: 1,
+      shopName: 'SYNTH_SHOP',
+      clientPrice: 250
     }
   },
   JurisdictionEntered: {
@@ -1266,6 +1317,11 @@ function validateEvidenceReference(value, path, errors) {
       errors.push(error('invalid_line_range', `${path}.lineRange`, 'Line range must be ordered non-negative integers'));
     }
   }
+  if (Object.hasOwn(value, 'sourceByteOffset') && !Number.isSafeInteger(value.sourceByteOffset)) {
+    errors.push(error('invalid_evidence_offset', `${path}.sourceByteOffset`, 'Evidence byte offset must be a safe integer'));
+  } else if (value.sourceByteOffset < 0) {
+    errors.push(error('invalid_evidence_offset', `${path}.sourceByteOffset`, 'Evidence byte offset must be non-negative'));
+  }
 }
 
 function validateStringMap(value, path, errors) {
@@ -1314,10 +1370,14 @@ function validatePayload(payload, schema, path, errors) {
 }
 
 function validateFieldValue(value, spec, path, errors) {
+  if (value === null && spec.nullable === true) return;
   if (spec.type === STRING) {
     if (typeof value !== 'string' || value.trim() === '') {
       errors.push(error('invalid_payload_string', path, 'Payload field must be a non-empty string'));
       return;
+    }
+    if (Number.isInteger(spec.maxLength) && value.length > spec.maxLength) {
+      errors.push(error('payload_string_too_long', path, 'Payload string exceeds its maximum length'));
     }
   } else if (spec.type === BOOLEAN) {
     if (typeof value !== 'boolean') {

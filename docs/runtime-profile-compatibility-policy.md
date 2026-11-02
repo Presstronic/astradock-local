@@ -28,9 +28,11 @@ Profiles never cross a minor-version, release-channel, universe, or branch bound
 6. Required-anchor failures, contradictory vocabulary, field-shape changes, or abnormal unknown-event rates move the session to `suspected_drift` and disable affected event families safely.
 7. An unknown minor/channel/branch is `unsupported_profile`; it does not fall back to the nearest profile.
 
-Profile schema version 2 implements this decision. The immutable `sc-4.9-live@2026-08-19.5` family accepts exact fixture-backed 4.9.0 synthetic builds and observed LIVE build `4.9.188.23497`. `4.9.999.0-BLOCKED-SYNTH` is the deterministic explicit-exclusion test case with reason `synthetic_known_incompatible_vocabulary`; it is not a claim about a real game build. Other matching 4.9 LIVE patches are `unverified_build`, and semantic event extraction is suppressed until exact fixture evidence is accepted.
+Profile schema version 2 implements this decision. The immutable `sc-4.9-live@2026-10-26.1` family accepts exact fixture-backed 4.9.0 synthetic builds and observed LIVE build `4.9.188.23497`. `4.9.999.0-BLOCKED-SYNTH` is the deterministic explicit-exclusion test case with reason `synthetic_known_incompatible_vocabulary`; it is not a claim about a real game build. Other matching 4.9 LIVE patches are `unverified_build`, and semantic event extraction is suppressed until exact fixture evidence is accepted.
 
 `sc-4.9-cross-env` is marked fixture-only and can be selected only by an explicit test option. It exists to verify partition isolation and can never become an automatic PTU/EPTU/HOTFIX fallback in the application.
+
+`sc-4.10-live@2026-10-29.2` separately accepts observed LIVE build `4.10.197.2878` with `sc-alpha-4.10.2` or unavailable branch metadata. Only the [October capture-backed signals](captured-runtime-event-display.md) are enabled; 4.9 lifecycle semantics are not inherited. Other matching 4.10 builds remain unverified; other channels remain unsupported. The corpus is `live/4.10-pub/sc-4.10-live/captured/signals.observed`.
 
 ## Drift and observability
 

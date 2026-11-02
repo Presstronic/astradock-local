@@ -1,0 +1,51 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.9-pub/sc-4.9-live/shop/purchase-request-attempt.synthetic",
+  "title": "Synthetic shop purchase request attempt",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.9.0-LIVE.9000000-SYNTH",
+  "sourceProfileId": "sc-4.9-live",
+  "sourceProfileVersion": "2026-10-26.1",
+  "domain": "shop",
+  "action": "request purchase of an item with a synthetic player identifier",
+  "outcome": "observed",
+  "provenance": "synthetic_edge_case",
+  "evidenceBasis": "docs/StarCitizen_Log_Event_Reference.md",
+  "logFile": "purchase-request-attempt.synthetic.log",
+  "privacyClassification": ["local", "sanitized"],
+  "sensitivityHandling": {
+    "redactedFields": ["playerId"],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Generated from the documented event signature; it is not copied from a player log."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "ShopPurchaseRequested",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "medium",
+      "provenance": "observed",
+      "requiredPayloadFields": ["requestId", "itemName", "quantity", "shopName", "clientPrice"],
+      "payload": {
+        "requestId": "SYNTH_SHOP_REQUEST_001",
+        "itemName": "FS-9 Ammo",
+        "quantity": 1,
+        "shopName": "Area18",
+        "clientPrice": 250
+      },
+      "evidenceMarkers": ["SendShopBuyRequest", "client_price[", "itemName[", "quantity[", "shopName["]
+    }
+  ],
+  "expectedNonEvents": [
+    { "eventType": "ShopPurchaseCompleted", "reason": "A purchase request does not confirm payment or item delivery." }
+  ],
+  "correlation": {
+    "dedupeKey": "environment+source-generation+source-line+requestId",
+    "sequence": ["ShopPurchaseRequested"],
+    "notes": "Treat this as an attempt; do not infer success without a correlated authoritative result."
+  },
+  "knownLimitations": [
+    "Synthetic signature coverage does not substitute for replaying a newly captured exact game-build line.",
+    "No purchase completion/result event is currently promoted."
+  ],
+  "verificationNotes": "Verify required fields, chunked parsing, stable identity, and the explicit non-event for purchase completion."
+}

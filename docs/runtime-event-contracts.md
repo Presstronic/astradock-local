@@ -96,6 +96,10 @@ The current proof-of-concept parser now returns `environment`, `environmentKey`,
 
 ## MVP Registry Scope
 
+The 2026-10-29 addition registers `RuntimeLogSignalObserved` for the narrow capture-backed 4.10 LIVE display. Its closed catalog IDs distinguish inventory, shop, vehicle-query, loadout, system and diagnostic signals. Nullable fields explicitly preserve missing data; keys remain required. Existing nonnullable contracts retain their validation behavior. No unlogged payment, delivery, consumption, throwing, ownership or UI-opening outcome is implied. See [capture-backed display](captured-runtime-event-display.md) for build scope, fixtures and privacy/order rules.
+
+Bounded runtime captures may use `evidenceReference.sourceByteOffset` instead of `lineRange`. It is a non-negative safe integer pointing into the actual source file. Correlation/deduplication uses that stable position so overlapping windows do not create new IDs for retained records. Full-source fixture/legacy line evidence is unchanged; relative capture lines are not presented as absolute source line numbers.
+
 The registry currently promotes only event families backed by the accepted fixture corpus and application lifecycle requirements:
 
 - Source and monitor lifecycle: `RuntimeSourceDiscovered`, `RuntimeSourceSelected`, `RuntimeMonitorStarted`, `RuntimeMonitorStopped`, `RuntimeSourceUnavailable`.
@@ -105,11 +109,12 @@ The registry currently promotes only event families backed by the accepted fixtu
 - Disconnect and frontend/quit: `PuDisconnected`, `ReturnedToFrontend`, `ApplicationExited`.
 - Proven party events: `PartyCreated`, `PartyLaunchInitiated`, `PartyMemberConnected`, `PartyLeft`.
 - Validated zone events: `JurisdictionEntered`, `MonitoredSpaceEntered`, `MonitoredSpaceExited`, `ArmisticeStateChanged`.
+- Shop request evidence: `ShopPurchaseRequested` records the requested item, quantity, shop, client price, and request ID. It is not evidence that payment or item delivery completed.
 - Locally correlated quantum navigation: `QuantumTargetSelected`, `QuantumTargetChanged`, `QuantumTravelArrived`.
 
 The 2026-08-19 annotated capture supports registered vehicle events `VehicleRetrieved`, `VehicleControlAcquired`, `VehicleControlReleased`, and `VehicleStored` behind a same-environment, same-session local-vehicle correlation. Retrieval, acquisition, and storage retain explicit inferred provenance where the source record is a correlated outcome rather than a direct transition; release is observed directly. Boarding, exiting, and ownership remain unsupported. Quantum target-selection/change and final-arrival events use the same narrow local vehicle anchor. See [`vehicle-lifecycle-evidence-matrix.md`](vehicle-lifecycle-evidence-matrix.md) and [`runtime-capture-findings-2026-08-19.md`](runtime-capture-findings-2026-08-19.md).
 
-The registry intentionally does not promote mission, quantum start/cancel/failure, general destination, marker-only party membership, still-deferred party lifecycle, combat, trade, ship, population, chat, or analytics events. Those require separate evidence, fixtures, acceptance criteria, and a registry update.
+The registry intentionally does not promote mission completion, payouts, reputation awards, incoming currency transfers, quantum start/cancel/failure, general destination, marker-only party membership, still-deferred party lifecycle, combat, trade completion, ship ownership, population, chat, or analytics events. Those require separate evidence, fixtures, acceptance criteria, and a registry update. Shop request evidence remains an attempt only.
 
 ## Validation Behavior
 

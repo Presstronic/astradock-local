@@ -16,6 +16,15 @@ const {
   isAllowedRendererUrl
 } = require('./electronSecurity');
 const { SubscriptionHub } = require('./subscriptionHub');
+const { createOverlayEventFeed, isGameplayEvent } = require('./overlayEventFeed');
+const { normalizeOverlayFilters } = require('./overlayFilters');
+const {
+  DEFAULT_OVERLAY_PREFERENCES,
+  createEventOverlayWindowOptions,
+  installEventOverlayVisibility,
+  normalizeOverlayPreferences,
+  showEventOverlay
+} = require('./eventOverlayWindow');
 const {
   loadRendererSettings,
   updateRendererSettings
@@ -46,6 +55,8 @@ const {
 } = require('./exporter/blueprintExporter');
 const { createPublicBlueprintExportResult } = require('./exporter/blueprintExportContract');
 const { getBuildCompatibilityCatalog } = require('./buildCompatibilityCatalog');
+const { StationService } = require('./station/service');
+const { StationRepository } = require('./station/repository');
 
 const rendererIndexPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
 const rendererUrl = getRendererUrl(rendererIndexPath);
@@ -53,6 +64,10 @@ const rendererUrl = getRendererUrl(rendererIndexPath);
 configureChromiumRuntimeFlags({ app });
 
 let mainWindow;
+let overlayWindow = null;
+let overlayPreferences = { ...DEFAULT_OVERLAY_PREFERENCES };
+const applicationStartedAt = new Date().toISOString();
+let overlayPreferenceSave = Promise.resolve();
 let watchedLogPath = null;
 let watchedSourceId = null;
 let activeTailer = null;
@@ -75,6 +90,8 @@ let eventStore = null;
 let eventStoreHealth = { status: 'initializing', errorCode: null, recoverable: true };
 let diagnosticLogger = null;
 let diagnosticsSupport = null;
+let stationService = new StationService();
+let stationTimer = null;
 let exporterCancelRequested = false;
 let exporterRunning = false;
 const subscriptions = new SubscriptionHub({ channel: CHANNELS.subscriptionEvent, maxSubscribers: 8 });
@@ -98,6 +115,27 @@ function createWindow() {
   mainWindow.loadFile(rendererIndexPath);
 }
 
+function createOverlayWindow() {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    showEventOverlay(overlayWindow);
+    return overlayWindow;
+  }
+  overlayWindow = new BrowserWindow(createEventOverlayWindowOptions(path.join(__dirname, 'preload.js'), {
+    isPackaged: app.isPackaged,
+    opacity: overlayPreferences.opacity
+  }));
+  installEventOverlayVisibility(overlayWindow);
+  overlayWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  overlayWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    const expected = `${rendererUrl}?overlay=1`;
+    if (navigationUrl !== expected) event.preventDefault();
+  });
+  overlayWindow.on('closed', () => { overlayWindow = null; });
+  overlayWindow.once('ready-to-show', () => { if (overlayWindow) showEventOverlay(overlayWindow); });
+  overlayWindow.loadFile(rendererIndexPath, { query: { overlay: '1' } });
+  return overlayWindow;
+}
+
 app.whenReady().then(async () => {
   try {
     diagnosticLogger = createDiagnosticLogger({ directory: path.join(app.getPath('userData'), 'logs') });
@@ -112,6 +150,8 @@ app.whenReady().then(async () => {
     metadata: { appVersion: app.getVersion(), build: app.isPackaged ? 'packaged' : 'development', platform: process.platform, arch: process.arch, packaged: app.isPackaged }
   });
   await initializeEventStore();
+  await initializeStation();
+  overlayPreferences = await loadOverlayPreferences();
   createWindow();
 }).catch((error) => {
   diagnosticLogger?.error('application_start_failed', error);
@@ -139,7 +179,90 @@ app.on('before-quit', async () => {
   eventStore = null;
   diagnosticLogger?.close();
   diagnosticsSupport = null;
+  if (stationTimer) clearInterval(stationTimer);
+  stationService.close();
 });
+
+ipcMain.handle('astradock:v1:overlay:open', (event) => {
+  if (!isMainRenderer(event)) throw createBoundaryError('invalid_sender', 'Only the main window can open the overlay.');
+  return { opened: Boolean(createOverlayWindow()) };
+});
+ipcMain.handle('astradock:v1:overlay:close', (event) => {
+  if (!isOverlayRenderer(event)) throw createBoundaryError('invalid_sender', 'Only the overlay window can close itself.');
+  overlayWindow?.hide();
+  return { hidden: true };
+});
+ipcMain.handle('astradock:v1:overlay:get-preferences', (event) => {
+  if (!isOverlayRenderer(event)) throw createBoundaryError('invalid_sender', 'Only the overlay window can read overlay preferences.');
+  return { ...overlayPreferences };
+});
+ipcMain.handle('astradock:v1:overlay:preferences', async (event, patch) => {
+  if (!isOverlayRenderer(event)) throw createBoundaryError('invalid_sender', 'Only the overlay window can change overlay preferences.');
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)
+    || Object.keys(patch).some((key) => !['opacity', 'alwaysOnTop', 'displayMode', 'filters'].includes(key))
+    || (patch.alwaysOnTop !== undefined && patch.alwaysOnTop !== true)) {
+    throw createBoundaryError('invalid_payload', 'Only overlay presentation and filters can be changed; pinning is required.');
+  }
+  if (patch.displayMode !== undefined && !['friendly', 'raw'].includes(patch.displayMode)) {
+    throw createBoundaryError('invalid_payload', 'Overlay display mode must be friendly or raw.');
+  }
+  let filters;
+  try { if (patch.filters !== undefined) filters = normalizeOverlayFilters(patch.filters, { strict: true }); }
+  catch { throw createBoundaryError('invalid_payload', 'Choose supported overlay filters.'); }
+  if (patch?.opacity !== undefined) {
+    if (typeof patch.opacity !== 'number' || !Number.isFinite(patch.opacity) || patch.opacity < 0.45 || patch.opacity > 1) {
+      throw createBoundaryError('invalid_payload', 'Overlay opacity must be between 45% and 100%.');
+    }
+  }
+  return saveOverlayPreferences({ ...patch, ...(filters ? { filters } : {}) });
+});
+ipcMain.handle('astradock:v1:overlay:feed-subscribe', (event) => {
+  if (!isOverlayRenderer(event)) throw createBoundaryError('invalid_sender', 'Only the overlay window can read the event feed.');
+  return getOverlayFeed();
+});
+
+function isMainRenderer(event) {
+  return Boolean(mainWindow && !mainWindow.isDestroyed() && event.sender === mainWindow.webContents && isAllowedRendererUrl(event.senderFrame?.url || event.sender.getURL(), rendererUrl));
+}
+function isOverlayRenderer(event) {
+  return Boolean(overlayWindow && !overlayWindow.isDestroyed() && event.sender === overlayWindow.webContents && isAllowedRendererUrl(event.senderFrame?.url || event.sender.getURL(), `${rendererUrl}?overlay=1`));
+}
+function getOverlayFeed() {
+  const current = lastScanSource?.sourceId === activeSourceId ? lastScan : null;
+  return createOverlayEventFeed({ events: current?.runtimeEvents || [], since: applicationStartedAt,
+    environmentKey: current?.environmentKey, environment: current?.environment?.releaseChannel || 'Unknown environment',
+    monitoring: Boolean(activeTailer), displayMode: overlayPreferences.displayMode, evidence: current?.overlayEvidence, filters: overlayPreferences.filters });
+}
+async function loadOverlayPreferences() {
+  const fs = require('node:fs/promises');
+  try {
+    const value = JSON.parse(await fs.readFile(path.join(app.getPath('userData'), 'overlay-preferences.json'), 'utf8'));
+    return normalizeOverlayPreferences(value);
+  } catch { return { ...DEFAULT_OVERLAY_PREFERENCES }; }
+}
+function saveOverlayPreferences(patch) {
+  const operation = overlayPreferenceSave.catch(() => {}).then(async () => {
+    const fs = require('node:fs/promises');
+    const file = path.join(app.getPath('userData'), 'overlay-preferences.json');
+    const temp = `${file}.${process.pid}.tmp`;
+    const next = normalizeOverlayPreferences({ ...overlayPreferences, ...patch });
+    try {
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(temp, `${JSON.stringify(next)}\n`, { mode: 0o600 });
+      await fs.rename(temp, file);
+    } catch (error) {
+      await fs.unlink(temp).catch(() => {});
+      diagnosticLogger?.warn('overlay_preferences_save_failed', { code: error?.code || 'unknown' });
+      throw createBoundaryError('internal_error', 'Overlay preferences could not be saved. Previous selections were retained.');
+    }
+    overlayPreferences = next;
+    overlayWindow?.setOpacity(next.opacity);
+    publishOverlayFeed();
+    return { ...next };
+  });
+  overlayPreferenceSave = operation;
+  return operation;
+}
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -416,6 +539,7 @@ register(CHANNELS.settingsDelete, async ({ mode, environmentKey }) => {
 });
 
 register(CHANNELS.settingsReset, async () => {
+  stationService.reset();
   if (activeTailer) await stopMonitor('app_data_reset');
   if (eventStore) {
     eventStore.deleteAllTelemetry();
@@ -430,6 +554,24 @@ register(CHANNELS.settingsReset, async () => {
   sourceRegistry.clear();
   return { settings: { ...DEFAULT_SETTINGS }, storage: eventStore ? eventStore.getStorageSummary() : eventStoreHealth, activeSourceId };
 });
+
+register(CHANNELS.station, async ({ command, data }) => stationService.command(command, data));
+
+async function initializeStation() {
+  try {
+    const directory = path.join(app.getPath('userData'), 'station');
+    const provider = createElectronStorageKeyProvider({ safeStorage, keyFilePath: path.join(directory, 'database-key.json') });
+    const key = await provider.getOrCreateKey();
+    let repository;
+    try { repository = new StationRepository({ filePath: path.join(directory, 'station.db'), key }); } finally { key.fill(0); }
+    try { stationService = new StationService({ repository }); } catch (error) { repository.close(); throw error; }
+    stationTimer = setInterval(() => {
+      if (!stationService.adapter.available) return;
+      if (stationService.state.session) void stationService.refreshAccess().then(() => stationService.dispatch()).catch(() => {});
+    }, 60000);
+    stationTimer.unref();
+  } catch { diagnosticLogger?.warn('station_storage_unavailable', { code: 'station_storage_unavailable' }); }
+}
 
 register(CHANNELS.diagnosticsHealth, async () => getDiagnosticsHealth());
 
@@ -563,10 +705,12 @@ async function getApprovedSource(sourceId) {
 }
 
 async function scanSource(source, options = {}) {
-  const result = await parseLogFile(source.private.canonicalPath, options);
+  const result = await parseLogFile(source.private.canonicalPath, { ...options, captureSince: applicationStartedAt,
+    collectEvidenceFor: isGameplayEvent });
   persistCanonicalEvents(result.runtimeEvents || []);
   lastScan = result;
   lastScanSource = source;
+  publishOverlayFeed();
   return toRendererScanResult(result, source, options);
 }
 
@@ -647,6 +791,13 @@ async function stopMonitor(reason) {
 
 function publishMonitorChange(change) {
   subscriptions.publish(change);
+  publishOverlayFeed();
+}
+
+function publishOverlayFeed() {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send('astradock:v1:overlay:feed', getOverlayFeed());
+  }
 }
 
 function getMonitorSnapshot() {
@@ -998,6 +1149,7 @@ function sanitizeTailerHealth(health) {
 
 function toRendererScanResult(result, source, options = {}) {
   const {
+    overlayEvidence: _overlayEvidence,
     logPath: _logPath,
     runtimeEvents: _runtimeEvents,
     promotedRuntimeEvents = [],
@@ -1022,11 +1174,13 @@ function toRendererScanResult(result, source, options = {}) {
     source: toPublicSource(source),
     recovery: options.bootstrapMode === 'current_state'
       ? {
-          mode: 'full_log_scan',
+          mode: result.captureWindow ? 'capture_window' : 'full_log_scan',
           qualification: 'last_confirmed',
           canonicalEventCount: result.runtimeEvents?.length || 0,
           observedAt: result.scannedAt,
-          limitation: 'State is reconstructed from retained game.log evidence. It is not proof that the game is still connected until new live log evidence arrives.'
+          limitation: result.captureWindow
+            ? 'Only observations since AstraDock started are available; earlier session state remains unknown. Evidence uses source byte offsets.'
+            : 'State is reconstructed from retained game.log evidence. It is not proof that the game is still connected until new live log evidence arrives.'
         }
       : null
   };
@@ -1042,13 +1196,15 @@ function toRendererRuntimeEventRow(event) {
     environment: event.environment,
     gameChannel: event.gameChannel,
     gameBuild: event.gameBuild,
-    lineNumber: event.evidenceReference?.lineRange?.start || event.ordering?.sourceSequence || null,
+    lineNumber: Number.isSafeInteger(event.evidenceReference?.sourceByteOffset) ? null
+      : event.evidenceReference?.lineRange?.start || event.ordering?.sourceSequence || null,
+    sourceByteOffset: event.evidenceReference?.sourceByteOffset ?? event.ordering?.sourceByteOffset ?? null,
     timestamp: event.sourceTimestamp,
     sourceTimestamp: event.sourceTimestamp,
     confidence: event.confidence,
     provenance: event.provenance,
     sensitivity: event.evidenceReference?.sensitivity || event.traits?.sensitivity || 'local',
-    eventCategory: runtimeEventCategory(event.eventType),
+    eventCategory: event.eventType === 'RuntimeLogSignalObserved' ? event.payload.category : runtimeEventCategory(event.eventType),
     summary: formatRuntimeEventSummary(event),
     targetObservedId: event.payload?.targetObservedId || null,
     previousTargetObservedId: event.payload?.previousTargetObservedId || null,
@@ -1062,6 +1218,7 @@ function toRendererRuntimeEventRow(event) {
 }
 
 function runtimeEventCategory(eventType) {
+  if (eventType === 'ShopPurchaseRequested') return 'action';
   if (String(eventType).startsWith('Party')) return 'party';
   if (['JurisdictionEntered', 'MonitoredSpaceEntered', 'MonitoredSpaceExited', 'ArmisticeStateChanged'].includes(eventType)) return 'zone';
   if (String(eventType).startsWith('Quantum')) return 'navigation';
@@ -1070,6 +1227,7 @@ function runtimeEventCategory(eventType) {
 }
 
 function formatRuntimeEventLabel(event) {
+  if (event.eventType === 'RuntimeLogSignalObserved') return event.payload.label;
   return ({
     PartyCreated: 'Party Created',
     PartyLaunchInitiated: 'Party Launch',
@@ -1077,6 +1235,7 @@ function formatRuntimeEventLabel(event) {
     PartyMemberJoined: 'Party Member Joined',
     PartyLeft: 'Party Left',
     MissionAccepted: 'Contract Accepted',
+    ShopPurchaseRequested: 'Purchase Requested',
     JurisdictionEntered: 'Jurisdiction Entered',
     MonitoredSpaceEntered: 'Monitored Space',
     MonitoredSpaceExited: 'Monitored Space',
@@ -1092,6 +1251,7 @@ function formatRuntimeEventLabel(event) {
 }
 
 function formatRuntimeEventSummary(event) {
+  if (event.eventType === 'RuntimeLogSignalObserved') return event.payload.summary;
   switch (event.eventType) {
     case 'PartyCreated':
       return `Party created by ${event.payload.leaderHandle}`;
@@ -1105,6 +1265,8 @@ function formatRuntimeEventSummary(event) {
       return 'Left party';
     case 'MissionAccepted':
       return `${event.payload.contractName} accepted`;
+    case 'ShopPurchaseRequested':
+      return `${event.payload.quantity} x ${event.payload.itemName} requested at ${event.payload.shopName}; client price ${event.payload.clientPrice}`;
     case 'JurisdictionEntered':
       return `Entered ${event.payload.jurisdiction}`;
     case 'MonitoredSpaceEntered':

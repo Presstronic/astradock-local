@@ -24,6 +24,7 @@ const CHANNELS = Object.freeze({
   eventsQuery: 'astradock:v1:events:query',
   evidenceGet: 'astradock:v1:evidence:get',
   settingsGet: 'astradock:v1:settings:get',
+  station: 'astradock:v1:station',
   settingsUpdate: 'astradock:v1:settings:update',
   settingsRetention: 'astradock:v1:settings:retention',
   settingsDelete: 'astradock:v1:settings:delete',
@@ -127,6 +128,12 @@ function looksLikePath(value) {
 }
 
 function validatePayload(channel, payload) {
+  if (channel === CHANNELS.station) {
+    const { validateCommand, object, text } = require('./station/contracts');
+    object(payload, ['command', 'data']);
+    const command = text(payload.command, 32);
+    return { command, data: validateCommand(command, payload.data) };
+  }
   switch (channel) {
     case CHANNELS.sourceDiscover:
     case CHANNELS.sourceChoose:

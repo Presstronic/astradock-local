@@ -210,7 +210,10 @@ class RuntimeLogTailer extends EventEmitter {
   async inspectSource(reason) {
     let stat;
     try {
-      stat = await this.fs.stat(this.sourcePath);
+      const sourceStat = await this.fs.stat(this.sourcePath, { bigint: true });
+      const size = Number(sourceStat.size);
+      if (!Number.isSafeInteger(size) || size < 0) throw withCode('EFBIG');
+      stat = { dev: sourceStat.dev, ino: sourceStat.ino, birthtimeMs: Number(sourceStat.birthtimeMs), size, isFile: () => sourceStat.isFile() };
     } catch (error) {
       this.handleUnavailable(error, reason);
       return;
@@ -542,8 +545,8 @@ function normalizePositiveInteger(value, fallback) {
 
 function createFileIdentity(stat) {
   return [
-    Number.isSafeInteger(stat.dev) ? stat.dev : 'unknown-dev',
-    Number.isSafeInteger(stat.ino) ? stat.ino : 'unknown-ino',
+    typeof stat.dev === 'bigint' ? stat.dev.toString() : Number.isSafeInteger(stat.dev) ? stat.dev : 'unknown-dev',
+    typeof stat.ino === 'bigint' ? stat.ino.toString() : Number.isSafeInteger(stat.ino) ? stat.ino : 'unknown-ino',
     Number.isFinite(stat.birthtimeMs) ? Math.round(stat.birthtimeMs) : 'unknown-birth'
   ].join(':');
 }

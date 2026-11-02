@@ -86,6 +86,20 @@ Keep real logs, credentials, account identifiers, IP addresses, local paths, and
 
 The project currently uses AstraDock-owned branding and does not bundle RSI/CIG imagery. Any future use of Fan Kit assets will be considered only after reviewing and accepting the current Fan Kit Agreement and confirming that its terms cover this public software distribution.
 
+## Runtime Monitor local development
+
+Settings now includes optional Station sign-in management, personal access/consent controls and inventory views, also reachable from the header's Station button. You can save your service configuration, but live Discord sign-in and inventory synchronization remain unavailable until Station's developer-portal integration is ready. Local monitoring and the overlay do not require an account. Inventory changes require review followed by two separate confirmations; offline inventory views clearly show when data was last updated.
+
+In the event overlay, expand **Filter events** to select event categories, actions and item types. Selections narrow together: Purchase + Ammunition shows only ammunition purchases. Values within one group combine as alternatives; an empty group means all types. **Show all types** resets the overlay filters. Unknown items and events with no item have separate choices. Filters stay local, persist across runs and do not change capture or the main monitor.
+
+In Runtime Monitor, **Open event overlay** shows a curated gameplay feed: inventory actions, hand/helmet attachments, purchase requests and shop responses. Platform, XML, service and other debug records stay out of the overlay. New records appear at the top; older records move down. Adjust opacity as needed and use **Close** to dismiss it. Opening the overlay never starts capture or changes the main view's controls/filters; it waits if capture is stopped.
+
+Runtime capture is scoped to observations since AstraDock started, using a bounded recent log window rather than loading all historical records. Reopening the overlay can show the latest matching events from this run, up to 80. Restart the app after updating its code; fullscreen game visibility still depends on the OS/game display mode.
+
+Use **View** beside opacity to switch between **Friendly** messages and **Raw log** records. For example, a matched buying-success response can show **5× MedPens purchased**. Raw mode shows the original contributing messages, including local identifiers; unavailable evidence is labeled. Evidence details preserve the distinction between shop-reported success and verified payment/delivery. The chosen view is saved locally. See the [message lookup and templates](docs/overlay-message-reference.md).
+
+The capture-backed LIVE `4.10.197.2878` profile displays observed inventory, shop, vehicle-query and loadout signals. Purchase requests and shop-reported success remain distinct from verified payment or item delivery. See [display coverage and evidence limits](docs/captured-runtime-event-display.md).
+
 ## Documentation
 
 - [`docs/exporter-focused-build.md`](docs/exporter-focused-build.md) — focused blueprint build and source-set behavior
@@ -99,6 +113,7 @@ The project currently uses AstraDock-owned branding and does not bundle RSI/CIG 
 - [`docs/mvp-requirement-traceability.md`](docs/mvp-requirement-traceability.md) — requirement-to-evidence audit and MVP non-goal review
 - [`docs/release-readiness-audit.md`](docs/release-readiness-audit.md) — current v0.1.0 go/no-go decision and open release gates
 - [`docs/release-notes-v0.1.0.md`](docs/release-notes-v0.1.0.md) — draft scope and limitations for v0.1.0
+- [`docs/station-client-implementation.md`](docs/station-client-implementation.md) — delivered Station client boundaries, verification and live-integration blockers
 
 ## License
 
