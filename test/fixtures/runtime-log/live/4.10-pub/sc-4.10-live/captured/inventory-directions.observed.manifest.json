@@ -1,0 +1,422 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.10-pub/sc-4.10-live/captured/inventory-directions.observed",
+  "title": "LIVE matching inventory request/queue routes and primary results",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.10.197.2878",
+  "sourceProfileId": "sc-4.10-live",
+  "sourceProfileVersion": "2026-10-29.2",
+  "domain": "captured",
+  "action": "Display route separately from ownership; no inventory mutation",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "CAP-2026-11-02-ROUTES-01; docs/runtime-capture-findings-2026-11-02-inventory-routes.md",
+  "logFile": "inventory-directions.observed.log",
+  "privacyClassification": [
+    "local",
+    "sanitized"
+  ],
+  "sensitivityHandling": {
+    "redactedFields": [
+      "player",
+      "account",
+      "container and item/entity IDs",
+      "request IDs",
+      "rank",
+      "unneeded context"
+    ],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Field-wise sanitized original records; retain public container kinds, caller functions, classes, operation/outcome and requested amounts."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-01",
+        "category": "action",
+        "label": "Inventory operation requested",
+        "summary": "Inventory operation requested: request 301; operation Drop; Drink_bottle_cruz_01_lux_a",
+        "requestId": "301",
+        "operation": "Drop",
+        "itemClass": "Drink_bottle_cruz_01_lux_a",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Add Inventory Management Move"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-02",
+        "category": "action",
+        "label": "Inventory request queued",
+        "summary": "Inventory request queued: request 301; operation Interaction; requested/source quantity 1",
+        "requestId": "301",
+        "operation": "Interaction",
+        "itemClass": null,
+        "quantity": 1,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Mgmt Request Queued"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 301; operation Interaction; reported result Succeed",
+        "requestId": "301",
+        "operation": "Interaction",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-06",
+        "category": "action",
+        "label": "Inventory move requested",
+        "summary": "Inventory move requested: request 302; operation Move; Drink_bottle_cruz_01_lux_a",
+        "requestId": "302",
+        "operation": "Move",
+        "itemClass": "Drink_bottle_cruz_01_lux_a",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Add Inventory Management Move"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-02",
+        "category": "action",
+        "label": "Inventory request queued",
+        "summary": "Inventory request queued: request 302; operation Move; requested/source quantity 10",
+        "requestId": "302",
+        "operation": "Move",
+        "itemClass": null,
+        "quantity": 10,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Mgmt Request Queued"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 302; operation Move; reported result Succeed",
+        "requestId": "302",
+        "operation": "Move",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-06",
+        "category": "action",
+        "label": "Inventory move requested",
+        "summary": "Inventory move requested: request 303; operation Move; behr_sniper_ballistic_01_mag",
+        "requestId": "303",
+        "operation": "Move",
+        "itemClass": "behr_sniper_ballistic_01_mag",
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Add Inventory Management Move"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-02",
+        "category": "action",
+        "label": "Inventory request queued",
+        "summary": "Inventory request queued: request 303; operation Move; requested/source quantity 1",
+        "requestId": "303",
+        "operation": "Move",
+        "itemClass": null,
+        "quantity": 1,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Mgmt Request Queued"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 303; operation Move; reported result Succeed",
+        "requestId": "303",
+        "operation": "Move",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "InventoryAcquired",
+      "reason": "Route and client completion do not establish personal ownership."
+    },
+    {
+      "eventType": "InventoryLost",
+      "reason": "No canonical loss event or Station proposal is promoted by presentation."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "environment/source/generation/session + exact actor/request + ten-second order/time",
+    "notes": "Queue supplies route; Store reverses the Add record inventory argument. INVALID is unresolved unless an explicit reviewed Drop caller establishes ground intent."
+  },
+  "knownLimitations": [
+    "No timed owner action ledger or cross-session detection reliability claim.",
+    "Container kind does not identify backpack, ownership or named station.",
+    "Ground drop is client-reported; held throw and world pickup remain unsupported."
+  ],
+  "verificationNotes": "Compare frozen canonical payloads and explicitly expected Friendly routes; verify exact contributing Raw evidence and all negative guards."
+}

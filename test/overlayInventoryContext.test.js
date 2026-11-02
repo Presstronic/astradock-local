@@ -137,3 +137,86 @@ test('read-time context stays out of normal scan results unless explicitly reque
   assert.deepEqual(immutable(local.runtimeEvents), immutable(normal.runtimeEvents));
   assert.ok(local.overlayEvidence.size > local.runtimeEvents.filter(isGameplayEvent).length);
 });
+
+const directionsFixture = channel => path.join(__dirname, `fixtures/runtime-log/${channel.toLowerCase()}/4.10-pub/sc-4.10-${channel.toLowerCase()}/captured/inventory-directions.observed`);
+const liveOptions = { ...options, releaseChannel: 'LIVE', gameBuild: '4.10.197.2878',
+  sourceLocation: '%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/LIVE/Game.log' };
+
+test('reviewed LIVE transfers and ground drop have distinct routes, actions and bounded original evidence', () => {
+  const base = directionsFixture('LIVE');
+  const text = fs.readFileSync(`${base}.log`, 'utf8');
+  const { parsed, presentation, feed } = inspect(text, liveOptions);
+  assert.deepEqual(parsed.events.map(e => e.payload), JSON.parse(fs.readFileSync(`${base}.manifest.json`)).expectedCanonicalEvents.map(e => e.payload));
+  const rows = feed().events.filter(row => row.evidenceNote);
+  assert.deepEqual(rows.map(row => row.summary), [
+    'Transfer reported: 1\u00d7 behr_sniper_ballistic_01_mag \u00b7 container \u2192 location inventory \u00b7 ownership unverified',
+    'Transfer reported: 10\u00d7 Cruz bottles \u00b7 location inventory \u2192 container \u00b7 ownership unverified',
+    'Ground drop reported: 1\u00d7 Cruz bottle \u00b7 location inventory \u2192 ground \u00b7 outgoing item reported'
+  ]);
+  assert.deepEqual(rows.map(row => row.classification.action), ['move', 'move', 'drop']);
+  assert.equal(feed({ filters: { actions: ['drop'] } }).events.length, 1);
+  assert.equal(feed({ filters: { actions: ['move'], itemTypes: ['drink'] } }).events.filter(row => row.evidenceNote).length, 1);
+  const raw = feed({ displayMode: 'raw', filters: { actions: ['drop'] } }).events[0];
+  assert.deepEqual(raw.rawEvidence.messages, text.split(/(?<=\n)/).slice(0, 3));
+  assert.equal(raw.rawEvidence.status, 'available');
+  assert.equal(presentation.contexts.size, 3);
+  assert.doesNotMatch(JSON.stringify(feed()), /SYNTH_ID|SYNTH_PLAYER|:Location:|:Container:/);
+  assert.ok(rows.every(row => /No local or Station inventory balance is changed/.test(row.evidenceNote)));
+});
+
+test('PTU Store uses queued destination and leaves quantity, ownership and Interaction destination unresolved', () => {
+  const base = directionsFixture('PTU');
+  const text = fs.readFileSync(`${base}.log`, 'utf8');
+  const { parsed, feed } = inspect(text);
+  assert.deepEqual(parsed.events.map(e => e.payload), JSON.parse(fs.readFileSync(`${base}.manifest.json`)).expectedCanonicalEvents.map(e => e.payload));
+  assert.deepEqual(feed().events.map(row => row.summary), [
+    'Inventory update completed: 1\u00d7 Explorer undersuit \u00b7 location inventory \u2192 unknown destination \u00b7 ownership unverified',
+    'Store reported: MedPen \u00b7 unknown source \u2192 location inventory \u00b7 ownership unverified'
+  ]);
+  assert.equal(feed({ filters: { actions: ['drop'] } }).events.length, 0);
+  const raw = feed({ displayMode: 'raw' }).events[1];
+  assert.equal(raw.rawEvidence.messages.length, 3, 'Store queue contributes direction even without a quantity');
+  assert.deepEqual(raw.rawEvidence.messages, text.split(/(?<=\n)/).slice(0, 3));
+  assert.ok(feed().events.every(row => row.classification.action === 'inventory_result'));
+});
+
+test('INVALID alone, generic Interaction, Carry, wrong caller and failed/unknown outcomes never assert outgoing removal', () => {
+  const original = fs.readFileSync(`${directionsFixture('LIVE')}.log`, 'utf8').split(/(?<=\n)/).slice(0, 3).join('');
+  const cases = [
+    original.replace('DropItemFromContainerImpl', 'AttachItem'),
+    original.replace('Type[Drop]', 'Type[Interaction]'),
+    original.replace('action[None]', 'action[Carry]'),
+    original.replace('Source[Drink_bottle_cruz_01_lux_a]', 'Source[NULL]'),
+    original.replace('amount[1]', 'amount[0]'),
+    original.replace('Result[Succeed]', 'Result[Failed]'),
+    original.replace('Result[Succeed]', 'Result[Pending]'),
+    original.split(/(?<=\n)/).filter(line => !line.includes('<Inventory Mgmt Request Queued>')).join('')
+  ];
+  for (const text of cases) {
+    const { feed } = inspect(text, liveOptions);
+    assert.doesNotMatch(JSON.stringify(feed()), /outgoing item reported/, text);
+  }
+  assert.match(inspect(cases[5], liveOptions).feed().events[0].summary, /^Ground drop failed:/);
+  assert.match(inspect(cases[6], liveOptions).feed().events[0].summary, /^Ground drop response received:/);
+});
+
+test('disagreeing, duplicated conflicting, same-container and malformed routes cannot manufacture direction', () => {
+  const text = fs.readFileSync(`${directionsFixture('LIVE')}.log`, 'utf8').split(/(?<=\n)/).slice(3, 6);
+  const queuedLine = text[1];
+  const cases = [
+    text[0] + queuedLine.replace('Target Inventory[SYNTH_ID_8:Container:0]', 'Target Inventory[SYNTH_OTHER:Container:0]') + text[2],
+    text[0] + queuedLine + queuedLine.replace('Target Inventory[SYNTH_ID_8:Container:0]', 'Target Inventory[SYNTH_OTHER:Container:0]') + text[2],
+    text.join('').replaceAll('SYNTH_ID_8:Container:0', 'SYNTH_ID_1:Location:SYNTH_ID_2'),
+    text.join('').replaceAll('SYNTH_ID_8:Container:0', 'SYNTH_UNKNOWN').replaceAll('SYNTH_ID_1:Location:SYNTH_ID_2', 'SYNTH_OTHER')
+  ];
+  for (const input of cases) {
+    const { feed } = inspect(input, liveOptions);
+    const completion = feed().events.find(row => row.evidenceNote);
+    assert.equal(completion.summary, 'Inventory update completed: 10\u00d7 Cruz bottles');
+    assert.match(completion.evidenceNote, /Route is unknown/);
+    assert.equal(completion.classification.action, 'inventory_result');
+  }
+  const store = fs.readFileSync(`${directionsFixture('PTU')}.log`, 'utf8').split(/(?<=\n)/).slice(0, 3).join('');
+  assert.equal(inspect(store.replace('Target Inventory[SYNTH_ID_1:Location:SYNTH_ID_2]', 'Target Inventory[SYNTH_OTHER:Location:0]')).presentation.contexts.values().next().value.movement, null);
+  assert.equal(inspect(store.replace('::StoreItem]', '::UnreviewedStoreVariant]')).presentation.contexts.values().next().value.movement, null);
+});

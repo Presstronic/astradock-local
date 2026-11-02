@@ -14,6 +14,8 @@ Players can connect AstraDock Local to their existing Station account using Stat
 
 These are product requirements, not claims that current logs detect every listed action or that Station already exposes these capabilities. The developer portal will supply the reviewed integration contract. Local never connects directly to Station's database.
 
+The owner's 2026-11-02 [movement and ownership policy](inventory-movement-and-ownership.md) separates personal-container transfers from ownership changes: station inventory ↔ personal backpack/hand/equipment preserves owned quantity; a qualifying completed ground placement/drop/throw removes its exact quantity. Container access, generic Interaction/Store, unknown destinations and overlay outgoing reports alone do not establish a qualifying Station write. Personal bindings, recovery/throw detection and gameplay proposal generation remain gated; mandatory review and both confirmations are unchanged.
+
 Settled requirements:
 
 - Station brokers Discord sign-in and issues credentials usable by Local. A Discord display name, Discord token, or log-derived Star Citizen identity does not independently authorize Station access.

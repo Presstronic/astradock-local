@@ -39,6 +39,8 @@ function classifyOverlayRow(row) {
   else if (id === 'INV-06') action = 'move';
   else if (id === 'INV-07') action = 'carry';
   else if (id === 'INV-09') action = 'close';
+  else if (id === 'INV-04' && row.inventoryContext?.movement?.kind === 'ground_drop') action = 'drop';
+  else if (id === 'INV-04' && row.inventoryContext?.movement?.kind === 'transfer') action = 'move';
   else if (type.startsWith('Vehicle')) { category = 'vehicle'; action = type === 'VehicleRetrieved' ? 'retrieve' : type === 'VehicleStored' ? 'store' : 'control'; }
   else if (type.startsWith('Quantum')) { category = 'travel'; action = type === 'QuantumTravelArrived' ? 'arrival' : 'destination'; }
   else if (type.startsWith('Party')) { category = 'party'; action = type === 'PartyLaunchInitiated' ? 'launch' : 'membership'; }

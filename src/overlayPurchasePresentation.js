@@ -26,9 +26,13 @@ function presentOverlayEvents(chronologicalEvents, inventoryContexts = new Map()
         row.provenance = 'inferred';
         row.confidence = 'medium';
         row.rawEvidenceKeys = [...context.evidenceKeys, event.eventId];
-        row.evidenceNote = 'Item association is inferred from the same player and request ID within a bounded source/session window. The result is client-reported; ownership, delivery and destination are not independently verified.'
+        row.evidenceNote = 'Item association is inferred from the same player and request ID within a bounded source/session window. The result is client-reported; ownership and delivery are not independently verified.'
           + ` Item class: ${context.itemClass}.`
-          + (context.quantity === null ? ' Quantity is not identified.' : ' Quantity comes from the matching request, not an independent delivered-count measurement.');
+          + (context.quantity === null ? ' Quantity is not identified.' : ' Quantity comes from the matching request, not an independent delivered-count measurement.')
+          + (context.movement ? ' Route comes from matching request/queue records. Location inventory is not a named station; container is not an identified backpack or proof of personal ownership.'
+            + (context.movement.kind === 'ground_drop' ? ' Ground destination requires the explicit DropItemFromContainerImpl request, agreeing queue and client result; INVALID alone never means ground. A failed or unknown result establishes no removal.' : '')
+            : ' Route is unknown: matching, unambiguous container context is unavailable.')
+          + ' No local or Station inventory balance is changed by this presentation.';
       } else if (!payload.itemClass) {
         row.evidenceNote = 'Item details unavailable: no unambiguous matching item request in the current capture.';
       }

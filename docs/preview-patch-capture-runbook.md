@@ -106,6 +106,24 @@ Keep the same action IDs, order, locale and comparable setup across captures. Re
 
 **Second-session check:** archive this run first. Start a new capture ID on the same preview build; repeat BOOT-01, JOIN-01, INV-01, INV-02 and EXIT-01. A new request-ID sequence or reused entity/session labels must not correlate to the prior source generation. If another session is unavailable, explicitly leave cross-session repeatability untested.
 
+### Inventory route and ownership validation
+
+Use these separately timed substeps for the current [movement/ownership investigation](inventory-movement-and-ownership.md), before EXIT-01. Use one inexpensive identifiable item, then a known stack; allow settlement plus the normal ten-second quiet interval between actions. Record displayed station/container names, equipped backpack class if inspectable, exact quantity and source/destination before/after counts. Do not assume that a log's Container is your backpack or that Location identifies a named station.
+
+| ID | Owner action | Expected personal-membership policy; evidence to establish |
+| --- | --- | --- |
+| ROUTE-01 | Move one item from your local station inventory into your backpack. | Still owned; identify both endpoints and one completed transfer. |
+| ROUTE-02 | Move it back from backpack to station inventory. | Still owned; reverse direction must not become an acquisition. |
+| ROUTE-03 | Transfer exactly two units of a stack to the backpack, then separately back. | Still owned; exact count and split/merge behavior, not default quantity one. |
+| ROUTE-04 | Take an item into your hand/equipment, then separately store it in station inventory. | Still owned; distinguish AttachItem/carry from Store and ground. |
+| ROUTE-05 | Use the inventory action to place/drop one station item on the ground; observe it before doing anything else. | Outgoing after completed drop; exact source/count and visible world result. |
+| ROUTE-06 | Recover that same ground item into your backpack if supported. | Recovery, not a duplicate acquisition; record identity uncertainty explicitly. |
+| ROUTE-07 | Drop one backpack item onto the ground as a separate attempt. | Same outgoing policy, different source binding. |
+| ROUTE-08 | Retrieve an inexpensive item into your hand, then separately throw/place it on the ground using normal controls. | Held throw/place needs its own detector; an earlier carry success does not prove this action. |
+| ROUTE-09 | Cancel a transfer before submit. Record any naturally failed/full-container attempt separately. | Neither creates a completed movement or removal. Do not deliberately lose valuable gear. |
+
+Repeat ROUTE-01, ROUTE-02 and ROUTE-05 in the second preview session when practical. Capture exact token/entity/container relationships for later private review; keep identifiers out of the shareable action ledger. Missing pickup/throw signals, unknown quantity, bulk/bracketed classes and unresolved ownership are findings, not passing detectors. Overlay output currently describes reported routes only and does not change an inventory balance. Preserve each environment's original log separately; never run this by copying a preview log into LIVE.
+
 ## 5. Extended modules — run when relevant to the patch
 
 Do these before EXIT-01, or in separately identified sessions. These are evidence-gathering exercises, not claims that AstraDock already supports the resulting features. Mark every omitted module `not exercised`; do not report it as passing.

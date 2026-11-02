@@ -1,3 +1,4 @@
+const { routeLabel } = require('./overlayInventoryRoute');
 // Owner-provided names and conservative descriptions of already captured items.
 const ITEM_NAMES = Object.freeze({
   crlf_consumable_healing_01: Object.freeze({ singular: 'MedPen', plural: 'MedPens' }),
@@ -33,6 +34,15 @@ const MESSAGE_TEMPLATES = Object.freeze({
   inventoryItemSucceeded: 'Inventory update completed: {item}',
   inventoryItemFailed: 'Inventory update failed: {item}',
   inventoryItemResponse: 'Inventory response received: {item}',
+  inventoryTransferSucceeded: 'Transfer reported: {item}',
+  inventoryTransferFailed: 'Transfer failed: {item}',
+  inventoryTransferResponse: 'Transfer response received: {item}',
+  inventoryStoreSucceeded: 'Store reported: {item}',
+  inventoryStoreFailed: 'Store failed: {item}',
+  inventoryStoreResponse: 'Store response received: {item}',
+  inventoryDropSucceeded: 'Ground drop reported: {item}',
+  inventoryDropFailed: 'Ground drop failed: {item}',
+  inventoryDropResponse: 'Ground drop response received: {item}',
   dropRequested: 'Item drop requested',
   moveRequested: '{item} move requested',
   carryRequested: 'Item carry requested',
@@ -69,8 +79,12 @@ function friendlyInventoryMessage(payload, context = payload) {
     : outcome === 'failure' ? 'inventoryFailed' : 'inventoryResponse');
   const quantity = Number.isSafeInteger(context.quantity) && context.quantity > 0 ? context.quantity : null;
   const item = quantity === null ? itemName(context.itemClass) : `${quantity}\u00d7 ${itemName(context.itemClass, quantity)}`;
-  return formatOverlayMessage(outcome === 'success' ? 'inventoryItemSucceeded'
-    : outcome === 'failure' ? 'inventoryItemFailed' : 'inventoryItemResponse', { item });
+  const movement = context.movement;
+  const prefix = ({ transfer: 'inventoryTransfer', store: 'inventoryStore', ground_drop: 'inventoryDrop' })[movement?.kind] || 'inventoryItem';
+  const message = formatOverlayMessage(prefix + (outcome === 'success' ? 'Succeeded' : outcome === 'failure' ? 'Failed' : 'Response'), { item });
+  if (!movement) return message;
+  const effect = movement.kind === 'ground_drop' && outcome === 'success' ? 'outgoing item reported' : 'ownership unverified';
+  return `${message} \u00b7 ${routeLabel(movement.from, 'source')} \u2192 ${routeLabel(movement.to, 'destination')} \u00b7 ${effect}`;
 }
 
 function friendlySignalMessage(payload) {
