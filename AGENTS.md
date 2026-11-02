@@ -74,6 +74,8 @@ Everything in this section describes the current proof of concept only. It is us
 
 ## Near-Term Priorities
 
+Owner scope clarified 2026-11-02: focus current inventory work on accurate **local location-stock changes from logs**, excluding carried/ship stock, before specifying or connecting the **Station** API. Station is the remote application's name. Location withdrawals/deposits and aggregate ownership are independent: station → backpack reduces location stock while retaining ownership; a later backpack drop must not subtract from that location twice. Use `docs/location-inventory-tracking.md` and the local `npm run audit:inventory` diagnostic to expose evidence gaps; do not infer quantities from `StoreItem.ItemsCount`, named stations from Location kind, or mutation/completeness from query/UI metadata. Existing connected code stays gated; this investigation authorizes no new API work.
+
 1. Capture sanitized representative log fixtures and expand parser/session tests, especially actual join/leave and identity lines.
 2. Define the normalized telemetry event envelope and the first useful event types.
 3. Replace whole-file rescans with a resilient incremental log tailer and stream events to the UI.

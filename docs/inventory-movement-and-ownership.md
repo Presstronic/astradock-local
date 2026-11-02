@@ -2,6 +2,8 @@
 
 Status: owner policy captured 2026-11-02; bounded route presentation implemented. Personal-container bindings, a gameplay ownership projection and automatic proposal generation remain evidence/API gated. No release phase is assigned by this document.
 
+Owner clarification later on 2026-11-02: the immediate work is [local location-stock detection](location-inventory-tracking.md), before Station API specification/connection. Location stock excludes person/ship storage: station → backpack preserves aggregate ownership but reduces stock at that station; a subsequent backpack drop must not reduce that location twice. The personal-membership table below does not replace this separate location-stock dimension or authorize API work.
+
 ## User outcome and policy
 
 As a player, I want to see which item moved from which inventory to which destination, so that moving my own gear does not look like acquiring or losing it.

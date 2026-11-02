@@ -1,0 +1,300 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "live/4.10-pub/sc-4.10-live/captured/inventory-coverage.observed",
+  "title": "Local inventory audit gaps: Store metadata, location Split, failed StackAll, bulk Move and query metadata",
+  "releaseChannel": "LIVE",
+  "gameBuild": "4.10.197.2878",
+  "sourceProfileId": "sc-4.10-live",
+  "sourceProfileVersion": "2026-10-29.2",
+  "domain": "captured",
+  "action": "Count observed records and retain unsupported or ambiguous changes as unresolved",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "CAP-2026-11-02-INVENTORY-AUDIT-01; docs/runtime-capture-findings-2026-11-02-inventory-audit.md",
+  "logFile": "inventory-coverage.observed.log",
+  "privacyClassification": [
+    "local",
+    "sanitized"
+  ],
+  "sensitivityHandling": {
+    "redactedFields": [
+      "player",
+      "account",
+      "container and item/entity IDs",
+      "request IDs",
+      "rank",
+      "unneeded context"
+    ],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Field-wise sanitized original records; request IDs remapped. Bulk class contents and query Data replaced wholesale. Public operation/result/count metadata retained without interpreting ItemsCount as moved quantity."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 401; operation Store; reported result Succeed",
+        "requestId": "401",
+        "operation": "Store",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-06",
+        "category": "action",
+        "label": "Inventory move requested",
+        "summary": "Inventory move requested: request 404; operation Move",
+        "requestId": "404",
+        "operation": "Move",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Add Inventory Management Move"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-02",
+        "category": "action",
+        "label": "Inventory request queued",
+        "summary": "Inventory request queued: request 404; operation Move; requested/source quantity 0",
+        "requestId": "404",
+        "operation": "Move",
+        "itemClass": null,
+        "quantity": 0,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": null,
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Mgmt Request Queued"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 404; operation Move; reported result Succeed",
+        "requestId": "404",
+        "operation": "Move",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 402; operation Split; reported result Succeed",
+        "requestId": "402",
+        "operation": "Split",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 403; operation StackAll; reported result Failed",
+        "requestId": "403",
+        "operation": "StackAll",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Failed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "InventoryAcquired",
+      "reason": "Route and client completion do not establish personal ownership."
+    },
+    {
+      "eventType": "InventoryLost",
+      "reason": "No canonical loss event or Station proposal is promoted by presentation."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "environment/source/generation/session + exact actor/request + ten-second order/time",
+    "notes": "Store, Split, StackAll and bulk Move gaps are observable without becoming qualified changes. Query metadata is not inventory loss/acquisition."
+  },
+  "knownLimitations": [
+    "No timed owner action ledger or cross-session reliability claim.",
+    "ItemsCount metadata is not accepted as transaction quantity.",
+    "Bulk item-class contents replaced wholesale; bracket shape retained without private IDs.",
+    "No automatic location balance, named location or snapshot completeness detector."
+  ],
+  "verificationNotes": "Compare frozen canonical payloads and explicitly expected Friendly routes; verify exact contributing Raw evidence and all negative guards."
+}

@@ -124,6 +124,10 @@ Use these separately timed substeps for the current [movement/ownership investig
 
 Repeat ROUTE-01, ROUTE-02 and ROUTE-05 in the second preview session when practical. Capture exact token/entity/container relationships for later private review; keep identifiers out of the shareable action ledger. Missing pickup/throw signals, unknown quantity, bulk/bracketed classes and unresolved ownership are findings, not passing detectors. Overlay output currently describes reported routes only and does not change an inventory balance. Preserve each environment's original log separately; never run this by copying a preview log into LIVE.
 
+For the current **local location-stock investigation**, also time these separately: split and merge a stack within the same location (total should stay constant); move-all/bulk in both directions; Store versus equip from a named location; ship ↔ location transfers; a filled container with known contents; and equivalent actions at a second named location. Record failed/cancelled attempts and idle/query-only controls. Carried/ship items are outside location stock; dropping a previously withdrawn backpack item must not decrement the original location again. Do not assume `StoreItem.ItemsCount` is the moved count.
+
+After capture, run the [local inventory audit](location-inventory-tracking.md#local-capture-audit) on the original selected Game.log with the recorded start time. Keep its report privately beside the action ledger. Compare every owner action to a matched/unmatched/ambiguous result and investigate marker/result gaps; counts alone cannot establish capture recall. This step has no Station API dependency.
+
 ## 5. Extended modules — run when relevant to the patch
 
 Do these before EXIT-01, or in separately identified sessions. These are evidence-gathering exercises, not claims that AstraDock already supports the resulting features. Mark every omitted module `not exercised`; do not report it as passing.
