@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { parseGameLogTimestamp } = require('./time');
 const { MAX_RECORD_BYTES } = require('./runtimeEvidenceCache');
+const { inventoryRoute } = require('./overlayInventoryRoute');
 
 const INVENTORY_CONTEXT_WINDOW_MS = 10_000;
 const MAX_PENDING_REQUESTS = 160;
@@ -104,7 +105,8 @@ function collectOverlayInventoryContext(text, events, sourceByteOffset = 0) {
       const existing = pending.get(key);
       if (existing) existing.ambiguous = true;
       else pending.set(key, { requestId, time: now, operation, itemClass: itemClass(field(line, 'ItemClass')),
-        quantity: null, record, quantityRecord: null, ambiguous: false });
+        sourceInventory: field(line, 'SourceInventory'), targetInventory: field(line, 'TargetInventory'), caller: field(line, 'Caller'),
+        quantity: null, record, queue: null, quantityRecord: null, ambiguous: false, routeAmbiguous: false });
       if (pending.size > MAX_PENDING_REQUESTS) pending.delete(pending.keys().next().value);
       continue;
     }
@@ -112,6 +114,11 @@ function collectOverlayInventoryContext(text, events, sourceByteOffset = 0) {
     if (match[1] === 'Inventory Mgmt Request Queued') {
       if (!request) continue;
       if (!equivalentOperation(request.operation, operation)) request.ambiguous = true;
+      const queue = { sourceInventory: field(line, 'Source Inventory'), targetInventory: field(line, 'Target Inventory'),
+        action: field(line, 'action'), itemClass: itemClass(field(line, 'Source')), amount: field(line, 'amount') };
+      if (request.queue && JSON.stringify(request.queue) !== JSON.stringify(queue)) request.routeAmbiguous = true;
+      request.queue = queue;
+      request.queueRecord = record;
       const queuedClass = itemClass(field(line, 'Source'));
       if (queuedClass && queuedClass !== request.itemClass) request.ambiguous = true;
       const amount = field(line, 'amount');
@@ -134,9 +141,11 @@ function collectOverlayInventoryContext(text, events, sourceByteOffset = 0) {
       || !equivalentOperation(request.operation, operation, event.gameChannel) || event.payload.requestId !== requestId || event.payload.operation !== operation
       || event.sourceTimestamp !== time.instant || request.record.offset >= record.offset
       || now - request.time < 0 || now - request.time > INVENTORY_CONTEXT_WINDOW_MS) continue;
-    const evidence = [descriptor(request.record, event), ...(request.quantityRecord ? [descriptor(request.quantityRecord, event)] : [])];
+    const movement = inventoryRoute(request);
+    const queueRecord = movement ? request.queueRecord : request.quantityRecord;
+    const evidence = [descriptor(request.record, event), ...(queueRecord ? [descriptor(queueRecord, event)] : [])];
     contexts.set(event.eventId, { itemClass: request.itemClass, quantity: request.quantity, operation: request.operation,
-      evidenceKeys: evidence.map(record => record.eventId), ruleVersion: 'inventory-presentation/v1' });
+      movement, evidenceKeys: evidence.map(record => record.eventId), ruleVersion: 'inventory-presentation/v2' });
     evidenceEvents.push(...evidence);
   }
   return { contexts, evidenceEvents };

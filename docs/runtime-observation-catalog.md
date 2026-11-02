@@ -9,13 +9,13 @@ Retain all observed signals, separate inferences, and preserve owner-confirmed a
 | Document ID | `runtime-observation-catalog` |
 | Updated | 2026-11-02 |
 | Scope | Evidence catalog; display implementation tracked separately; no phase assignment |
-| Current capture | `CAP-2026-11-02-PTU-02` — bounded existing-log item-context inspection |
-| Source | Original Star Citizen `PTU/Game.log` |
+| Current capture | `CAP-2026-11-02-ROUTES-01` — bounded existing-log route inspection |
+| Source | Separate original Star Citizen LIVE and PTU logs |
 | Duration | Not a timed gameplay exercise; bounded read-only inspection |
-| Approximate source window | 2026-11-02, 17:14:34 to 18:08:58 UTC |
-| Build / locale / profile | 4.10.199.13454 / locale unknown / sc-4.10-ptu@2026-11-02.1 (completion observations only) |
+| Approximate source window | 2026-11-02; reviewed route fixtures LIVE 20:01:39–20:24:20 UTC, PTU 17:27:43–17:27:48 UTC; broader bounds in ledger |
+| Build / locale / profile | LIVE 4.10.197.2878 / sc-4.10-live@2026-10-29.2; PTU 4.10.199.13454 / sc-4.10-ptu@2026-11-02.1; locale unknown |
 | Collection | Bounded header/suffix reader; no original logs copied or modified |
-| Detailed evidence | [PTU item-context ledger](runtime-capture-findings-2026-11-02-ptu-item-context.md) |
+| Detailed evidence | [Route inspection ledger](runtime-capture-findings-2026-11-02-inventory-routes.md) |
 
 ### Capture index
 
@@ -26,10 +26,13 @@ Retain all observed signals, separate inferences, and preserve owner-confirmed a
 | `CAP-2026-10-29-03` | Owner-confirmed five-MedPen purchase and copied normalized messages; friendly-name/view requirement | [Owner example](runtime-capture-findings-2026-10-29-03.md) |
 | `CAP-2026-11-02-PTU-01` | Empty-overlay diagnosis; PTU 4.10.199.13454 request results/echoes; additional known markers and negative evidence | [PTU inspection](runtime-capture-findings-2026-11-02-ptu.md) |
 | `CAP-2026-11-02-PTU-02` | Owner-reported generic inventory wording; request item classes, quantity gaps and bounded display association | [PTU item context](runtime-capture-findings-2026-11-02-ptu-item-context.md) |
+| `CAP-2026-11-02-ROUTES-01` | Separate LIVE/PTU route records, Store reversal, explicit Drop versus unresolved Interaction; owner personal-membership policy | [Route inspection](runtime-capture-findings-2026-11-02-inventory-routes.md) |
 
 The PTU inspection adds observed request type **Store** alongside QueryInventory and Interaction. It is a client-reported inventory request type, not a vehicle-store, ownership, acquisition or loss detector. Only INV-04 completion observations are enabled for that exact PTU build. The ledger records all distinct recognized markers, unrecognized attachment-port evidence and missing gameplay signals separately from delivery status. No owner action timing or cross-session repeatability is asserted; prior LIVE findings remain unchanged below.
 
 The item-context follow-up correlates preceding INV-01/INV-02 context to INV-04 for overlay presentation only. Exact player/request identity and bounded source order/time are required. Store queue zeros are **unknown quantity**, not zero or one delivered item. The ledger lists all newly reviewed item classes and descriptive names, retained gaps and owner feedback. Friendly item association is inferred with medium presentation confidence; canonical completion facts and Station gates are unchanged.
+
+The route follow-up adds inferred typed source/destination presentation and explicit client-reported ground drops, without personal-container bindings or ownership/balance mutation. Store queue direction can reverse the Add inventory argument; INVALID also occurs with attachment intent and never means ground by itself. LIVE Split/StackAll, bulk bracketed item classes and new LIVE Store records remain unsupported. Access-token entity matching is a future container-type lead, not ownership proof. Owner policy separates internal personal transfers from outgoing ground placement/drop/throw; held throw and recovery evidence gaps remain. See the [movement policy and promotion gates](inventory-movement-and-ownership.md).
 
 ### Classification vocabulary
 

@@ -1,0 +1,135 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "ptu/4.10-pub/sc-4.10-ptu/captured/inventory-directions.observed",
+  "title": "PTU Store/Interaction queued routes and primary results",
+  "releaseChannel": "PTU",
+  "gameBuild": "4.10.199.13454",
+  "sourceProfileId": "sc-4.10-ptu",
+  "sourceProfileVersion": "2026-11-02.1",
+  "domain": "captured",
+  "action": "Display route separately from ownership; no inventory mutation",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "CAP-2026-11-02-ROUTES-01; docs/runtime-capture-findings-2026-11-02-inventory-routes.md",
+  "logFile": "inventory-directions.observed.log",
+  "privacyClassification": [
+    "local",
+    "sanitized"
+  ],
+  "sensitivityHandling": {
+    "redactedFields": [
+      "player",
+      "account",
+      "container and item/entity IDs",
+      "request IDs",
+      "rank",
+      "unneeded context"
+    ],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Field-wise sanitized original records; retain public container kinds, caller functions, classes, operation/outcome and requested amounts."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 301; operation Store; reported result Succeed",
+        "requestId": "301",
+        "operation": "Store",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "provenance": "observed",
+      "confidence": "high",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 302; operation Interaction; reported result Succeed",
+        "requestId": "302",
+        "operation": "Interaction",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "InventoryAcquired",
+      "reason": "Route and client completion do not establish personal ownership."
+    },
+    {
+      "eventType": "InventoryLost",
+      "reason": "No canonical loss event or Station proposal is promoted by presentation."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "environment/source/generation/session + exact actor/request + ten-second order/time",
+    "notes": "Queue supplies route; Store reverses the Add record inventory argument. INVALID is unresolved unless an explicit reviewed Drop caller establishes ground intent."
+  },
+  "knownLimitations": [
+    "No timed owner action ledger or cross-session detection reliability claim.",
+    "Container kind does not identify backpack, ownership or named station.",
+    "Ground drop is client-reported; held throw and world pickup remain unsupported."
+  ],
+  "verificationNotes": "Compare frozen canonical payloads and explicitly expected Friendly routes; verify exact contributing Raw evidence and all negative guards."
+}
