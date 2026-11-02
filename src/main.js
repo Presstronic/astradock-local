@@ -249,7 +249,8 @@ function getOverlayFeed() {
   const current = lastScanSource?.sourceId === activeSourceId ? lastScan : null;
   return createOverlayEventFeed({ events: current?.runtimeEvents || [], since: applicationStartedAt,
     environmentKey: current?.environmentKey, environment: current?.environment?.releaseChannel || activeSourceChannel || 'Unknown environment',
-    monitoring: Boolean(activeTailer), displayMode: overlayPreferences.displayMode, evidence: current?.overlayEvidence, filters: overlayPreferences.filters });
+    monitoring: Boolean(activeTailer), parserCompatibility: current?.parserCompatibility,
+    displayMode: overlayPreferences.displayMode, evidence: current?.overlayEvidence, filters: overlayPreferences.filters });
 }
 async function loadOverlayPreferences() {
   const fs = require('node:fs/promises');

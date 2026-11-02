@@ -131,6 +131,20 @@ test('mixed or changed environment results are rejected before persistence', asy
   assert.equal(h.api.getMonitorSnapshot().scan, null);
 });
 
+test('main-process overlay feed retains PTU parser rejection details while file follow runs', async t => {
+  const h = await harness(t);
+  const ptu = await h.source('PTU');
+  await h.api.activateSource(ptu);
+  await h.api.startMonitor(ptu);
+  h.setParser(async () => ({ environment: { releaseChannel: 'PTU' }, runtimeEvents: [],
+    parserCompatibility: { status: 'unverified_build', gameBuild: '4.10.199.13455' } }));
+  await h.api.scanSource(ptu);
+  const feed = h.api.getOverlayFeed();
+  assert.equal(feed.state, 'unverified_build');
+  assert.match(feed.statusMessage, /Following PTU log.*4\.10\.199\.13455/);
+  assert.equal(h.api.getMonitorSnapshot().monitor.active, true);
+});
+
 test('Open event overlay starts follow once, keeps an existing monitor and cannot be triggered by overlay subscription', async t => {
   const h = await harness(t);
   const live = await h.source('LIVE');

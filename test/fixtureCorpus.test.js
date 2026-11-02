@@ -29,7 +29,7 @@ const REQUIRED_MANIFEST_FIELDS = [
 
 const CHANNELS = new Set(['LIVE', 'PTU', 'EPTU', 'HOTFIX', 'UNKNOWN', 'MULTI']);
 const OUTCOMES = new Set(['observed', 'non-event', 'framing', 'isolation', 'unavailable']);
-const SOURCE_PROFILES = new Set(['sc-4.9-live', 'sc-4.9-cross-env', 'sc-4.10-live']);
+const SOURCE_PROFILES = new Set(['sc-4.9-live', 'sc-4.9-cross-env', 'sc-4.10-live', 'sc-4.10-ptu']);
 const PROVENANCE = new Set([
   'sanitized_from_reviewed_private_log',
   'synthetic_edge_case',

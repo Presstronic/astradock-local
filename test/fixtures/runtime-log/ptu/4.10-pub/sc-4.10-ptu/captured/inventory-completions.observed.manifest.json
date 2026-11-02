@@ -1,0 +1,296 @@
+{
+  "fixtureVersion": 1,
+  "fixtureId": "ptu/4.10-pub/sc-4.10-ptu/captured/inventory-completions.observed",
+  "title": "PTU inventory request-completion records for query, store and interaction",
+  "releaseChannel": "PTU",
+  "gameBuild": "4.10.199.13454",
+  "sourceProfileId": "sc-4.10-ptu",
+  "sourceProfileVersion": "2026-11-02.1",
+  "domain": "captured",
+  "action": "Observe request result and completion echo; no gameplay outcome or ownership inference",
+  "outcome": "observed",
+  "provenance": "sanitized_from_reviewed_private_log",
+  "evidenceBasis": "CAP-2026-11-02-PTU-01; docs/runtime-capture-findings-2026-11-02-ptu.md",
+  "logFile": "inventory-completions.observed.log",
+  "privacyClassification": [
+    "local",
+    "sanitized"
+  ],
+  "sensitivityHandling": {
+    "redactedFields": [
+      "player",
+      "account/entity/item IDs",
+      "private request IDs"
+    ],
+    "syntheticPlaceholderPrefix": "SYNTH_",
+    "notes": "Six minimized original record shapes. Request identifiers remapped consistently to short fixture-local values."
+  },
+  "expectedCanonicalEvents": [
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 101; operation QueryInventory; reported result Succeed",
+        "requestId": "101",
+        "operation": "QueryInventory",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Inventory request completed",
+        "summary": "Inventory request completed: request 101; reported result succeed; 7.280005 s",
+        "requestId": "101",
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "succeed",
+        "elapsedSeconds": 7.280005,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Request Completed"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 102; operation Store; reported result Succeed",
+        "requestId": "102",
+        "operation": "Store",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Inventory request completed",
+        "summary": "Inventory request completed: request 102; reported result succeed; 0.199938 s",
+        "requestId": "102",
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "succeed",
+        "elapsedSeconds": 0.199938,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Request Completed"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Player inventory request result",
+        "summary": "Player inventory request result: request 103; operation Interaction; reported result Succeed",
+        "requestId": "103",
+        "operation": "Interaction",
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "Succeed",
+        "elapsedSeconds": null,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Player Inventory Request Complete"
+      ]
+    },
+    {
+      "eventType": "RuntimeLogSignalObserved",
+      "contractStatus": "runtime-event/v1",
+      "confidence": "high",
+      "provenance": "observed",
+      "requiredPayloadFields": [
+        "signalId",
+        "category",
+        "label",
+        "summary",
+        "requestId",
+        "operation",
+        "itemClass",
+        "quantity",
+        "clientPrice",
+        "shopName",
+        "kioskState",
+        "result",
+        "elapsedSeconds",
+        "attachmentPort"
+      ],
+      "payload": {
+        "signalId": "INV-04",
+        "category": "action",
+        "label": "Inventory request completed",
+        "summary": "Inventory request completed: request 103; reported result succeed; 0.277224 s",
+        "requestId": "103",
+        "operation": null,
+        "itemClass": null,
+        "quantity": null,
+        "clientPrice": null,
+        "shopName": null,
+        "kioskState": null,
+        "result": "succeed",
+        "elapsedSeconds": 0.277224,
+        "attachmentPort": null
+      },
+      "evidenceMarkers": [
+        "Inventory Request Completed"
+      ]
+    }
+  ],
+  "expectedNonEvents": [
+    {
+      "eventType": "InventoryAcquired",
+      "reason": "A client request result does not prove ownership or delivery."
+    },
+    {
+      "eventType": "ShopPurchaseRequested",
+      "reason": "Shop evidence is not included or enabled by this PTU profile."
+    }
+  ],
+  "correlation": {
+    "dedupeKey": "environmentKey + source byte location + request ID + marker",
+    "notes": "Result and completion echo remain separate observations; QueryInventory is excluded from the gameplay overlay."
+  },
+  "knownLimitations": [
+    "One original PTU log; repeatability across builds and sessions is unverified.",
+    "No owner action ledger; operation labels are client-reported types, not confirmed gameplay actions.",
+    "Only the two explicit completion markers are enabled."
+  ],
+  "verificationNotes": "Compare immutable expected payloads; test CRLF/chunking, exact PTU build gating, LIVE isolation and passive overlay filtering."
+}

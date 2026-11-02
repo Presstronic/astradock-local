@@ -36,6 +36,8 @@ Profile schema version 2 implements this decision. The immutable `sc-4.9-live@20
 
 ## Drift and observability
 
+`sc-4.10-ptu@2026-11-02.1` independently accepts PTU build `4.10.199.13454`, branch `sc-alpha-4.10.2` or unknown. Only the two reviewed inventory completion markers are enabled, using the [PTU inspection evidence](runtime-capture-findings-2026-11-02-ptu.md) and its immutable fixture. No LIVE capabilities or other preview builds/channels are inherited. Unsupported and unverified parser status is now visible in the overlay even while the underlying file is being followed.
+
 Compatibility is per event family as well as global. Extractor IDs define bounded families such as `identity`, `pu`, `connection`, `party`, `zone`, and `quantum`. A required-field shape failure marks only that family as drifting and suppresses later semantic emissions from it; unaffected families continue. A globally abnormal unknown ratio remains a global suspicion because unmatched records cannot be attributed safely. Diagnostics expose:
 
 - detected channel, branch, full build, and selected profile/version;

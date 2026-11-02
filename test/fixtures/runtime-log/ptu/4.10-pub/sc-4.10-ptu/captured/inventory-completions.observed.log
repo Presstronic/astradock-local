@@ -1,0 +1,6 @@
+<2026-11-02T17:25:56.802Z> [Notice] <Player Inventory Request Complete> Request[101] for 'SYNTH_PLAYER' [SYNTH_ID_1] Type[QueryInventory] Result[Succeed] Item[SYNTH_ID_2] CanLockQueue[No]. [Team_CoreGameplayFeatures][Inventory]
+<2026-11-02T17:25:56.847Z> [Notice] <Inventory Request Completed> Request[101] Player[SYNTH_ID_3] Result[succeed] Elapsed[7.280005] PendingMoves[2] [Team_CoreGameplayFeatures][Inventory]
+<2026-11-02T17:27:43.527Z> [Notice] <Player Inventory Request Complete> Request[102] for 'SYNTH_PLAYER' [SYNTH_ID_1] Type[Store] Result[Succeed] Item[SYNTH_ID_2] CanLockQueue[Yes]. [Team_CoreGameplayFeatures][Inventory]
+<2026-11-02T17:27:43.529Z> [Notice] <Inventory Request Completed> Request[102] Player[SYNTH_ID_3] Result[succeed] Elapsed[0.199938] PendingMoves[5] [Team_CoreGameplayFeatures][Inventory]
+<2026-11-02T17:27:48.932Z> [Notice] <Player Inventory Request Complete> Request[103] for 'SYNTH_PLAYER' [SYNTH_ID_1] Type[Interaction] Result[Succeed] Item[SYNTH_ID_4] CanLockQueue[Yes]. [Team_CoreGameplayFeatures][Inventory]
+<2026-11-02T17:27:48.934Z> [Notice] <Inventory Request Completed> Request[103] Player[SYNTH_ID_3] Result[succeed] Elapsed[0.277224] PendingMoves[1] [Team_CoreGameplayFeatures][Inventory]

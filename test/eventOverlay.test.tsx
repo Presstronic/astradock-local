@@ -34,6 +34,15 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('event overlay dismissal', () => {
+  it('shows unsupported-build diagnostics instead of claiming to wait for gameplay', async () => {
+    render(<EventOverlay />);
+    act(() => receiveFeed({ state: 'unsupported_profile', environment: 'PTU', events: [],
+      statusMessage: 'Following PTU log, but build 4.10.199.13455 has no supported parser profile. Gameplay events are unavailable for this build.' }));
+    expect(await screen.findByText(/Following PTU log.*4.10.199.13455/)).toBeVisible();
+    expect(screen.getByText('Unsupported build')).toBeVisible();
+    expect(screen.queryByText('Waiting for gameplay events since AstraDock started.')).not.toBeInTheDocument();
+    expect(updatePreferences).not.toHaveBeenCalled();
+  });
   it('inserts new events at the top, pushes older events down, and follows the newest event', async () => {
     render(<EventOverlay />);
     await screen.findByText('Test inventory action');
@@ -73,7 +82,7 @@ describe('event overlay dismissal', () => {
   it('shows a passive waiting state when capture is not running', async () => {
     render(<EventOverlay />);
     act(() => receiveFeed({ state: 'waiting', environment: 'LIVE', events: [] }));
-    expect(await screen.findByText('Waiting for capture in the main application.')).toBeVisible();
+    expect(await screen.findByText(/Waiting for capture in the main application.*Start follow or Open event overlay/)).toBeVisible();
     expect(close).not.toHaveBeenCalled();
     expect(updatePreferences).not.toHaveBeenCalled();
   });

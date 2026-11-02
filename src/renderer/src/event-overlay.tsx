@@ -53,7 +53,7 @@ export function EventOverlay() {
         <div>
           <p className="event-overlay__eyebrow">ASTRADOCK · LIVE EVENT STREAM</p>
           <h1>{feed.environment}</h1>
-          <p className="event-overlay__status" data-state={feed.state}>{feed.state}</p>
+          <p className="event-overlay__status" data-state={feed.state}>{feed.state === 'unsupported_profile' ? 'Unsupported build' : feed.state === 'unverified_build' ? 'Unverified build' : feed.state === 'suspected_drift' ? 'Parser patterns changed' : feed.state.replaceAll('_', ' ')}</p>
         </div>
         <button type="button" className="event-overlay__close" onClick={() => void closeOverlay()} aria-label="Close event overlay">Close</button>
       </header>
@@ -68,6 +68,7 @@ export function EventOverlay() {
         <button type="button" disabled={savingFilters} onClick={() => void updateFilters(normalizeOverlayFilters())}>Show all types</button>
       </details>
       {error ? <p className="event-overlay__error" role="alert">{error}</p> : null}
+      {feed.statusMessage ? <p className="event-overlay__capture-status" role="status">{feed.statusMessage}</p> : null}
       <p className="visually-hidden" role="status" aria-live="polite">{savingFilters ? 'Updating filters' : `${Object.values(filters).reduce((sum, values) => sum + values.length, 0)} filter values selected`} · {feed.state}</p>
       <section ref={streamRef} className="event-overlay__stream" aria-label="Selected event kinds">
         {feed.events.length ? feed.events.map((event) => (
@@ -80,7 +81,7 @@ export function EventOverlay() {
             {event.evidenceNote ? <details className="event-overlay__evidence"><summary>Evidence details</summary><p>{event.evidenceNote}</p></details> : null}
             <div className="event-overlay__event-provenance">{event.confidence} confidence · {event.provenance}</div>
           </article>
-        )) : <p className="event-overlay__empty">{feed.state === 'loading' ? 'Connecting to Runtime Monitor…' : (feed.availableCount ?? 0) > 0 ? 'No events match these filters in the retained live buffer.' : feed.state === 'waiting' ? 'Waiting for capture in the main application.' : 'Waiting for gameplay events since AstraDock started.'}</p>}
+        )) : <p className="event-overlay__empty">{feed.state === 'loading' ? 'Connecting to Runtime Monitor…' : ['unsupported_profile', 'unverified_build'].includes(feed.state) ? 'No gameplay events are available for the current parser status.' : (feed.availableCount ?? 0) > 0 ? 'No events match these filters in the retained live buffer.' : feed.state === 'waiting' ? 'Waiting for capture in the main application. Use Start follow or Open event overlay to follow the selected environment.' : 'Waiting for gameplay events since AstraDock started.'}</p>}
       </section>
     </main>
   );
