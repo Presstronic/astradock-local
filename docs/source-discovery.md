@@ -68,14 +68,14 @@ sourceKind            "game_log".
 discoveryMethods      automatic, restored_setting, or user_selected.
 displayLabel          Privacy-safe source label.
 displayPath           Privacy-safe path hint such as StarCitizen/LIVE/game.log.
-channelHint           LIVE, PTU, EPTU, HOTFIX, or UNKNOWN.
+channelHint           LIVE, PTU, EPTU, HOTFIX, TECH-PREVIEW, or UNKNOWN.
 channelConfidence     observed, path_hint, or unknown.
 rawChannel            Optional observed raw channel when it differs or is unsupported.
 buildVersion          Optional observed game build.
 environmentName       Optional observed game environment name.
 installationKind      rsi_launcher, steam, lug_wine, wine, or manual_or_unknown.
 platformHint          Platform used for candidate generation.
-validation.status     valid, missing, inaccessible, permission_denied, not_file, invalid_log, or unsupported_channel.
+validation.status     valid, missing, inaccessible, permission_denied, not_file, invalid_log, unsupported_channel, or environment_mismatch.
 validation.isValid    Boolean approval for scan/monitor/persistence.
 validation.checkedAt  UTC validation timestamp.
 validation.message    Safe user-facing status text.
@@ -85,6 +85,8 @@ validation.evidenceMarkers  Bounded marker names, never raw log lines.
 The private DTO variant used inside `src/main.js` also contains `private.sourcePath` and `private.canonicalPath`. That private object is stripped before crossing the preload boundary and must not be displayed by default, logged to renderer diagnostics, or sent to Station.
 
 ## Selection and Preference Rules
+
+Since 2026-11-02, a missing/invalid saved source prevents automatic fallback to another channel, including LIVE. Channel evidence conflicting with the selected/canonical folder or multiple observed channels yields `environment_mismatch`. Explicit source transitions stop follow and clear transient state, preserving durable partitions. See [environment isolation](environment-isolation.md).
 
 Automatic discovery ranks valid sources before invalid sources. Restored validated preferences rank first, then manually selected sources, then automatic candidates. Within equal method priority, channels rank `LIVE`, `PTU`, `EPTU`, then `HOTFIX`, followed by `UNKNOWN`.
 

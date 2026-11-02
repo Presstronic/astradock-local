@@ -82,6 +82,8 @@ evidenceReference
 
 The environment key is included in event IDs and persistence records. LIVE and PTU events with identical player handles, shard labels, timestamps, or entity IDs must still produce distinct event IDs.
 
+Recognized channels are LIVE, PTU, EPTU, HOTFIX and TECH-PREVIEW, plus UNKNOWN. The 2026-11-02 additive TECH-PREVIEW vocabulary corrects its former UNKNOWN normalization without changing the envelope/database schema or approving parser profiles. Existing UNKNOWN records are not relabeled. See [environment isolation](environment-isolation.md).
+
 `deriveEnvironmentContext()` is the canonical helper for constructing `EnvironmentContext` values. `deriveEnvironmentKey()` derives the partition key from:
 
 ```text

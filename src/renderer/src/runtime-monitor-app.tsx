@@ -78,6 +78,10 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [sources, setSources] = useState<PublicRuntimeSource[]>([]);
   const [activeSource, setActiveSource] = useState<PublicRuntimeSource | null>(null);
+  const [switchingSource, setSwitchingSource] = useState(false);
+  const selectedSourceRef = useRef<string | null>(null);
+  const selectedChannelRef = useRef<string | null>(null);
+  const sourceEpoch = useRef(0);
   const [actionError, setActionError] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<MonitorSnapshot | null>(null);
   const [scan, setScan] = useState<RendererScanResult | null>(null);
@@ -133,15 +137,20 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     async function boot() {
       setLoading(true);
       try {
-        const [discovery, nextSnapshot, nextSettings, catalog] = await Promise.all([
+        const [discovery, nextSettings, catalog] = await Promise.all([
           client.source.discover(),
-          client.monitor.getSnapshot(),
           client.settings.get(),
           client.compatibility.getCatalog()
         ]);
+        // Discovery can invalidate a removed saved preview source. Read its
+        // resulting snapshot afterwards so a reload cannot restore the old view.
+        const nextSnapshot = await client.monitor.getSnapshot();
         if (!active) return;
         setSources([...discovery.sources]);
-        setActiveSource(discovery.activeSource || nextSnapshot.source || null);
+        const initialSource = nextSnapshot.source || discovery.activeSource || null;
+        selectedSourceRef.current = initialSource?.sourceId || null;
+        selectedChannelRef.current = initialSource?.channelHint || null;
+        setActiveSource(initialSource);
         setSnapshot(nextSnapshot);
         setScan(nextSnapshot.scan);
         setSettingsSnapshot(nextSettings);
@@ -161,9 +170,19 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           }
           for (const envelope of message.changes || []) {
             const change = envelope.change;
+            if (change.type === 'monitor.scan' && (change.scan.source.sourceId !== selectedSourceRef.current || change.scan.source.channelHint !== selectedChannelRef.current)) continue;
+            if (change.type === 'monitor.lifecycle' && change.lifecycle.sourceId !== selectedSourceRef.current) continue;
+            if (change.type === 'monitor.bytes' && change.chunk.sourceId !== selectedSourceRef.current) continue;
+            if (change.type === 'monitor.started' && change.monitor.sourceId !== selectedSourceRef.current) continue;
             if ('monitor' in change) setSnapshot((current) => ({ ...(current || nextSnapshot), monitor: change.monitor }));
+            if (change.type === 'monitor.source_changed') {
+              const changed = selectedSourceRef.current !== (change.source?.sourceId || null) || selectedChannelRef.current !== (change.source?.channelHint || null);
+              acceptSelectedSource(change.source);
+              setSnapshot((current) => ({ ...(current || createEmptySnapshot()), monitor: change.monitor, source: change.source, scan: changed ? null : current?.scan || null }));
+            }
             if (change.type === 'monitor.scan') {
               setScan(change.scan);
+              setSnapshot((current) => ({ ...(current || createEmptySnapshot()), monitor: change.monitor, source: change.scan.source, scan: change.scan }));
               setActiveSource(change.scan.source);
               setActionError(null);
             }
@@ -227,6 +246,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
 
   useEffect(() => {
     setEventStream((current) => updateStreamQuery(current, {
+      environmentKey: scan?.environmentKey || null,
       search,
       kinds: streamFilters.kind === 'all' ? [] : [streamFilters.kind],
       party: streamFilters.party,
@@ -237,7 +257,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       shard: streamFilters.shard === 'all' ? null : streamFilters.shard,
       server: streamFilters.server === 'all' ? null : streamFilters.server
     }));
-  }, [search, streamFilters]);
+  }, [search, streamFilters, scan?.environmentKey]);
 
   useEffect(() => {
     const latest = viewModel.party.transitions[0];
@@ -290,46 +310,79 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   const storedPlacement = preferences.streamView === 'terminal' ? preferences.terminalDrawer : preferences.tableDrawer;
   const effectivePlacement = storedPlacement;
 
+  function acceptSelectedSource(source: PublicRuntimeSource | null) {
+    if (selectedSourceRef.current !== (source?.sourceId || null) || selectedChannelRef.current !== (source?.channelHint || null)) {
+      selectedSourceRef.current = source?.sourceId || null;
+      selectedChannelRef.current = source?.channelHint || null;
+      sourceEpoch.current += 1;
+      detailRequest.current += 1;
+      setScan(null);
+      setSnapshot((current) => ({ ...(current || createEmptySnapshot()), source, scan: null,
+        monitor: { ...(current?.monitor || createEmptySnapshot().monitor), active: false, sourceId: null, pendingScan: false, tailer: null, checkpoint: null } }));
+      setEventStream((current) => createSharedEventStreamState({ view: current.view }));
+      setSearch('');
+      setStreamFilters({ kind: 'all', party: 'any', provenance: 'all', confidence: 'all', diagnostics: 'show', sessionId: 'all', shard: 'all', server: 'all' });
+      setDetail({ status: 'empty', selected: null, detail: null, message: 'Select evidence in this environment.' });
+      lastPartyTransitionId.current = null;
+      lastDestinationTransitionId.current = null;
+      setPartyAnnouncement('');
+      setDestinationAnnouncement('');
+    }
+    setActiveSource(source);
+  }
+
+  async function inspectSelectedSource(source: PublicRuntimeSource) {
+    acceptSelectedSource(source);
+    setSources((current) => upsertSource(current, source));
+    const epoch = sourceEpoch.current;
+    const nextSnapshot = await client.monitor.getSnapshot();
+    if (epoch !== sourceEpoch.current) return;
+    setSnapshot(nextSnapshot);
+    const nextScan = await client.monitor.scan({ sourceId: source.sourceId, options: {} });
+    if (epoch !== sourceEpoch.current) return;
+    setScan(nextScan);
+    setMonitorAnnouncement(`${source.channelHint} selected. ${nextSnapshot.monitor.active ? 'Follow continues.' : 'Follow is stopped; choose Start follow or Open event overlay to monitor this environment.'}`);
+  }
+
+  async function selectSource(sourceId: string) {
+    setSwitchingSource(true);
+    try {
+      setActionError(null);
+      const result = await client.source.select(sourceId);
+      if (result.source) setSources((current) => upsertSource(current, result.source!));
+      if (!result.selected || !result.source) throw new Error(result.source?.validation.message || 'Environment is not available.');
+      await inspectSelectedSource(result.source);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Environment selection failed.');
+    } finally { setSwitchingSource(false); }
+  }
+
   async function chooseSource() {
+    setSwitchingSource(true);
     try {
       setActionError(null);
       const result = await client.source.choose();
       if (!result?.source) return;
-      const chosenSource = result.source;
-      setActiveSource(result.saved ? chosenSource : null);
-      setSources((current) => upsertSource(current, chosenSource));
-      if (result.saved) {
-        const nextScan = await client.monitor.scan({ sourceId: chosenSource.sourceId, options: {} });
-        setScan(nextScan);
-      } else {
-        setActionError(chosenSource.validation.message);
-      }
+      setSources((current) => upsertSource(current, result.source!));
+      if (!result.saved) throw new Error(result.source.validation.message);
+      await inspectSelectedSource(result.source);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Source selection failed.');
-    }
+    } finally { setSwitchingSource(false); }
   }
 
   async function chooseSourceDirectory() {
+    setSwitchingSource(true);
     try {
       setActionError(null);
       const result = await client.source.chooseDirectory();
-      if (!result?.source) {
-        setActionError(result?.installation?.reason || 'No valid Star Citizen environment was found in that directory.');
-        return;
-      }
-      const chosenSource = result.source;
+      if (!result) return;
+      if (!result.source || !result.saved) throw new Error(result.installation?.reason || result.source?.validation.message || 'No valid Star Citizen environment was found in that directory.');
       if (result.sources?.length) setSources([...result.sources]);
-      setActiveSource(result.saved ? chosenSource : null);
-      setSources((current) => upsertSource(current, chosenSource));
-      if (result.saved) {
-        const nextScan = await client.monitor.scan({ sourceId: chosenSource.sourceId, options: {} });
-        setScan(nextScan);
-      } else {
-        setActionError(chosenSource.validation.message);
-      }
+      await inspectSelectedSource(result.source);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Installation directory selection failed.');
-    }
+    } finally { setSwitchingSource(false); }
   }
 
   async function scanSource(options = {}) {
@@ -339,7 +392,9 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     }
     try {
       setActionError(null);
+      const epoch = sourceEpoch.current;
       const nextScan = await client.monitor.scan({ sourceId: viewModel.source.sourceId, options });
+      if (epoch !== sourceEpoch.current) return;
       setScan(nextScan);
       setActiveSource(nextScan.source);
     } catch (error) {
@@ -354,7 +409,9 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
     }
     try {
       setActionError(null);
+      const epoch = sourceEpoch.current;
       const result = await client.monitor.start({ sourceId: viewModel.source.sourceId, options: { startMode: 'from_current_end', bootstrapMode: 'current_state' } });
+      if (epoch !== sourceEpoch.current) return;
       setSnapshot((current) => ({ ...(current || createEmptySnapshot()), monitor: result.monitor, scan: result.scan, source: result.scan.source }));
       setScan(result.scan);
       setActiveSource(result.scan.source);
@@ -432,7 +489,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
   }
 
   async function deleteTelemetry(mode: 'sensitive_evidence' | 'environment' | 'all_telemetry') {
-    const environmentKey = mode === 'environment' ? (snapshot?.scan?.environmentKey || null) : null;
+    const environmentKey = mode === 'environment' ? (scan?.environmentKey || null) : null;
     const label = mode === 'environment' ? `the current ${environmentKey || 'environment'} telemetry` : mode === 'all_telemetry' ? 'all local telemetry' : 'sensitive local evidence';
     if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     try {
@@ -453,6 +510,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       <a className="skip-link" href="#runtime-stream">Skip to stream</a>
       <a className="skip-link" href="#current-state">Skip to current state</a>
 
+      <div className="workspace-source">
       <header className="runtime-header" aria-label="Runtime Monitor source and health">
         <div className="product-lockup" aria-label="AstraDock Runtime Monitor">
           <span className="brand-mark" aria-hidden="true" />
@@ -464,19 +522,11 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         {activeView === 'exporter' ? <ExporterHeader
           sources={sources}
           source={viewModel.source}
-          onSelect={async (sourceId) => {
-            try {
-              setActionError(null);
-              const result = await client.source.select(sourceId);
-              if (!result.selected || !result.source) throw new Error(result.source?.validation.message || 'Environment is not available.');
-              setActiveSource(result.source);
-              setSources((current) => upsertSource(current, result.source!));
-              setScan(await client.monitor.scan({ sourceId, options: {} }));
-            } catch (error) { setActionError(error instanceof Error ? error.message : 'Environment selection failed.'); }
-          }}
+          onSelect={selectSource}
+          disabled={switchingSource}
         /> : activeView === 'runtime' ? <>
           <section className="source-strip" aria-label="Source health">
-            <Metric label="Environment" value={viewModel.environmentLabel.toUpperCase()} />
+            <EnvironmentSelect sources={sources} source={viewModel.source} onSelect={selectSource} disabled={switchingSource} />
             <Metric label="Build" value={viewModel.buildLabel} />
             <StatusPill state={viewModel.workspaceState} label={viewModel.monitorLabel} />
             <Metric label="Source health" value={viewModel.sourceHealthLabel} title={viewModel.backlogDetail} />
@@ -497,17 +547,17 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             {viewModel.warningCount > 0 ? <Metric label="Warnings" value={String(viewModel.warningCount)} /> : null}
           </section>
           <div className="global-actions" aria-label="Monitor actions">
-            <button type="button" className="button secondary" onClick={() => void openOverlay()}>Open event overlay</button>
-            <button type="button" className="button secondary" onClick={() => void (viewModel.source ? scanSource() : chooseSource())}>
+            <button type="button" className="button secondary" onClick={() => void openOverlay()} disabled={!viewModel.source?.validation.isValid || switchingSource}>Open event overlay</button>
+            <button type="button" className="button secondary" onClick={() => void (viewModel.source ? scanSource() : chooseSource())} disabled={switchingSource}>
               {viewModel.source ? 'Re-scan source' : 'Choose source'}
             </button>
             {snapshot?.monitor.active ? (
               <>
-                <button type="button" className="button secondary" onClick={() => void scanSource({ bootstrapMode: 'current_state' })}>Recover current state</button>
-                <button type="button" className="button secondary follow-active" onClick={() => void stopMonitor()}>Pause follow</button>
+                <button type="button" className="button secondary" onClick={() => void scanSource({ bootstrapMode: 'current_state' })} disabled={switchingSource}>Recover current state</button>
+                <button type="button" className="button secondary follow-active" onClick={() => void stopMonitor()} disabled={switchingSource}>Pause follow</button>
               </>
             ) : (
-              <button type="button" className="button secondary" onClick={() => void startMonitor()} disabled={!viewModel.source}>Start follow</button>
+              <button type="button" className="button secondary" onClick={() => void startMonitor()} disabled={!viewModel.source?.validation.isValid || switchingSource}>Start follow</button>
             )}
           </div>
         </> : null}
@@ -516,16 +566,8 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
       {activeView === 'runtime' && sourceDetailsOpen ? <SourceDetails
         sources={viewModel.sourceCandidates}
         activeSource={viewModel.source}
-        onSelect={async (sourceId) => {
-          try {
-            setActionError(null);
-            const result = await client.source.select(sourceId);
-            setActiveSource(result.selected && result.source ? result.source : null);
-            const selectedSource = result.source;
-            if (selectedSource) setSources((current) => upsertSource(current, selectedSource));
-            if (result.selected && result.source) setScan(await client.monitor.scan({ sourceId, options: {} }));
-          } catch (error) { setActionError(error instanceof Error ? error.message : 'Source selection failed.'); }
-        }}
+        onSelect={selectSource}
+        disabled={switchingSource}
         onChoose={chooseSource}
         onRetry={scanSource}
         onOpenFolder={async () => {
@@ -534,6 +576,11 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
           catch (error) { setActionError(error instanceof Error ? error.message : 'Source folder could not be opened.'); }
         }}
       /> : null}
+
+      {activeView === 'runtime' ? <p className="environment-notice" role="note">{switchingSource ? 'Switching environment...' : `${viewModel.source?.channelHint || 'No environment'} \u00b7 ${viewModel.source?.channelHint === 'LIVE' ? 'LIVE source of truth' : ['PTU', 'EPTU', 'HOTFIX', 'TECH-PREVIEW'].includes(viewModel.source?.channelHint || '') ? 'Preview / isolated local data' : 'Environment unverified'}`}. Logs are read in place and never copied between environments. Switching stops follow.</p> : null}
+      {activeView !== 'runtime' && actionError ? <p className="environment-notice" role="alert">{actionError}</p> : null}
+
+      </div>
 
       <nav className="workspace-tabs" aria-label="Workspaces">
         {workspaceMode === 'normal' ? <>
@@ -566,14 +613,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
         }}
       /> : null}
 
-      {activeView === 'exporter' ? <ExporterPanel client={client} source={viewModel.source} sources={sources} onChooseDirectory={chooseSourceDirectory} onSelectSource={async (sourceId) => {
-        try {
-          const result = await client.source.select(sourceId);
-          if (!result.selected || !result.source) throw new Error(result.source?.validation.message || 'Environment is not available.');
-          setActiveSource(result.source);
-          setScan(await client.monitor.scan({ sourceId, options: {} }));
-        } catch (error) { setActionError(error instanceof Error ? error.message : 'Environment selection failed.'); }
-      }} /> : ['settings', 'compatibility'].includes(activeView) ? null : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
+      {activeView === 'exporter' ? <ExporterPanel key={activeSource?.sourceId} client={client} source={viewModel.source} sources={sources} onChooseDirectory={chooseSourceDirectory} onSelectSource={selectSource} /> : ['settings', 'compatibility'].includes(activeView) ? null : <main id="runtime-main" className="runtime-main" aria-label="Runtime Monitor">
         <aside id="current-state" className="current-state" aria-label="Current runtime state">
           <section className="instrument-list" aria-label="Current-state instruments">
             <h2><span>Instruments</span><small>{viewModel.freshnessLabel}</small></h2>
@@ -681,7 +721,7 @@ export function RuntimeMonitorApp({ client, clock = systemClock }: RuntimeMonito
             </div>
           </div>
 
-          <RuntimeNotificationStack
+          <RuntimeNotificationStack key={activeSource?.sourceId}
             alerts={viewModel.alerts}
             onEvidence={(eventId) => {
               const event = viewModel.streamEvents.find((candidate) => candidate.id === eventId);
@@ -1189,19 +1229,32 @@ function Metric({ label, value, title }: { label: string; value: string; title?:
   );
 }
 
+export function EnvironmentSelect({ sources, source, onSelect, disabled = false }: {
+  sources: readonly PublicRuntimeSource[];
+  source: PublicRuntimeSource | null;
+  onSelect: (sourceId: string) => Promise<void>;
+  disabled?: boolean;
+}) {
+  return <label className="header-metric exporter-environment-select">
+    <small>Environment</small>
+    <select value={source?.sourceId || ''} onChange={(event) => void onSelect(event.currentTarget.value)} disabled={disabled || !sources.length}>
+      <option value="" disabled>Select environment</option>
+      {sources.map((candidate, index) => <option key={candidate.sourceId} value={candidate.sourceId} disabled={!candidate.validation.isValid}>{candidate.channelHint}{sources.filter(other => other.channelHint === candidate.channelHint).length > 1 ? ` \u00b7 source ${index + 1}` : ''}{candidate.validation.isValid ? '' : ` \u00b7 ${candidate.validation.status.replaceAll('_', ' ')}`}</option>)}
+    </select>
+  </label>;
+}
+
 function ExporterHeader({
   sources,
   source,
-  onSelect
+  onSelect,
+  disabled
 }: {
   sources: readonly PublicRuntimeSource[];
   source: PublicRuntimeSource | null;
   onSelect: (sourceId: string) => Promise<void>;
+  disabled?: boolean;
 }) {
-  const environments = sources.filter((candidate, index, all) => (
-    candidate.validation.isValid
-    && all.findIndex((other) => other.channelHint === candidate.channelHint) === index
-  ));
   const found = Boolean(source?.validation.isValid);
 
   return <section className="source-strip exporter-source-strip" aria-label="Exporter source selection">
@@ -1213,13 +1266,7 @@ function ExporterHeader({
       <small>Source</small>
       <strong>{source?.displayPath || 'No environment selected'}</strong>
     </span>
-    <label className="header-metric exporter-environment-select">
-      <small>Available environments</small>
-      <select value={source?.sourceId || ''} onChange={(event) => void onSelect(event.currentTarget.value)} disabled={!environments.length}>
-        <option value="">Select environment</option>
-        {environments.map((candidate) => <option key={candidate.sourceId} value={candidate.sourceId}>{candidate.channelHint}</option>)}
-      </select>
-    </label>
+    <EnvironmentSelect sources={sources} source={source} onSelect={onSelect} disabled={disabled || false} />
   </section>;
 }
 
@@ -1229,7 +1276,8 @@ function SourceDetails({
   onSelect,
   onChoose,
   onRetry,
-  onOpenFolder
+  onOpenFolder,
+  disabled
 }: {
   sources: readonly PublicRuntimeSource[];
   activeSource: PublicRuntimeSource | null;
@@ -1237,6 +1285,7 @@ function SourceDetails({
   onChoose: () => Promise<void>;
   onRetry: () => Promise<void>;
   onOpenFolder: () => Promise<void>;
+  disabled?: boolean;
 }) {
   return <section className="source-details" aria-label="Source details">
     <div>
@@ -1245,13 +1294,13 @@ function SourceDetails({
       <span>{activeSource ? `${activeSource.validation.status.replaceAll('_', ' ')} · ${activeSource.channelHint || 'UNKNOWN'} · ${activeSource.buildVersion || 'Unknown build'}` : 'Source path is hidden until an explicit detail action.'}</span>
     </div>
     <div className="source-details-actions">
-      <label>Available sources<select value={activeSource?.sourceId || ''} onChange={(event) => void onSelect(event.currentTarget.value)} disabled={!sources.length}>
+      <label>Available sources<select value={activeSource?.sourceId || ''} onChange={(event) => void onSelect(event.currentTarget.value)} disabled={!sources.length || disabled}>
         <option value="">Select source</option>
         {sources.map((source) => <option key={source.sourceId} value={source.sourceId}>{source.displayLabel}</option>)}
       </select></label>
-      <button type="button" className="button secondary" onClick={() => void onChoose()}>Choose source</button>
-      <button type="button" className="button secondary" onClick={() => void onRetry()} disabled={!activeSource}>Retry source</button>
-      <button type="button" className="button secondary" onClick={() => void onOpenFolder()} disabled={!activeSource}>Open containing folder</button>
+      <button type="button" className="button secondary" onClick={() => void onChoose()} disabled={disabled}>Choose source</button>
+      <button type="button" className="button secondary" onClick={() => void onRetry()} disabled={!activeSource || disabled}>Retry source</button>
+      <button type="button" className="button secondary" onClick={() => void onOpenFolder()} disabled={!activeSource || disabled}>Open containing folder</button>
     </div>
   </section>;
 }

@@ -215,6 +215,40 @@ test('revalidates moved restored preferences as missing instead of keeping appro
   assert.equal(restored.validation.message.includes(root), false);
 });
 
+test('a missing saved preview source never falls back to an available LIVE source', async t => {
+  const root = await makeTempDir();
+  t.after(async () => {
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()));
+    await fs.rm(root, { recursive: true, force: true });
+  });
+  const live = path.join(root, 'LIVE', LOG_FILE_NAME);
+  const ptu = path.join(root, 'PTU', LOG_FILE_NAME);
+  await writeGameLog(live, 'LIVE');
+  const discovery = await discoverRuntimeSources({ roots: [root], restoredSourcePath: ptu });
+  assert.ok(discovery.sources.some(source => source.channelHint === 'LIVE' && source.validation.isValid));
+  assert.equal(discovery.activeSource, null);
+});
+
+test('rejects logs copied into a different environment and contradictory channel evidence', async t => {
+  const root = await makeTempDir();
+  t.after(async () => {
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()));
+    await fs.rm(root, { recursive: true, force: true });
+  });
+  for (const channel of ['PTU', 'EPTU', 'HOTFIX', 'TECH-PREVIEW']) {
+    const copied = path.join(root, 'LIVE', LOG_FILE_NAME);
+    await writeGameLog(copied, channel);
+    const source = await validateLogSource(copied);
+    assert.equal(source.validation.status, 'environment_mismatch', channel);
+    assert.equal(source.validation.isValid, false);
+    assert.equal(source.validation.message.includes(root), false);
+  }
+  const mixed = path.join(root, 'archive', LOG_FILE_NAME);
+  await writeGameLog(mixed, 'LIVE');
+  await fs.appendFile(mixed, '\n<Init> Tag[PTU]\n');
+  assert.equal((await validateLogSource(mixed)).validation.status, 'environment_mismatch');
+});
+
 test('returns actionable validation states for missing, directory, malformed, and unsupported sources', async () => {
   const root = await makeTempDir();
   const missingSource = await validateLogSource(path.join(root, 'StarCitizen', 'LIVE', LOG_FILE_NAME), { now: NOW });

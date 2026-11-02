@@ -278,18 +278,18 @@ test('identical observed identifiers remain distinct across LIVE and PTU environ
 });
 
 test('environment helpers derive UNKNOWN rather than defaulting unrecognized sources to LIVE', () => {
-  const techPreviewContext = deriveEnvironmentContext({
-    rawEnvironmentTag: 'TECH-PREVIEW',
-    environmentName: 'TECH-PREVIEW',
-    buildVersion: '4.9.0-TECH-PREVIEW.9000000-SYNTH',
+  const unknownContext = deriveEnvironmentContext({
+    rawEnvironmentTag: 'SYNTH-FUTURE',
+    environmentName: 'SYNTH-FUTURE',
+    buildVersion: '4.9.0-SYNTH-FUTURE.9000000-SYNTH',
     branch: 'sc-alpha-4.9-tech-preview-synth',
-    sourceLocation: '/opt/StarCitizen/TECH-PREVIEW/game.log',
+    sourceLocation: '/opt/StarCitizen/SYNTH-FUTURE/game.log',
     observedAt: '2026-08-09T12:00:00.000Z'
   });
 
-  assert.equal(techPreviewContext.releaseChannel, 'UNKNOWN');
-  assert.equal(techPreviewContext.rawEnvironmentTag, 'TECH-PREVIEW');
-  assert.ok(techPreviewContext.environmentKey.startsWith('UNKNOWN::UNKNOWN::'));
+  assert.equal(unknownContext.releaseChannel, 'UNKNOWN');
+  assert.equal(unknownContext.rawEnvironmentTag, 'SYNTH-FUTURE');
+  assert.ok(unknownContext.environmentKey.startsWith('UNKNOWN::UNKNOWN::'));
 });
 
 test('partition helpers make cross-environment dedupe identities non-colliding', () => {
@@ -307,6 +307,16 @@ test('partition helpers make cross-environment dedupe identities non-colliding',
     createPartitionedIdentity(liveEnvironmentKey, 'dedupe', identityParts),
     createPartitionedIdentity(ptuEnvironmentKey, 'dedupe', identityParts)
   );
+});
+
+test('all installed game channels, including TECH-PREVIEW, have distinct canonical partitions', () => {
+  const contexts = ['LIVE', 'PTU', 'EPTU', 'HOTFIX', 'TECH-PREVIEW'].map(releaseChannel => deriveEnvironmentContext({
+    releaseChannel, rawEnvironmentTag: releaseChannel, universe: 'PU',
+    sourceLocation: '%ASTRADOCK_FIXTURE_ROOT%/same-install/game.log',
+    buildVersion: 'SYNTH_BUILD', branch: 'SYNTH_BRANCH', observedAt: '2026-08-09T12:00:00.000Z'
+  }));
+  assert.equal(new Set(contexts.map(context => context.environmentKey)).size, 5);
+  assert.equal(contexts.at(-1).releaseChannel, 'TECH-PREVIEW');
 });
 
 test('validation rejects inferred events without traceable contributors and reasons', () => {

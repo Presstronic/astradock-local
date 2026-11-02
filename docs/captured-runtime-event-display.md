@@ -57,7 +57,7 @@ The overlay now uses its own curated policy, independent of the main Kind filter
 | Reading | Up to 64 KiB of header metadata plus a reverse-read recent suffix, capped at 8 MiB. Older history is not materialized. Capture-window metadata marks truncation when the cap applies. |
 | Evidence coordinates | Bounded reads use absolute source byte offsets, not fabricated absolute line numbers. Moving the window preserves event IDs. Earlier session state can remain unknown. |
 | Isolation | The main process produces the feed directly from canonical events, even when the main renderer is inactive. The overlay has only feed subscription, its own close, and opacity preferences. |
-| No capture control | Opening/subscribing does not start/stop/scan capture, change main filters, query history or run exports. A stopped capture shows a waiting state. |
+| Capture control | Per owner direction on 2026-11-02, the main-window **Open event overlay** command starts selected-source follow when stopped and preserves an existing follow. Overlay subscription, presentation controls and close cannot start/stop/scan capture, change main filters, query history or run exports. See [environment isolation](environment-isolation.md). |
 | Bounds | At most 80 deduplicated gameplay entries, newest first; reopening uses the same run boundary. Restarting AstraDock establishes a fresh boundary. |
 
 ## Verification
@@ -76,8 +76,8 @@ The initial all-category implementation passed its test/build checks and a read-
 
 Manual steps:
 
-1. Restart the updated app and open the overlay before starting capture. Verify it waits and no main control starts or changes.
-2. Explicitly start capture in the main application. Perform purchase/inventory/attachment actions; check gameplay-only labels, top insertion, and absence of pre-launch history. Changing the main Kind filter must not change overlay curation.
+1. Restart the updated app, select a valid environment and open the overlay while follow is stopped. Verify follow starts for that environment. Reopen while following and verify capture is not restarted. With no valid source, opening must fail without starting capture.
+2. Perform purchase/inventory/attachment actions; check gameplay-only labels, top insertion, and absence of pre-launch history. Changing the main Kind filter must not change overlay curation. Switch environments and verify old rows disappear and follow stops; open the overlay to start follow for the new source.
 3. Click content/opacity controls, scroll and return game focus; explicitly close and reopen.
 4. Repeat at minimum overlay width and in windowed/borderless/exclusive-fullscreen modes; record limitations.
 

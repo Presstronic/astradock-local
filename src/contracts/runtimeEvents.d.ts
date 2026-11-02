@@ -1,6 +1,6 @@
 export const CONTRACT_VERSION: 'runtime-event/v1';
 
-export type ReleaseChannel = 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'UNKNOWN';
+export type ReleaseChannel = 'LIVE' | 'PTU' | 'EPTU' | 'HOTFIX' | 'TECH-PREVIEW' | 'UNKNOWN';
 export type Universe = 'PU' | 'UNKNOWN';
 export type Provenance = 'observed' | 'extracted' | 'inferred' | 'enriched';
 export type Confidence = 'confirmed' | 'high' | 'medium' | 'low' | 'unknown';

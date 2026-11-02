@@ -1,4 +1,5 @@
 const fs = require('node:fs/promises');
+const { GAME_CHANNELS, channelFromPath, observedReleaseChannels, hasChannelConflict } = require('./gameEnvironments');
 const { readRuntimeCaptureWindow } = require('./runtimeCaptureWindow');
 const { collectRuntimeEvidence } = require('./runtimeEvidenceCache');
 const { parseRuntimeLogText } = require('./runtimeLogParserEngine');
@@ -71,13 +72,13 @@ function normalizeIsoTimestamp(value) {
 
 function normalizeReleaseChannel(value) {
   const normalized = String(value || '').trim().toUpperCase();
-  return ['LIVE', 'PTU', 'EPTU', 'HOTFIX'].includes(normalized) ? normalized : null;
+  return GAME_CHANNELS.includes(normalized) ? normalized : null;
 }
 
 function inferReleaseChannelFromSourceLocation(sourceLocation) {
   const normalized = String(sourceLocation || '').replace(/\\/g, '/');
   const parts = normalized.split('/').map((part) => part.trim().toUpperCase()).filter(Boolean);
-  return parts.find((part) => ['LIVE', 'PTU', 'EPTU', 'HOTFIX'].includes(part)) || null;
+  return parts.find((part) => GAME_CHANNELS.includes(part)) || null;
 }
 
 function extractEnvironmentEvidenceFromLine(line) {
@@ -783,9 +784,15 @@ async function parseLogFile(logPath, options = {}) {
   const { signal, captureSince, collectEvidenceFor, ...parseOptions } = options;
   const window = captureSince ? await readRuntimeCaptureWindow(logPath, { since: captureSince, signal }) : null;
   const text = window ? window.text : await fs.readFile(logPath, { encoding: 'utf8', signal });
+  const expectedChannel = options.releaseChannel || channelFromPath(logPath);
+  const observedChannels = [...(window?.observedChannels || []), ...observedReleaseChannels(text)];
+  if (hasChannelConflict(observedChannels, expectedChannel)) {
+    throw Object.assign(new Error('Log channel evidence conflicts with the selected environment; capture was blocked.'), { code: 'environment_mismatch' });
+  }
   const modifiedAt = window ? window.modifiedAt : (await fs.stat(logPath)).mtime.toISOString();
   const parsed = parseLogText(text, {
     ...parseOptions,
+    releaseChannel: expectedChannel || observedChannels[0],
     ...(window ? { gameBuild: window.gameBuild, branch: window.branch } : {}),
     logPath,
     sourceLocation: logPath,

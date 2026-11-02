@@ -7,7 +7,7 @@ export function CompatibilityPanel({ catalog }: { catalog: BuildCompatibilityCat
   const builds = catalog?.builds || [];
   const families = useMemo(() => [...new Set(builds.map((entry) => entry.family))], [builds]);
   const filtered = builds.filter((entry) => family === 'all' || entry.family === family);
-  const selected = builds.find((entry) => entry.build === selectedBuild) || filtered[0] || null;
+  const selected = filtered.find((entry) => entry.build === selectedBuild) || filtered[0] || null;
 
   if (!catalog) return <main className="compatibility-page" aria-label="Compatibility catalog"><p>Loading compatibility catalog…</p></main>;
 

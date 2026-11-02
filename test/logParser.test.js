@@ -213,12 +213,12 @@ test('keeps ambiguous disconnect evidence unattributed instead of borrowing the 
 
 test('unknown source evidence derives UNKNOWN release channel instead of LIVE', () => {
   const result = parseLogText(`
-<2026-08-09T19:00:00.000Z> <Init> Environment[TECH-PREVIEW] Tag[TECH-PREVIEW] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/TECH-PREVIEW/game.log]
+<2026-08-09T19:00:00.000Z> <Init> Environment[SYNTH-FUTURE] Tag[SYNTH-FUTURE] Config[Shipping] SourcePath[%ASTRADOCK_FIXTURE_ROOT%/StarCitizen/SYNTH-FUTURE/game.log]
 <2026-08-09T19:00:01.000Z> <Join PU> address[unknown-server.example.invalid] port[64090] shard[SYNTH_SHARD_UNKNOWN] locationId[SYNTH_LOCATION_UNKNOWN]
 `);
 
   assert.equal(result.environment.releaseChannel, 'UNKNOWN');
-  assert.equal(result.environment.rawEnvironmentTag, 'TECH-PREVIEW');
+  assert.equal(result.environment.rawEnvironmentTag, 'SYNTH-FUTURE');
   assert.equal(result.environment.buildVersion, 'UNKNOWN_BUILD');
   assert.ok(result.environmentKey.startsWith('UNKNOWN::PU::'));
   assert.equal(result.entries[0].gameChannel, 'UNKNOWN');

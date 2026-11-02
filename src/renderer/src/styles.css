@@ -189,7 +189,7 @@ h2,
 
 .runtime-shell {
   display: grid;
-  grid-template-rows: var(--header-height) var(--tabs-height) minmax(0, 1fr);
+  grid-template-rows: auto var(--tabs-height) minmax(0, 1fr);
   height: 100%;
   min-width: 1024px;
   min-height: 0;
@@ -579,6 +579,15 @@ h2,
   flex: 1 1 auto;
 }
 
+.environment-notice {
+  margin: 0;
+  padding: 6px 12px;
+  color: var(--text-body);
+  background: var(--surface-chrome);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
 .exporter-environment-metric[data-found="true"] strong {
   color: var(--success);
 }
@@ -714,6 +723,15 @@ h2,
 
 .header-metric:first-child small {
   display: none;
+}
+
+.header-metric.exporter-environment-select {
+  align-items: stretch;
+  padding: 4px 10px;
+}
+
+.header-metric.exporter-environment-select small {
+  display: block;
 }
 
 .header-metric:first-child strong {
