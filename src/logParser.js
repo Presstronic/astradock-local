@@ -2,6 +2,7 @@ const fs = require('node:fs/promises');
 const { GAME_CHANNELS, channelFromPath, observedReleaseChannels, hasChannelConflict } = require('./gameEnvironments');
 const { readRuntimeCaptureWindow } = require('./runtimeCaptureWindow');
 const { collectRuntimeEvidence } = require('./runtimeEvidenceCache');
+const { collectOverlayInventoryContext } = require('./overlayInventoryContext');
 const { parseRuntimeLogText } = require('./runtimeLogParserEngine');
 const {
   projectRuntimeLifecycle,
@@ -832,6 +833,8 @@ async function parseLogFile(logPath, options = {}) {
   const normalizedLines = new Set(canonical.events
     .filter((event) => event.eventType === 'RuntimeLogSignalObserved' || event.eventType === 'ShopPurchaseRequested')
     .map((event) => event.evidenceReference.lineRange?.start ?? event.ordering.sourceSequence));
+  const overlayEvents = typeof collectEvidenceFor === 'function' ? canonical.events.filter(collectEvidenceFor) : null;
+  const inventoryPresentation = overlayEvents ? collectOverlayInventoryContext(text, canonical.events, window?.sourceByteOffset || 0) : null;
   return {
     ...parsed,
     ...(window ? { captureWindow: { since: captureSince, sourceByteOffset: window.sourceByteOffset,
@@ -841,8 +844,9 @@ async function parseLogFile(logPath, options = {}) {
       actions: parsed.userActivity.actions.filter((action) => !normalizedLines.has(action.lineNumber))
     },
     runtimeEvents: canonical.events,
-    ...(typeof collectEvidenceFor === 'function' ? { overlayEvidence: collectRuntimeEvidence(text,
-      canonical.events.filter(collectEvidenceFor), window?.sourceByteOffset || 0) } : {}),
+    ...(overlayEvents ? { overlayEvidence: collectRuntimeEvidence(text,
+      [...overlayEvents, ...inventoryPresentation.evidenceEvents], window?.sourceByteOffset || 0),
+    overlayInventoryContexts: inventoryPresentation.contexts } : {}),
     promotedRuntimeEvents: canonical.events.filter((event) => (
       event.eventType === 'RuntimeLogSignalObserved' || event.eventType === 'ShopPurchaseRequested'
         || PARTY_EVENT_TYPES.includes(event.eventType) || LOCATION_EVENT_TYPES.includes(event.eventType)

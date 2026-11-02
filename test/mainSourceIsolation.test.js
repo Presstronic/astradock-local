@@ -131,6 +131,19 @@ test('mixed or changed environment results are rejected before persistence', asy
   assert.equal(h.api.getMonitorSnapshot().scan, null);
 });
 
+test('transient inventory presentation context never crosses the main scan or snapshot DTO', async t => {
+  const h = await harness(t);
+  const ptu = await h.source('PTU');
+  await h.api.activateSource(ptu);
+  h.setParser(async () => ({ environment: { releaseChannel: 'PTU' }, runtimeEvents: [],
+    overlayInventoryContexts: new Map([['SYNTH_EVENT', { itemClass: 'SYNTH_ITEM', evidenceKeys: ['SYNTH_PRIVATE_CONTEXT'] }]]) }));
+  const response = await h.invoke(CHANNELS.monitorScan, { sourceId: ptu.sourceId });
+  assert.equal(response.ok, true);
+  assert.equal(Object.hasOwn(response.data, 'overlayInventoryContexts'), false);
+  assert.equal(Object.hasOwn(h.api.getMonitorSnapshot().scan, 'overlayInventoryContexts'), false);
+  assert.equal(h.saved.length, 0);
+});
+
 test('main-process overlay feed retains PTU parser rejection details while file follow runs', async t => {
   const h = await harness(t);
   const ptu = await h.source('PTU');

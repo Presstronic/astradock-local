@@ -24,7 +24,7 @@ function isGameplayEvent(event) {
 }
 
 function createOverlayEventFeed({ events = [], since, environmentKey, environment = 'Unknown environment', monitoring = false,
-  displayMode = 'friendly', evidence = new Map(), filters: requestedFilters, parserCompatibility = null }) {
+  displayMode = 'friendly', evidence = new Map(), inventoryContexts = new Map(), filters: requestedFilters, parserCompatibility = null }) {
   const boundary = Date.parse(since);
   if (!Number.isFinite(boundary)) throw new TypeError('Overlay capture boundary must be an absolute timestamp.');
   const eligible = events.filter(event => event.environmentKey === environmentKey
@@ -37,7 +37,7 @@ function createOverlayEventFeed({ events = [], since, environmentKey, environmen
     return true;
   });
   const filters = normalizeOverlayFilters(requestedFilters);
-  const candidates = presentOverlayEvents(unique.slice(-160)).map(row => ({ ...row, classification: classifyOverlayRow(row) }))
+  const candidates = presentOverlayEvents(unique.slice(-160), inventoryContexts).map(row => ({ ...row, classification: classifyOverlayRow(row) }))
     .sort((left, right) => compareRuntimeEventOrder(right.event, left.event));
   const matching = candidates.filter(row => matchesOverlayFilters(row.classification, filters));
   const rows = matching.slice(0, 80);
@@ -61,17 +61,18 @@ function createOverlayEventFeed({ events = [], since, environmentKey, environmen
       let rawEvidence;
       if (displayMode === 'raw') {
         const messages = [];
-        for (const source of row.sourceEvents) {
-          const message = evidence.get(source.eventId);
+        const keys = row.rawEvidenceKeys || row.sourceEvents.map(source => source.eventId);
+        for (const key of keys) {
+          const message = evidence.get(key);
           const size = typeof message === 'string' ? Buffer.byteLength(message, 'utf8') : 0;
           if (!size || size > 64 * 1024 || rawBytes + size > 256 * 1024) continue;
           messages.push(message);
           rawBytes += size;
         }
-        rawEvidence = { status: messages.length === row.sourceEvents.length ? 'available' : messages.length ? 'partial' : 'unavailable', messages };
+        rawEvidence = { status: messages.length === keys.length ? 'available' : messages.length ? 'partial' : 'unavailable', messages };
       }
       return { id: row.id, kind: captured ? 'action' : 'runtime', summary: row.summary.slice(0, 500), classification: row.classification,
-        timestamp: event.sourceTimestamp, confidence: event.confidence, provenance: row.provenance,
+        timestamp: event.sourceTimestamp, confidence: row.confidence || event.confidence, provenance: row.provenance,
         evidenceEventIds: row.sourceEvents.map(source => source.eventId),
         ...(row.evidenceNote ? { evidenceNote: row.evidenceNote } : {}),
         ...(rawEvidence ? { rawEvidence } : {}) };

@@ -29,7 +29,7 @@ test('PTU overlay shows non-query completion observations and keeps LIVE data se
     environment: 'PTU', monitoring: true, parserCompatibility: result.parserHealth });
   assert.equal(feed.state, 'monitoring');
   assert.equal(feed.events.length, 2);
-  assert.ok(feed.events.every(event => event.summary === 'Inventory action completed'));
+  assert.ok(feed.events.every(event => event.summary === 'Inventory action completed (item unknown)'));
   const visibleOperations = feed.events.map(row => result.events.find(event => event.eventId === row.id).payload.operation).sort();
   assert.deepEqual(visibleOperations, ['Interaction', 'Store']);
   const fixtureLines = text.trimEnd().split('\n');
